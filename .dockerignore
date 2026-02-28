@@ -1,0 +1,46 @@
+# Version control
+.git
+.github
+
+# Tests & evaluation
+tests/
+eval/
+
+# Documentation
+docs/
+*.md
+
+# UI (separate image)
+ui/
+
+# Deployment & infrastructure
+k8s/
+scripts/
+config/
+dev/
+docker-compose*.yml
+Makefile
+deploy.sh
+
+# Environment & secrets
+.env*
+
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+htmlcov/
+.coverage
+
+# Editor & OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Node (root-level lockfile)
+node_modules/
+package-lock.json

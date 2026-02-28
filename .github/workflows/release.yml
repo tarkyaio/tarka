@@ -1,0 +1,172 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ── Job 1: Preflight checks ────────────────────────────────────────
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: meta
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG"       >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify pyproject.toml version matches tag
+        run: |
+          PYPROJECT_VERSION=$(grep -Po '(?<=^version = ")[^"]+' pyproject.toml)
+          if [ "$PYPROJECT_VERSION" != "${{ steps.meta.outputs.version }}" ]; then
+            echo "::error::pyproject.toml version ($PYPROJECT_VERSION) does not match tag (${{ steps.meta.outputs.version }})"
+            exit 1
+          fi
+          echo "pyproject.toml version matches tag: $PYPROJECT_VERSION"
+
+      - name: Warn if ui/package.json version is out of sync
+        run: |
+          UI_VERSION=$(jq -r '.version' ui/package.json)
+          if [ "$UI_VERSION" != "${{ steps.meta.outputs.version }}" ]; then
+            echo "::warning::ui/package.json version ($UI_VERSION) does not match tag (${{ steps.meta.outputs.version }})"
+          else
+            echo "ui/package.json version matches tag: $UI_VERSION"
+          fi
+
+  # ── Job 2: Build & push images (matrix) ────────────────────────────
+  build:
+    needs: preflight
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: tarka
+            image: ghcr.io/tarkyaio/tarka
+            dockerfile: ./Dockerfile
+            context: .
+            target: final
+            build_args: ""
+            tag_suffix: ""
+
+          - name: tarka-all-providers
+            image: ghcr.io/tarkyaio/tarka
+            dockerfile: ./Dockerfile
+            context: .
+            target: final
+            build_args: "POETRY_EXTRAS=all-providers"
+            tag_suffix: "-all-providers"
+
+          - name: tarka-ui
+            image: ghcr.io/tarkyaio/tarka-ui
+            dockerfile: ./ui/Dockerfile
+            context: ./ui
+            target: ""
+            build_args: ""
+            tag_suffix: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: docker-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ matrix.image }}
+          flavor: |
+            suffix=${{ matrix.tag_suffix }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern=v{{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target || '' }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.docker-meta.outputs.tags }}
+          labels: ${{ steps.docker-meta.outputs.labels }}
+          build-args: ${{ matrix.build_args }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  # ── Job 3: Create GitHub Release ───────────────────────────────────
+  release:
+    needs: [preflight, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          VERSION="${{ needs.preflight.outputs.version }}"
+          # Extract the section for this version (between its heading and the next heading)
+          NOTES=$(awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if (index($0, ver)) { found=1; next }
+            }
+            found { print }
+          ' CHANGELOG.md)
+
+          # Append Docker pull instructions
+          {
+            echo "$NOTES"
+            echo ""
+            echo "---"
+            echo ""
+            echo "### Docker images"
+            echo ""
+            echo '```bash'
+            echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}"
+            echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}-all-providers"
+            echo "docker pull ghcr.io/tarkyaio/tarka-ui:${VERSION}"
+            echo '```'
+          } > /tmp/release-notes.md
+
+      - name: Determine prerelease
+        id: prerelease
+        run: |
+          VERSION="${{ needs.preflight.outputs.version }}"
+          if echo "$VERSION" | grep -q '-'; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.preflight.outputs.tag }}
+          name: Tarka ${{ needs.preflight.outputs.tag }}
+          body_path: /tmp/release-notes.md
+          prerelease: ${{ steps.prerelease.outputs.is_prerelease == 'true' }}
