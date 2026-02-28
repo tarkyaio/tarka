@@ -1,0 +1,43 @@
+{
+  "version": "4",
+  "status": "firing",
+  "receiver": "webhook",
+  "groupLabels": {
+    "alertname": "KubePodCrashLooping"
+  },
+  "commonLabels": {
+    "alertname": "KubePodCrashLooping",
+    "severity": "warning",
+    "namespace": "default",
+    "pod": "my-app-7b4f5c6d8f-xk9m2",
+    "container": "my-app",
+    "cluster": "prod-cluster"
+  },
+  "commonAnnotations": {
+    "summary": "Pod is crash looping",
+    "description": "Pod default/my-app-7b4f5c6d8f-xk9m2 (my-app) is in waiting state (reason: CrashLoopBackOff)"
+  },
+  "externalURL": "http://alertmanager:9093",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubePodCrashLooping",
+        "severity": "warning",
+        "namespace": "default",
+        "pod": "my-app-7b4f5c6d8f-xk9m2",
+        "container": "my-app",
+        "job": "kube-state-metrics",
+        "cluster": "prod-cluster"
+      },
+      "annotations": {
+        "summary": "Pod is crash looping",
+        "description": "Pod default/my-app-7b4f5c6d8f-xk9m2 (my-app) is in waiting state (reason: CrashLoopBackOff)"
+      },
+      "startsAt": "2026-02-24T10:05:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus:9090/graph?g0.expr=rate(kube_pod_container_status_restarts_total[10m])*60*5>0",
+      "fingerprint": "a1b2c3d4e5f67890"
+    }
+  ]
+}

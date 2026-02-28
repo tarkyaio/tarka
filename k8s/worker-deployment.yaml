@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tarka-worker
+  namespace: tarka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tarka-worker
+  template:
+    metadata:
+      labels:
+        app: tarka-worker
+    spec:
+      serviceAccountName: tarka
+      containers:
+        - name: tarka-worker
+          image: REPLACE_ME_IMAGE
+          imagePullPolicy: Always
+          command: ["python", "main.py"]
+          args: ["--run-worker"]
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          envFrom:
+            - configMapRef:
+                name: tarka-config
+          env:
+            # Gemini LLM integration (optional) uses Vertex AI via ADC.
+            # Optional: Postgres password for memory store / indexing.
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tarka
+                  key: POSTGRES_PASSWORD
+                  optional: true
+            # Optional: Postgres DSN (overrides POSTGRES_HOST/PORT/DB/USER/PASSWORD).
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: tarka
+                  key: POSTGRES_DSN
+                  optional: true
+            # Optional: LangSmith API key for tracing (enabled via LANGSMITH_TRACING=true).
+            - name: LANGSMITH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tarka
+                  key: LANGSMITH_API_KEY
+                  optional: true
+            # Optional: Anthropic API key for LLM (when LLM_PROVIDER=anthropic).
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tarka
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+            # GitHub App credentials (required when GITHUB_EVIDENCE_ENABLED=1)
+            - name: GITHUB_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tarka
+                  key: GITHUB_APP_ID
+                  optional: true
+            - name: GITHUB_APP_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tarka
+                  key: GITHUB_APP_PRIVATE_KEY
+                  optional: true
+            - name: GITHUB_APP_INSTALLATION_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tarka
+                  key: GITHUB_APP_INSTALLATION_ID
+                  optional: true
+            # JetStream connection (comes from configmap via envFrom, but kept here for override/clarity)
+            # Note: These are also in configmap and will be loaded via envFrom above
+            - name: JETSTREAM_DURABLE
+              value: "WORKERS"
+            - name: JETSTREAM_DUPLICATE_WINDOW_SECONDS
+              value: "3600"
+            # Worker tuning (Phase 3 defaults; tweak as needed)
+            - name: WORKER_CONCURRENCY
+              value: "2"
+            - name: WORKER_FETCH_BATCH
+              value: "10"
+            - name: WORKER_FETCH_TIMEOUT_SECONDS
+              value: "1"
+            # Phase 4 hardening
+            - name: JETSTREAM_ACK_WAIT_SECONDS
+              value: "1800"
+            - name: JETSTREAM_MAX_DELIVER
+              value: "5"
+            # Optional: comma-separated seconds for retry backoff (JetStream support depends on server/client)
+            # - name: JETSTREAM_BACKOFF_SECONDS
+            #   value: "5,30,120"
+            - name: JETSTREAM_DLQ_SUBJECT
+              value: "tarka.dlq"
+            - name: JETSTREAM_DLQ_STREAM
+              value: "TARKA_DLQ"
+            - name: WORKER_IN_PROGRESS_SECONDS
+              value: "30"
+            # S3 creds/region should already be configured for the pod the same way as the webhook server.
+          volumeMounts:
+            - name: gcp-wif-cred
+              mountPath: /var/run/gcp
+              readOnly: true
+            - name: gcp-oidc-token
+              mountPath: /var/run/gcp/oidc
+              readOnly: true
+            - name: service-catalog
+              mountPath: /app/config
+              readOnly: true
+      volumes:
+        - name: service-catalog
+          configMap:
+            name: tarka-service-catalog
+        - name: gcp-wif-cred
+          secret:
+            secretName: tarka
+            items:
+              - key: GCP_WIF_CRED_JSON
+                path: wif-cred.json
+        - name: gcp-oidc-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  audience: "REPLACE_ME_GCP_WIF_AUDIENCE"
+                  expirationSeconds: 3600
+                  path: token

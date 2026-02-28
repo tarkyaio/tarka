@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tarka-webhook
+  namespace: tarka
+spec:
+  type: ClusterIP
+  selector:
+    app: tarka-webhook
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

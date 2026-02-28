@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tarka-postgres-pvc
+  namespace: tarka
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  # Uses the default StorageClass if available, otherwise specify storageClassName
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tarka-postgres
+  namespace: tarka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tarka-postgres
+  template:
+    metadata:
+      labels:
+        app: tarka-postgres
+    spec:
+      # Use the same ServiceAccount as the webhook (consistent IRSA posture).
+      serviceAccountName: tarka
+      containers:
+        - name: postgres
+          # Includes pgvector extension support
+          image: pgvector/pgvector:pg16
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: pg
+              containerPort: 5432
+          env:
+            # Use a subdirectory under the mount point; many PVs include `lost+found/` at the root.
+            # If PGDATA points at the mount root, initdb fails with: "directory exists but is not empty".
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_DB
+              value: "tarka"
+            - name: POSTGRES_USER
+              value: "tarka"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  # Shared secret populated by External Secrets Operator from AWS Secrets Manager.
+                  name: tarka
+                  key: POSTGRES_PASSWORD
+          # Persistent storage using PVC to preserve data across pod restarts
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            tcpSocket:
+              port: pg
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 1
+          livenessProbe:
+            tcpSocket:
+              port: pg
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 1
+      volumes:
+        - name: pgdata
+          persistentVolumeClaim:
+            claimName: tarka-postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tarka-postgres
+  namespace: tarka
+spec:
+  type: ClusterIP
+  selector:
+    app: tarka-postgres
+  ports:
+    - name: pg
+      port: 5432
+      targetPort: pg

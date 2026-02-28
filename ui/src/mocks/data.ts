@@ -1,0 +1,211 @@
+import type {
+  CaseDetailResponse,
+  InboxResponse,
+  InvestigationRunDetailResponse,
+} from "../lib/types";
+
+export const mockInbox: InboxResponse = {
+  total: 6,
+  counts: { open: 12, closed: 3, total: 15 },
+  items: [
+    {
+      case_id: "case_3920_11111111-1111-1111-1111-111111111111",
+      case_status: "open",
+      case_created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+      case_updated_at: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+      run_id: "run_3920_22222222-2222-2222-2222-222222222222",
+      run_created_at: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+      classification: "actionable",
+      one_liner: "High Latency on Payment Gateway",
+      service: "Payments-Svc",
+      team: "Payments",
+      impact_score: 98,
+      confidence_score: 85,
+      noise_score: 12,
+      alertname: "HttpLatencyHigh",
+      family: "http_latency",
+      primary_driver: "suspected_image_pull_backoff",
+      severity: "critical",
+      cluster: "prod",
+      namespace: "payments",
+    },
+    {
+      case_id: "case_3918_33333333-3333-3333-3333-333333333333",
+      case_status: "open",
+      case_created_at: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
+      case_updated_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+      run_id: "run_3918_44444444-4444-4444-4444-444444444444",
+      run_created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+      classification: "actionable",
+      one_liner: "Error Rate Spike in Auth Service",
+      service: "Auth-Service",
+      team: "Identity",
+      impact_score: 75,
+      confidence_score: 60,
+      noise_score: 25,
+      alertname: "Http5xxRateHigh",
+      family: "http_5xx",
+      primary_driver: "suspected_image_pull_backoff",
+      severity: "warning",
+      cluster: "prod",
+      namespace: "auth",
+    },
+    {
+      case_id: "case_3915_55555555-5555-5555-5555-555555555555",
+      case_status: "open",
+      case_created_at: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
+      case_updated_at: new Date(Date.now() - (60 * 60 + 20 * 60) * 1000).toISOString(),
+      run_id: "run_3915_66666666-6666-6666-6666-666666666666",
+      run_created_at: new Date(Date.now() - (60 * 60 + 20 * 60) * 1000).toISOString(),
+      classification: "actionable",
+      one_liner: "Database Connection Timeout",
+      service: "User-DB",
+      impact_score: 92,
+      confidence_score: 90,
+      noise_score: 5,
+      alertname: "DBConnectionTimeout",
+      family: "database",
+      primary_driver: "suspected_image_pull_backoff",
+      severity: "critical",
+      cluster: "prod",
+      namespace: "users",
+    },
+    {
+      case_id: "case_3899_77777777-7777-7777-7777-777777777777",
+      case_status: "open",
+      case_created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+      case_updated_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+      run_id: "run_3899_88888888-8888-8888-8888-888888888888",
+      run_created_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+      classification: "noisy",
+      one_liner: "Memory Usage > 80%",
+      service: "Cache-Cluster",
+      impact_score: 45,
+      confidence_score: 30,
+      noise_score: 80,
+      alertname: "MemoryUsageHigh",
+      family: "memory_pressure",
+      primary_driver: "suspected_image_pull_backoff",
+      severity: "info",
+      cluster: "prod",
+      namespace: "cache",
+    },
+    {
+      case_id: "case_3880_99999999-9999-9999-9999-999999999999",
+      case_status: "open",
+      case_created_at: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
+      case_updated_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+      run_id: "run_3880_aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      run_created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+      classification: "actionable",
+      one_liner: "API Response Degradation",
+      service: "Search-API",
+      impact_score: 68,
+      confidence_score: 72,
+      noise_score: 15,
+      alertname: "ApiLatencyDegraded",
+      family: "http_latency",
+      primary_driver: "suspected_image_pull_backoff",
+      severity: "warning",
+      cluster: "prod",
+      namespace: "search",
+    },
+    {
+      case_id: "case_3875_bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      case_status: "open",
+      case_created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      case_updated_at: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+      run_id: "run_3875_cccccccc-cccc-cccc-cccc-cccccccccccc",
+      run_created_at: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+      classification: "informational",
+      one_liner: "Image Processing Delay",
+      service: "Media-Worker",
+      impact_score: 35,
+      confidence_score: 65,
+      noise_score: 55,
+      alertname: "QueueBacklogHigh",
+      family: "queue_backlog",
+      primary_driver: "suspected_image_pull_backoff",
+      severity: "info",
+      cluster: "prod",
+      namespace: "media",
+    },
+  ],
+};
+
+export function mockCaseDetail(caseId: string): CaseDetailResponse {
+  const row = mockInbox.items.find((x) => x.case_id === caseId) || mockInbox.items[0];
+  return {
+    case: {
+      case_id: caseId,
+      status: "open",
+      created_at: row.case_created_at,
+      updated_at: row.case_updated_at,
+      latest_one_liner: row.one_liner,
+      service: row.service,
+      cluster: row.cluster,
+      namespace: row.namespace,
+      family: row.family,
+      primary_driver: row.primary_driver,
+    },
+    runs: [
+      {
+        run_id: row.run_id,
+        created_at: row.run_created_at,
+        alertname: row.alertname,
+        severity: row.severity,
+        classification: row.classification,
+        primary_driver: row.primary_driver,
+        one_liner: row.one_liner,
+      },
+    ],
+  };
+}
+
+export function mockRunDetail(runId: string): InvestigationRunDetailResponse {
+  const row = mockInbox.items.find((x) => x.run_id === runId) || mockInbox.items[0];
+  const md = `# Triage Report: ${row.alertname ?? "Unknown"}
+
+## Triage
+
+**Summary:** ${row.primary_driver ?? "n/a"}
+`;
+
+  return {
+    run: {
+      run_id: row.run_id,
+      case_id: row.case_id,
+      created_at: row.run_created_at,
+      alertname: row.alertname,
+      severity: row.severity,
+      classification: row.classification,
+      primary_driver: row.primary_driver,
+      one_liner: row.one_liner,
+      report_text: md,
+      analysis_json: {
+        analysis: {
+          scores: {
+            impact_score: row.impact_score,
+            confidence_score: row.confidence_score,
+            noise_score: row.noise_score,
+          },
+          verdict: {
+            classification: row.classification,
+            primary_driver: row.primary_driver,
+            one_liner: row.one_liner,
+            next_steps: [
+              "Mock next step: verify recent changes",
+              "Mock next step: check saturation",
+            ],
+          },
+        },
+        target: {
+          service: row.service,
+          namespace: row.namespace,
+          cluster: row.cluster,
+          team: (row as any).team || null,
+        },
+      },
+    },
+  };
+}

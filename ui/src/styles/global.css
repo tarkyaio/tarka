@@ -1,0 +1,87 @@
+:root {
+  color-scheme: light;
+
+  /* Match `stitch_incident_inbox/code.html` */
+  --background-dark: #f8fafc; /* slate-50 */
+  --surface-dark: #ffffff; /* white */
+  --surface-dark-2: #f8fafc; /* slate-50 */
+  --border-dark: #e2e8f0; /* slate-200 */
+  --hover-dark: #f1f5f9; /* slate-100 */
+
+  --text: #0f172a; /* slate-900 */
+  --muted: #64748b; /* slate-500 */
+  --muted-2: #94a3b8; /* slate-400 */
+
+  --primary: #135bec;
+  --blue: #3b82f6;
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --red: #ef4444;
+
+  --shadow: 0 16px 48px rgba(15, 23, 42, 0.12);
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-sm: 8px;
+
+  --font:
+    Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+    "Apple Color Emoji", "Segoe UI Emoji";
+  --mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--background-dark);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(19, 91, 236, 0.28);
+}
+
+/* Scrollbar styling (matches `code.html`) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9; /* slate-100 */
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* slate-300 */
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* slate-400 */
+}

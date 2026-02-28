@@ -1,0 +1,70 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        exclude: (^helm/|/hello-chart/|mkdocs.yml|^k8s/)
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: black
+        name: Black (Python formatter)
+        entry: poetry run black
+        language: system
+        types: [python]
+        require_serial: false
+
+      - id: isort
+        name: isort (Python import sorter)
+        entry: poetry run isort
+        language: system
+        types: [python]
+
+      - id: flake8
+        name: Flake8 (Python linter)
+        entry: poetry run flake8
+        language: system
+        types: [python]
+        require_serial: false
+
+      # Commented out mypy for now - needs proper configuration
+      # - id: mypy
+      #   name: MyPy (Python type checker)
+      #   entry: poetry run mypy
+      #   pass_filenames: false
+      #   args: ['agent', 'tests']
+      #   language: system
+      #   types: [python]
+      #   require_serial: true
+
+      - id: pytest-fast
+        name: Pytest (fast unit tests)
+        entry: poetry run pytest -m "not integration and not e2e" -x
+        language: system
+        types: [python]
+        pass_filenames: false
+        require_serial: true
+
+      - id: npm_lint
+        name: npm lint (UI)
+        entry: sh -c 'cd ui && npm run lint'
+        language: system
+        files: ^ui/
+        types_or: [javascript, jsx, ts, tsx]
+        pass_filenames: false
+        require_serial: false
+
+      - id: npm_pretty
+        name: npm prettier (UI)
+        entry: sh -c 'cd ui && npm run prettier:check --list-different'
+        language: system
+        files: ^ui/
+        types_or: [javascript, jsx, ts, tsx]
+        pass_filenames: false
+        require_serial: false

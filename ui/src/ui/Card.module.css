@@ -1,0 +1,19 @@
+.card {
+  overflow: hidden;
+  min-width: 0;
+}
+
+.header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-dark);
+  background: var(--surface-dark-2);
+  font-size: 12px;
+  color: var(--muted-2);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.body {
+  padding: 14px 16px;
+}

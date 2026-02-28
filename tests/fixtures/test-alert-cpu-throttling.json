@@ -1,0 +1,39 @@
+{
+  "version": "4",
+  "status": "firing",
+  "receiver": "webhook",
+  "groupLabels": {
+    "alertname": "TestAlert"
+  },
+  "commonLabels": {
+    "alertname": "PodCPUThrottling",
+    "severity": "warning",
+    "namespace": "default",
+    "pod": "test-pod-12345",
+    "cluster": "test-cluster"
+  },
+  "commonAnnotations": {
+    "summary": "Test alert for local development"
+  },
+  "externalURL": "http://alertmanager:9093",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "PodCPUThrottling",
+        "severity": "warning",
+        "namespace": "default",
+        "pod": "test-pod-12345",
+        "container": "app",
+        "cluster": "test-cluster"
+      },
+      "annotations": {
+        "summary": "CPU throttling detected"
+      },
+      "startsAt": "2024-01-15T10:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus:9090/graph",
+      "fingerprint": "test-fp-12345"
+    }
+  ]
+}

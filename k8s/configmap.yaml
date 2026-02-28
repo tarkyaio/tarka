@@ -1,0 +1,151 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tarka-config
+  namespace: tarka
+data:
+  # Alertmanager/Prometheus endpoints reachable from the agent (in-cluster or otherwise).
+  # Examples:
+  # - Alertmanager: "http://alertmanager.<namespace>.svc:9093"
+  # - Prometheus:   "http://prometheus.<namespace>.svc:9090"
+  ALERTMANAGER_URL: "REPLACE_ME_ALERTMANAGER_URL"
+  PROMETHEUS_URL: "REPLACE_ME_PROMETHEUS_URL"
+  # Optional: VictoriaLogs base URL. If unset, logs are skipped.
+  LOGS_URL: "REPLACE_ME_LOGS_URL"
+
+  # S3 report destination
+  S3_BUCKET: "REPLACE_ME_BUCKET"
+  S3_PREFIX: "tarka/reports"
+
+  # Shared report settings (webhook server)
+  TIME_WINDOW: "1h"
+  # Optional: comma-separated allowlist, e.g. "CPUThrottlingHigh,KubernetesPodNotHealthy,KubernetesPodNotHealthyCritical"
+  ALERTNAME_ALLOWLIST: ""
+
+  # NATS JetStream (required)
+  # For in-cluster NATS deployment, this is typically:
+  #   nats://nats.tarka.svc:4222
+  NATS_URL: "nats://nats.tarka.svc:4222"
+  JETSTREAM_STREAM: "TARKA"
+  # Default subject convention is "<stream>.alerts"; we use a stable subject here.
+  JETSTREAM_SUBJECT: "tarka.alerts"
+  # Phase 4 hardening defaults (workers can override via env)
+  JETSTREAM_DLQ_STREAM: "TARKA_DLQ"
+  JETSTREAM_DLQ_SUBJECT: "tarka.dlq"
+
+  # AWS region for boto3 (set if needed)
+  AWS_REGION: "us-east-1"
+  # Cluster name fallback when alerts don't carry a `cluster` label.
+  CLUSTER_NAME: "REPLACE_ME_CLUSTER_NAME"
+
+  # Optional: Postgres memory store (dev container or RDS).
+  # If POSTGRES_HOST is empty/unset, DB-backed memory is disabled.
+  POSTGRES_HOST: ""
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "tarka"
+  POSTGRES_USER: "tarka"
+  # Dev default is enabled when using the dev Postgres container; otherwise keep off.
+  DB_AUTO_MIGRATE: "true"
+  # Feature flag for report-time memory retrieval/skill injection.
+  MEMORY_ENABLED: "true"
+
+  # ---- Tool-using case chat (policy) ----
+  # Safe-by-default: disabled unless explicitly enabled.
+  CHAT_ENABLED: "true"
+  # Tool toggles
+  CHAT_ALLOW_PROMQL: "true"
+  CHAT_ALLOW_K8S_READ: "true"
+  CHAT_ALLOW_LOGS_QUERY: "true"
+  CHAT_ALLOW_ARGOCD_READ: "false"
+  CHAT_ALLOW_REPORT_RERUN: "true"
+  CHAT_ALLOW_MEMORY_READ: "true"
+  # Scope allowlists (optional; comma-separated). If empty, allow all.
+  CHAT_NAMESPACE_ALLOWLIST: ""
+  CHAT_CLUSTER_ALLOWLIST: ""
+  # Cost/rate caps
+  CHAT_MAX_STEPS: "6"
+  CHAT_MAX_TOOL_CALLS: "12"
+  CHAT_MAX_LOG_LINES: "200"
+  CHAT_MAX_PROMQL_SERIES: "200"
+  CHAT_MAX_TIME_WINDOW_SECONDS: "21600" # 6h
+  # Redaction (best-effort)
+  CHAT_REDACT_SECRETS: "true"
+
+  # ---- AWS Infrastructure Context (optional) ----
+  # Requires IAM role with: ec2:Describe*, elasticloadbalancing:Describe*, rds:Describe*,
+  # ecr:Describe*, cloudtrail:LookupEvents
+  # Collects: EC2/EBS health, ELB targets, RDS status, ECR images, networking, CloudTrail events
+  AWS_EVIDENCE_ENABLED: "false"  # Disabled by default (requires IAM setup)
+  AWS_CLOUDTRAIL_LOOKBACK_MINUTES: "30"  # Minutes before alert to query CloudTrail
+  AWS_CLOUDTRAIL_MAX_EVENTS: "50"  # Max CloudTrail events in pipeline reports
+  CHAT_ALLOW_AWS_READ: "false"  # Enable AWS chat tools (requires same IAM as AWS_EVIDENCE_ENABLED)
+  CHAT_AWS_REGION_ALLOWLIST: ""  # Restrict AWS queries to specific regions (empty = allow all)
+
+  # ---- GitHub Code Change Context (optional) ----
+  # Requires GitHub App credentials (GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID in secret)
+  # Collects: recent commits, workflow runs, failed logs, README, docs
+  GITHUB_EVIDENCE_ENABLED: "false"  # Disabled by default (requires GitHub App)
+  CHAT_ALLOW_GITHUB_READ: "false"  # Enable GitHub chat tools (requires GitHub App)
+  CHAT_GITHUB_REPO_ALLOWLIST: ""  # Restrict to specific repos (empty = allow all discovered)
+  GITHUB_DEFAULT_ORG: ""  # Optional: default GitHub org for repo discovery
+
+  # ---- K8s Events Tool ----
+  # No additional permissions needed (uses existing RBAC for events)
+  CHAT_ALLOW_K8S_EVENTS: "true"  # Enabled by default (safe, read-only)
+
+  # ---- Action proposals (policy) ----
+  # Safe-by-default: disabled unless explicitly enabled.
+  ACTIONS_ENABLED: "true"
+  ACTIONS_REQUIRE_APPROVAL: "true"
+  ACTIONS_ALLOW_EXECUTE: "false"
+  # Comma-separated allowlist; if empty, allow all known action types.
+  ACTIONS_TYPE_ALLOWLIST: "restart_pod,rollout_restart,scale_workload,rollback_workload"
+  # Scope allowlists (optional; comma-separated). If empty, allow all.
+  ACTIONS_NAMESPACE_ALLOWLIST: ""
+  ACTIONS_CLUSTER_ALLOWLIST: ""
+  # Caps
+  ACTIONS_MAX_ACTIONS_PER_CASE: "25"
+
+  # ---- LLM (optional) ----
+  # This only affects report-time enrichment (`analysis.llm`). Chat is gated by `CHAT_ENABLED`.
+  # LLM provider abstraction (multi-provider via LangChain). Default keeps back-compat behavior.
+  LLM_PROVIDER: "vertexai"
+  # Generic model selector for LangChain providers (optional; provider-specific defaults apply).
+  LLM_MODEL: "gemini-2.5-flash"
+  LLM_ENABLED: "false"
+  LLM_MOCK: "false"
+  LLM_TIMEOUT_SECONDS: "180"
+  LLM_MAX_OUTPUT_TOKENS: "4096"
+  LLM_TEMPERATURE: "0.2"
+  LLM_INCLUDE_LOGS: "false"
+  LLM_REDACT_INFRASTRUCTURE: "true"
+  # ADC config file path for Google client libraries (Vertex AI auth).
+  # The file itself is mounted from the `tarka` Secret key `GCP_WIF_CRED_JSON`.
+  GOOGLE_APPLICATION_CREDENTIALS: "/var/run/gcp/wif-cred.json"
+  # Required for Vertex AI calls (LangChain client enforces these).
+  GOOGLE_CLOUD_PROJECT: "REPLACE_ME_GOOGLE_CLOUD_PROJECT"
+  GOOGLE_CLOUD_LOCATION: "us-central1"
+  # Gemini LLM via Vertex AI only (ADC):
+  # - Ensure the Vertex AI API is enabled in the target project
+  # - Ensure the pod has Application Default Credentials (Workload Identity, GKE SA, etc.)
+  # NOTE: `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` are required; the agent will not
+  # fall back to the ADC default project to avoid accidental cross-project calls.
+
+  # ---- LangSmith tracing (optional) ----
+  # Env-gated: set LANGSMITH_TRACING=true to enable Cloud tracing.
+  LANGSMITH_TRACING: "REPLACE_ME_LANGSMITH_TRACING"
+  LANGSMITH_PROJECT: "tarka"
+  # Optional: exclude noisy step/tool runs from traces (comma-separated; supports prefix wildcard '*').
+  # Example: "postgres_index_run,s3_put_*"
+  LANGSMITH_TRACE_EXCLUDE: "postgres_index_run,s3_put_*"
+  # Optional metadata
+  LANGSMITH_TAGS: ""
+  LANGSMITH_RUN_NAME_PREFIX: ""
+
+  # ---- Console auth (Google SSO) ----
+  # Public base URL of the Console (used to build OAuth redirect URIs).
+  # Example: "https://console.example.com"
+  AUTH_PUBLIC_BASE_URL: "REPLACE_ME_AUTH_PUBLIC_BASE_URL"
+  # Comma-separated allowlist of Google Workspace domains.
+  # Example: "example.com,example.org"
+  AUTH_ALLOWED_DOMAINS: "REPLACE_ME_AUTH_ALLOWED_DOMAINS"

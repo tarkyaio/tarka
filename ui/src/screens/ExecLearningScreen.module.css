@@ -1,0 +1,101 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 12px;
+}
+
+.col4 {
+  grid-column: span 4;
+}
+
+.col8 {
+  grid-column: span 8;
+}
+
+.col12 {
+  grid-column: span 12;
+}
+
+.kpiRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-dark);
+  background: var(--surface-dark-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.pillMuted {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.th,
+.td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border-dark);
+  font-size: 13px;
+}
+
+.th {
+  color: var(--muted-2);
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.rowBtn {
+  cursor: pointer;
+}
+
+.rowBtn:hover {
+  background: var(--hover-dark);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+@media (max-width: 1100px) {
+  .col4,
+  .col8 {
+    grid-column: span 12;
+  }
+}

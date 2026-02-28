@@ -1,0 +1,14 @@
+name: poetry
+description: Install dependencies with Poetry
+runs:
+  using: composite
+  steps:
+    - name: Clean home directory
+      shell: bash
+      run: sudo rm -rf ~/.pip ~/.config ~/.cache/pip ~/.cache/pypoetry
+    - name: Install poetry
+      shell: bash
+      run: python3 -m pip install "poetry==1.8.3"
+    - name: Install dependencies
+      shell: bash
+      run: poetry install

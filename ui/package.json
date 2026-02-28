@@ -1,0 +1,44 @@
+{
+  "name": "tarka-console-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "lint": "eslint src tests --ext .ts,.tsx",
+    "lint:fix": "eslint src tests --ext .ts,.tsx --fix",
+    "prettier:check": "prettier --check 'src/**/*.{ts,tsx,css}' 'tests/**/*.{ts,tsx}'",
+    "prettier:write": "prettier --write 'src/**/*.{ts,tsx,css}' 'tests/**/*.{ts,tsx}'"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "react-router-dom": "^6.26.2",
+    "react-syntax-highlighter": "^15.6.6"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "@typescript-eslint/eslint-plugin": "^8.55.0",
+    "@typescript-eslint/parser": "^8.55.0",
+    "@vitejs/plugin-react": "^4.3.3",
+    "eslint": "^8.57.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "jsdom": "^25.0.1",
+    "prettier": "^3.8.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.8"
+  }
+}

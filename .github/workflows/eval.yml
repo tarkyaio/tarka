@@ -1,0 +1,129 @@
+name: RCA Evaluation Tests
+
+on:
+  pull_request:
+    paths:
+      - 'agent/**'
+      - 'eval/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - '.github/workflows/eval.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'agent/**'
+      - 'eval/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          poetry install --no-interaction --no-ansi
+
+      - name: Run evaluation tests
+        id: eval_tests
+        run: |
+          poetry run pytest eval/runner.py \
+            -v \
+            --junitxml=eval_results.xml \
+            --html=eval_report.html \
+            --self-contained-html \
+            --tb=short
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: |
+            eval_results.xml
+            eval_report.html
+          retention-days: 30
+
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: eval_results.xml
+          check_name: RCA Evaluation Results
+          comment_mode: off
+
+      - name: Check test results
+        if: steps.eval_tests.outcome == 'failure'
+        run: |
+          echo "::error::RCA evaluation tests failed. Check the test results artifact for details."
+          exit 1
+
+      - name: Comment PR with summary
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let comment = '## 🔍 RCA Evaluation Results\n\n';
+
+            // Check if eval_results.xml exists
+            if (fs.existsSync('eval_results.xml')) {
+              const xml = fs.readFileSync('eval_results.xml', 'utf8');
+              const testMatch = xml.match(/tests="(\d+)"/);
+              const failMatch = xml.match(/failures="(\d+)"/);
+              const skipMatch = xml.match(/skipped="(\d+)"/);
+
+              const total = testMatch ? parseInt(testMatch[1]) : 0;
+              const failed = failMatch ? parseInt(failMatch[1]) : 0;
+              const skipped = skipMatch ? parseInt(skipMatch[1]) : 0;
+              const passed = total - failed - skipped;
+
+              if (total === 0) {
+                comment += '⚠️ No evaluation scenarios found. Add fixtures to `eval/fixtures/` to enable RCA quality testing.\n\n';
+                comment += 'See [eval/README.md](../blob/main/eval/README.md) for instructions.\n';
+              } else {
+                const emoji = failed === 0 ? '✅' : '❌';
+                comment += `${emoji} **${passed}/${total}** scenarios passed\n\n`;
+
+                if (failed > 0) {
+                  comment += `- ✅ Passed: ${passed}\n`;
+                  comment += `- ❌ Failed: ${failed}\n`;
+                  if (skipped > 0) {
+                    comment += `- ⏭️ Skipped: ${skipped}\n`;
+                  }
+                  comment += '\n📊 View detailed results in the [test artifacts](../actions/runs/${{ github.run_id }}).\n';
+                }
+              }
+            } else {
+              comment += '⚠️ Test results not found.\n';
+            }
+
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

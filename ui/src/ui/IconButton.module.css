@@ -1,0 +1,29 @@
+.btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 10px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--hover-dark);
+  color: var(--text);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sm {
+  width: 34px;
+  height: 34px;
+}
+
+.md {
+  width: 36px;
+  height: 36px;
+}

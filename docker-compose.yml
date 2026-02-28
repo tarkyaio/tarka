@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: tarka-postgres
+    environment:
+      POSTGRES_DB: tarka
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # Note: No volumes = ephemeral storage. Data is lost when container stops.
+    # This ensures fresh start each time.
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: tarka-nats
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "4222:4222"  # Client port
+      - "8222:8222"  # Monitoring port
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mock-prometheus:
+    build:
+      context: ./dev
+      dockerfile: Dockerfile.mock
+    container_name: tarka-mock-prometheus
+    command: ["python", "mock-prometheus.py"]
+    ports:
+      - "18481:18481"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:18481/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mock-alertmanager:
+    build:
+      context: ./dev
+      dockerfile: Dockerfile.mock
+    container_name: tarka-mock-alertmanager
+    command: ["python", "mock-alertmanager.py"]
+    ports:
+      - "19093:19093"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:19093/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mock-logs:
+    build:
+      context: ./dev
+      dockerfile: Dockerfile.mock
+    container_name: tarka-mock-logs
+    command: ["python", "mock-logs.py"]
+    ports:
+      - "19471:19471"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:19471/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

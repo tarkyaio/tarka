@@ -1,0 +1,131 @@
+.loginBackdrop {
+  position: fixed;
+  inset: 0;
+  /* Theme-consistent overlay for light UI */
+  background: rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(10px);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+
+.loginCard {
+  width: min(440px, calc(100vw - 40px));
+  border-radius: 18px;
+  /* Border/background/shadow come from global `uiCard` */
+  padding: 18px 18px 16px;
+}
+
+.loginHeader {
+  margin-bottom: 14px;
+}
+
+.loginTitle {
+  font-size: 18px;
+  font-weight: 750;
+  color: var(--text);
+}
+
+.loginSub {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.input {
+  /* Sizing tweaks on top of global `uiInput` */
+  border-radius: 12px;
+}
+
+.input::placeholder {
+  color: var(--muted-2);
+}
+
+.primaryBtn {
+  height: 42px;
+  border-radius: 12px;
+  font-weight: 750;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.linkBtn {
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+}
+
+.loginHint {
+  margin-top: 6px;
+  color: var(--muted-2);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.loginError {
+  color: #dc2626;
+  font-size: 13px;
+  padding: 10px 12px;
+  background: rgba(220, 38, 38, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.loginDivider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  color: var(--muted-2);
+  font-size: 12px;
+}
+
+.loginDivider::before,
+.loginDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.oidcBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.providerLogo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}

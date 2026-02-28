@@ -1,0 +1,43 @@
+{
+  "version": "4",
+  "status": "firing",
+  "receiver": "webhook",
+  "groupLabels": {
+    "alertname": "KubeJobFailed"
+  },
+  "commonLabels": {
+    "alertname": "KubeJobFailed",
+    "severity": "warning",
+    "namespace": "production",
+    "job_name": "batch-etl-job-57438-0-lmwj3",
+    "cluster": "prod-cluster"
+  },
+  "commonAnnotations": {
+    "summary": "Job failed to complete",
+    "description": "Job batch-etl-job-57438-0-lmwj3 failed to complete"
+  },
+  "externalURL": "http://alertmanager:9093",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubeJobFailed",
+        "severity": "warning",
+        "namespace": "production",
+        "job_name": "batch-etl-job-57438-0-lmwj3",
+        "job": "kube-state-metrics",
+        "pod": "prometheus-kube-state-metrics-99bf89fcf-z5rmg",
+        "cluster": "prod-cluster",
+        "reason": "BackoffLimitExceeded"
+      },
+      "annotations": {
+        "summary": "Job failed to complete",
+        "description": "Job batch-etl-job-57438-0-lmwj3 in namespace dds failed to complete"
+      },
+      "startsAt": "2026-02-18T10:05:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus:9090/graph?g0.expr=kube_job_status_failed%7Bjob%3D%22kube-state-metrics%22%7D+%3E+0",
+      "fingerprint": "9feef4312ab72861"
+    }
+  ]
+}

@@ -1,0 +1,321 @@
+# Third-party/vendor services catalog
+#
+# This catalog ships with the Tarka and provides GitHub repo mappings
+# for common third-party services deployed in Kubernetes clusters.
+#
+# Users can override entries by creating config/third-party-catalog-custom.yaml
+
+third_party_services:
+  # DNS
+  coredns:
+    github_repo: "coredns/coredns"
+    docs_url: "https://coredns.io/manual/toc/"
+    category: "infrastructure"
+
+  # Certificate Management
+  cert-manager:
+    github_repo: "cert-manager/cert-manager"
+    docs_url: "https://cert-manager.io/docs/"
+    category: "infrastructure"
+
+  # Secrets Management
+  external-secrets:
+    github_repo: "external-secrets/external-secrets"
+    docs_url: "https://external-secrets.io"
+    category: "operator"
+
+  sealed-secrets:
+    github_repo: "bitnami-labs/sealed-secrets"
+    docs_url: "https://github.com/bitnami-labs/sealed-secrets#readme"
+    category: "security"
+
+  vault:
+    github_repo: "hashicorp/vault"
+    docs_url: "https://www.vaultproject.io/docs"
+    category: "security"
+
+  # Ingress Controllers
+  ingress-nginx:
+    github_repo: "kubernetes/ingress-nginx"
+    docs_url: "https://kubernetes.github.io/ingress-nginx/"
+    category: "infrastructure"
+
+  traefik:
+    github_repo: "traefik/traefik"
+    docs_url: "https://doc.traefik.io/traefik/"
+    category: "infrastructure"
+
+  nginx-ingress:
+    github_repo: "nginxinc/kubernetes-ingress"
+    docs_url: "https://docs.nginx.com/nginx-ingress-controller/"
+    category: "infrastructure"
+
+  # Service Mesh
+  istio:
+    github_repo: "istio/istio"
+    docs_url: "https://istio.io/latest/docs/"
+    category: "infrastructure"
+
+  linkerd:
+    github_repo: "linkerd/linkerd2"
+    docs_url: "https://linkerd.io/2/overview/"
+    category: "infrastructure"
+
+  # Observability
+  prometheus:
+    github_repo: "prometheus/prometheus"
+    docs_url: "https://prometheus.io/docs/"
+    category: "observability"
+
+  grafana:
+    github_repo: "grafana/grafana"
+    docs_url: "https://grafana.com/docs/"
+    category: "observability"
+
+  loki:
+    github_repo: "grafana/loki"
+    docs_url: "https://grafana.com/docs/loki/latest/"
+    category: "observability"
+
+  tempo:
+    github_repo: "grafana/tempo"
+    docs_url: "https://grafana.com/docs/tempo/latest/"
+    category: "observability"
+
+  jaeger:
+    github_repo: "jaegertracing/jaeger"
+    docs_url: "https://www.jaegertracing.io/docs/"
+    category: "observability"
+
+  kube-state-metrics:
+    github_repo: "kubernetes/kube-state-metrics"
+    docs_url: "https://github.com/kubernetes/kube-state-metrics#readme"
+    category: "observability"
+
+  node-exporter:
+    github_repo: "prometheus/node_exporter"
+    docs_url: "https://github.com/prometheus/node_exporter#readme"
+    category: "observability"
+
+  alertmanager:
+    github_repo: "prometheus/alertmanager"
+    docs_url: "https://prometheus.io/docs/alerting/latest/alertmanager/"
+    category: "observability"
+
+  # CI/CD
+  argocd:
+    github_repo: "argoproj/argo-cd"
+    docs_url: "https://argo-cd.readthedocs.io/"
+    category: "cicd"
+
+  argo-workflows:
+    github_repo: "argoproj/argo-workflows"
+    docs_url: "https://argoproj.github.io/argo-workflows/"
+    category: "cicd"
+
+  argo-rollouts:
+    github_repo: "argoproj/argo-rollouts"
+    docs_url: "https://argoproj.github.io/argo-rollouts/"
+    category: "cicd"
+
+  flux:
+    github_repo: "fluxcd/flux2"
+    docs_url: "https://fluxcd.io/flux/"
+    category: "cicd"
+
+  tekton:
+    github_repo: "tektoncd/pipeline"
+    docs_url: "https://tekton.dev/docs/"
+    category: "cicd"
+
+  # Storage
+  rook:
+    github_repo: "rook/rook"
+    docs_url: "https://rook.io/docs/rook/latest/"
+    category: "storage"
+
+  longhorn:
+    github_repo: "longhorn/longhorn"
+    docs_url: "https://longhorn.io/docs/"
+    category: "storage"
+
+  # Autoscaling
+  cluster-autoscaler:
+    github_repo: "kubernetes/autoscaler"
+    docs_url: "https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler#readme"
+    category: "autoscaling"
+
+  keda:
+    github_repo: "kedacore/keda"
+    docs_url: "https://keda.sh/docs/"
+    category: "autoscaling"
+
+  vertical-pod-autoscaler:
+    github_repo: "kubernetes/autoscaler"
+    docs_url: "https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler#readme"
+    category: "autoscaling"
+
+  # Policy & Security
+  kyverno:
+    github_repo: "kyverno/kyverno"
+    docs_url: "https://kyverno.io/docs/"
+    category: "security"
+
+  falco:
+    github_repo: "falcosecurity/falco"
+    docs_url: "https://falco.org/docs/"
+    category: "security"
+
+  trivy:
+    github_repo: "aquasecurity/trivy"
+    docs_url: "https://aquasecurity.github.io/trivy/"
+    category: "security"
+
+  # Networking
+  calico:
+    github_repo: "projectcalico/calico"
+    docs_url: "https://docs.tigera.io/calico/latest/about/"
+    category: "networking"
+
+  cilium:
+    github_repo: "cilium/cilium"
+    docs_url: "https://docs.cilium.io/"
+    category: "networking"
+
+  metallb:
+    github_repo: "metallb/metallb"
+    docs_url: "https://metallb.universe.tf/"
+    category: "networking"
+
+  # Databases & Data Stores
+  mysql:
+    github_repo: "mysql/mysql-server"
+    docs_url: "https://dev.mysql.com/doc/"
+    category: "database"
+
+  mariadb:
+    github_repo: "MariaDB/server"
+    docs_url: "https://mariadb.com/kb/en/"
+    category: "database"
+
+  postgres:
+    github_repo: "postgres/postgres"
+    docs_url: "https://www.postgresql.org/docs/"
+    category: "database"
+
+  postgresql:
+    github_repo: "postgres/postgres"
+    docs_url: "https://www.postgresql.org/docs/"
+    category: "database"
+
+  redis:
+    github_repo: "redis/redis"
+    docs_url: "https://redis.io/docs/"
+    category: "database"
+
+  mongodb:
+    github_repo: "mongodb/mongo"
+    docs_url: "https://www.mongodb.com/docs/"
+    category: "database"
+
+  mongo:
+    github_repo: "mongodb/mongo"
+    docs_url: "https://www.mongodb.com/docs/"
+    category: "database"
+
+  elasticsearch:
+    github_repo: "elastic/elasticsearch"
+    docs_url: "https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html"
+    category: "database"
+
+  opensearch:
+    github_repo: "opensearch-project/OpenSearch"
+    docs_url: "https://opensearch.org/docs/latest/"
+    category: "database"
+
+  cassandra:
+    github_repo: "apache/cassandra"
+    docs_url: "https://cassandra.apache.org/doc/latest/"
+    category: "database"
+
+  memcached:
+    github_repo: "memcached/memcached"
+    docs_url: "https://memcached.org/"
+    category: "database"
+
+  # Database Operators
+  postgres-operator:
+    github_repo: "zalando/postgres-operator"
+    docs_url: "https://postgres-operator.readthedocs.io/"
+    category: "database"
+
+  redis-operator:
+    github_repo: "spotahome/redis-operator"
+    docs_url: "https://github.com/spotahome/redis-operator#readme"
+    category: "database"
+
+  mongodb-operator:
+    github_repo: "mongodb/mongodb-kubernetes-operator"
+    docs_url: "https://github.com/mongodb/mongodb-kubernetes-operator#readme"
+    category: "database"
+
+  # Messaging & Streaming
+  rabbitmq:
+    github_repo: "rabbitmq/rabbitmq-server"
+    docs_url: "https://www.rabbitmq.com/docs"
+    category: "messaging"
+
+  kafka:
+    github_repo: "apache/kafka"
+    docs_url: "https://kafka.apache.org/documentation/"
+    category: "messaging"
+
+  nats:
+    github_repo: "nats-io/nats-server"
+    docs_url: "https://docs.nats.io/"
+    category: "messaging"
+
+  # Web Servers & Proxies
+  nginx:
+    github_repo: "nginx/nginx"
+    docs_url: "https://nginx.org/en/docs/"
+    category: "infrastructure"
+
+  envoy:
+    github_repo: "envoyproxy/envoy"
+    docs_url: "https://www.envoyproxy.io/docs/"
+    category: "infrastructure"
+
+  haproxy:
+    github_repo: "haproxy/haproxy"
+    docs_url: "https://www.haproxy.com/documentation/"
+    category: "infrastructure"
+
+  # Cloud Native Buildpacks
+  knative:
+    github_repo: "knative/serving"
+    docs_url: "https://knative.dev/docs/"
+    category: "serverless"
+
+  # Backup & Disaster Recovery
+  velero:
+    github_repo: "vmware-tanzu/velero"
+    docs_url: "https://velero.io/docs/"
+    category: "backup"
+
+  # Multi-Tenancy
+  capsule:
+    github_repo: "projectcapsule/capsule"
+    docs_url: "https://capsule.clastix.io/"
+    category: "multitenancy"
+
+  # Chaos Engineering
+  chaos-mesh:
+    github_repo: "chaos-mesh/chaos-mesh"
+    docs_url: "https://chaos-mesh.org/docs/"
+    category: "testing"
+
+  litmus:
+    github_repo: "litmuschaos/litmus"
+    docs_url: "https://docs.litmuschaos.io/"
+    category: "testing"

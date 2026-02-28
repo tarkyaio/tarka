@@ -1,0 +1,41 @@
+{
+  "version": "4",
+  "status": "firing",
+  "receiver": "webhook",
+  "groupLabels": {
+    "alertname": "KubeJobFailed"
+  },
+  "commonLabels": {
+    "alertname": "KubeJobFailed",
+    "severity": "warning",
+    "namespace": "default",
+    "job_name": "test-failed-job",
+    "job": "kube-state-metrics",
+    "cluster": "test-cluster"
+  },
+  "commonAnnotations": {
+    "summary": "Job failed"
+  },
+  "externalURL": "http://alertmanager:9093",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubeJobFailed",
+        "severity": "warning",
+        "namespace": "default",
+        "job_name": "test-failed-job",
+        "job": "kube-state-metrics",
+        "pod": "prometheus-kube-state-metrics-abc123",
+        "cluster": "test-cluster"
+      },
+      "annotations": {
+        "summary": "Job test-failed-job has failed"
+      },
+      "startsAt": "2024-01-15T10:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus:9090/graph",
+      "fingerprint": "test-job-failed-fp"
+    }
+  ]
+}

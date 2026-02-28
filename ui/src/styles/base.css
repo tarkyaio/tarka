@@ -1,0 +1,188 @@
+:root {
+  /* Base focus ring — can be themed later */
+  --focus-ring: rgba(19, 91, 236, 0.28);
+  --focus-ring-strong: rgba(19, 91, 236, 0.42);
+}
+
+/* Typography primitives (applies to future pages using semantic tags) */
+:where(h1, h2, h3) {
+  margin: 0;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+:where(h1) {
+  font-size: 30px;
+  line-height: 1.15;
+  font-weight: 750;
+}
+
+:where(h2) {
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+:where(h3) {
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 650;
+}
+
+:where(p) {
+  margin: 0;
+  color: var(--text);
+}
+
+:where(small) {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+:where(code, pre) {
+  font-family: var(--mono);
+}
+
+:where(code) {
+  font-size: 12px;
+  background: var(--hover-dark);
+  border: 1px solid var(--border-dark);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+:where(pre) {
+  background: var(--hover-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: 14px;
+  padding: 12px;
+  overflow: auto;
+}
+
+/* Accessibility: consistent focus ring for keyboard users */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+  border-radius: 10px;
+}
+
+/* Light-weight primitives (prefix to avoid collisions with existing legacy global classes) */
+.uiCard {
+  border-radius: var(--radius);
+  border: 1px solid var(--border-dark);
+  background: var(--surface-dark);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.uiCardHeader {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-dark);
+  background: var(--surface-dark-2);
+  font-size: 12px;
+  color: var(--muted-2);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.uiCardBody {
+  padding: 14px 16px;
+}
+
+.uiBtn {
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border-dark);
+  background: var(--surface-dark);
+  color: var(--text);
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.uiBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.uiBtnPrimary {
+  border-color: rgba(19, 91, 236, 0.28);
+  background: rgba(19, 91, 236, 0.1);
+  color: var(--primary);
+  font-weight: 650;
+}
+
+.uiBtnGhost {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+}
+
+.uiIconBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.uiIconBtn:hover {
+  background: var(--hover-dark);
+  color: var(--text);
+}
+
+.uiInput {
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border-dark);
+  background: var(--surface-dark);
+  color: var(--text);
+  padding: 0 12px;
+}
+
+.uiInput::placeholder {
+  color: var(--muted-2);
+}
+
+@media print {
+  /* Print the report cleanly: hide shell chrome. */
+  .appSidebar,
+  .appTopbar {
+    display: none !important;
+  }
+  /* Undo fixed/overflow app shell so the full report can paginate. */
+  .appShell {
+    position: static !important;
+    inset: auto !important;
+    height: auto !important;
+    width: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+  .appMain {
+    overflow: visible !important;
+  }
+  .appContent {
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+  body {
+    background: #ffffff !important;
+  }
+  html,
+  body {
+    height: auto !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .triageReport {
+    max-width: none !important;
+    margin: 0 !important;
+  }
+}
