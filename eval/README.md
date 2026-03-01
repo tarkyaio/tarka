@@ -450,4 +450,4 @@ Edit `eval/scoring/matchers.py` to add new pattern matching strategies (e.g., se
 - [Investigation Model](../agent/core/models.py) - Investigation SSOT structure
 - [Pipeline](../agent/pipeline/pipeline.py) - Investigation orchestration
 - [Diagnostics](../agent/diagnostics/) - Diagnostic modules
-- [Triage Methodology](../docs/triage_methodology.md) - RCA philosophy
+- [Triage Methodology](../docs/acceptance/triage-methodology.md) - RCA philosophy

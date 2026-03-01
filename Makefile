@@ -238,13 +238,32 @@ dev-test: ## Run e2e tests against local environment
 	@echo "✓ E2E tests completed!"
 
 dev-send-alert: ## Send a test alert to webhook (requires dev-up and dev-serve)
-	@echo "Sending test alert to webhook..."
-	@curl -X POST http://localhost:8080/alerts \
-		-H "Content-Type: application/json" \
-		-d '{"version":"4","status":"firing","receiver":"webhook","groupLabels":{"alertname":"TestAlert"},"commonLabels":{"alertname":"PodCPUThrottling","severity":"warning","namespace":"default","pod":"test-pod-12345","cluster":"test-cluster"},"commonAnnotations":{"summary":"Test alert for local development"},"externalURL":"http://alertmanager:9093","alerts":[{"status":"firing","labels":{"alertname":"PodCPUThrottling","severity":"warning","namespace":"default","pod":"test-pod-12345","container":"app","cluster":"test-cluster"},"annotations":{"summary":"CPU throttling detected"},"startsAt":"2024-01-15T10:00:00Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"http://prometheus:9090/graph","fingerprint":"test-fp-12345"}]}' \
-		| python -m json.tool
-	@echo ""
-	@echo "✓ Alert sent! Check webhook logs for processing."
+	@PICK=$$(( RANDOM % 3 )); \
+	if [ $$PICK -eq 0 ]; then \
+		echo "Sending PodCPUThrottling alert..."; \
+		curl -s -X POST http://localhost:8080/alerts \
+			-H "Content-Type: application/json" \
+			-d '{"version":"4","status":"firing","receiver":"webhook","groupLabels":{"alertname":"PodCPUThrottling"},"commonLabels":{"alertname":"PodCPUThrottling","severity":"warning","namespace":"default","pod":"test-pod-12345","cluster":"test-cluster"},"commonAnnotations":{"summary":"CPU throttling detected"},"externalURL":"http://alertmanager:9093","alerts":[{"status":"firing","labels":{"alertname":"PodCPUThrottling","severity":"warning","namespace":"default","pod":"test-pod-12345","container":"app","cluster":"test-cluster"},"annotations":{"summary":"CPU throttling detected"},"startsAt":"2024-01-15T10:00:00Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"http://prometheus:9090/graph","fingerprint":"fp-throttle-'"$$(date +%s)"'"}]}' \
+			| python -m json.tool; \
+		echo ""; \
+		echo "✓ PodCPUThrottling alert sent!"; \
+	elif [ $$PICK -eq 1 ]; then \
+		echo "Sending KubePodCrashLooping alert..."; \
+		curl -s -X POST http://localhost:8080/alerts \
+			-H "Content-Type: application/json" \
+			-d '{"version":"4","status":"firing","receiver":"webhook","groupLabels":{"alertname":"KubePodCrashLooping"},"commonLabels":{"alertname":"KubePodCrashLooping","severity":"warning","namespace":"default","pod":"my-app-7b4f5c6d8f-xk9m2","container":"my-app","cluster":"prod-cluster"},"commonAnnotations":{"summary":"Pod is crash looping","description":"Pod default/my-app-7b4f5c6d8f-xk9m2 (my-app) is in waiting state (reason: CrashLoopBackOff)"},"externalURL":"http://alertmanager:9093","alerts":[{"status":"firing","labels":{"alertname":"KubePodCrashLooping","severity":"warning","namespace":"default","pod":"my-app-7b4f5c6d8f-xk9m2","container":"my-app","job":"kube-state-metrics","cluster":"prod-cluster"},"annotations":{"summary":"Pod is crash looping","description":"Pod default/my-app-7b4f5c6d8f-xk9m2 (my-app) is in waiting state (reason: CrashLoopBackOff)"},"startsAt":"2026-02-24T10:05:00Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"http://prometheus:9090/graph?g0.expr=rate(kube_pod_container_status_restarts_total[10m])*60*5>0","fingerprint":"fp-crashloop-'"$$(date +%s)"'"}]}' \
+			| python -m json.tool; \
+		echo ""; \
+		echo "✓ KubePodCrashLooping alert sent!"; \
+	else \
+		echo "Sending KubeJobFailed alert..."; \
+		curl -s -X POST http://localhost:8080/alerts \
+			-H "Content-Type: application/json" \
+			-d '{"version":"4","status":"firing","receiver":"webhook","groupLabels":{"alertname":"KubeJobFailed"},"commonLabels":{"alertname":"KubeJobFailed","severity":"warning","namespace":"default","job_name":"data-import-daily","cluster":"prod-cluster"},"commonAnnotations":{"summary":"Job data-import-daily has failed"},"externalURL":"http://alertmanager:9093","alerts":[{"status":"firing","labels":{"alertname":"KubeJobFailed","severity":"warning","namespace":"default","job_name":"data-import-daily","job":"kube-state-metrics","cluster":"prod-cluster"},"annotations":{"summary":"Job data-import-daily has failed"},"startsAt":"2026-02-24T10:05:00Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"http://prometheus:9090/graph","fingerprint":"fp-jobfailed-'"$$(date +%s)"'"}]}' \
+			| python -m json.tool; \
+		echo ""; \
+		echo "✓ KubeJobFailed alert sent!"; \
+	fi
 
 dev-clean: dev-down clean ## Stop dev environment and clean all artifacts
 	@echo "✓ Development environment cleaned"

@@ -90,8 +90,12 @@ def mock_fetch_recent_logs():
         yield mock
 
 
-def test_job_failure_blocked_no_pods(mock_k8s_provider, mock_workload_rollout_status):
-    """Test Job failure playbook when pods are TTL-deleted."""
+@patch("agent.collectors.job_failure.apply_historical_fallback")
+def test_job_failure_blocked_no_pods(mock_historical, mock_k8s_provider, mock_workload_rollout_status):
+    """Test Job failure playbook when pods are TTL-deleted and historical fallback finds nothing."""
+    # Historical fallback runs but finds no logs → blocked mode
+    mock_historical.return_value = None
+
     # Create investigation with Job target
     investigation = Investigation(
         alert=AlertInstance(
@@ -120,7 +124,10 @@ def test_job_failure_blocked_no_pods(mock_k8s_provider, mock_workload_rollout_st
     # Run playbook
     investigate_job_failure_playbook(investigation)
 
-    # Verify blocked mode set
+    # Verify historical fallback was attempted
+    mock_historical.assert_called_once_with(investigation, pod_404=True)
+
+    # Verify blocked mode set (fallback returned no logs)
     assert investigation.meta.get("blocked_mode") == "job_pods_not_found"
     assert investigation.target.playbook == "job_failure"
 

@@ -54,7 +54,7 @@ def _to_float(x: Any) -> Optional[float]:
 
 
 def _scope_label(n: float) -> str:
-    # Thresholds from docs/report_acceptance/base_checklist.md
+    # Thresholds from docs/acceptance/base-contract.md
     if n == 1:
         return "Single-instance"
     if 2 <= n <= 5:

@@ -86,6 +86,8 @@ The agent is designed to be **read-only**: no cluster mutation, no destructive a
 Success is when an on-call responder can answer in **<60 seconds**:
 1) what is affected, 2) where, 3) blast radius, 4) impact (or explicitly “unknown”), 5) the next best action.
 
+See [`examples/`](../examples/README.md) for sample report output and UI screenshots.
+
 ## What it does *not* do
 
 - It does **not** "magic" root cause from thin air. If evidence is missing, it stays explicit about unknowns (Scenarios A-D).
@@ -139,8 +141,8 @@ Success is when an on-call responder can answer in **<60 seconds**:
 ### Deep Dive
 1. **Review architecture**: [`docs/architecture/README.md`](architecture/README.md)
 2. **Understand pipeline**: [`docs/architecture/investigation-pipeline.md`](architecture/investigation-pipeline.md) (includes state diagram)
-3. **See triage methodology**: [`docs/triage_methodology.md`](triage_methodology.md)
-4. **Add custom playbooks**: [`docs/adding_playbooks.md`](adding_playbooks.md)
+3. **See triage methodology**: [`docs/acceptance/triage-methodology.md`](acceptance/triage-methodology.md)
+4. **Add custom playbooks**: [`docs/guides/extending-playbooks.md`](guides/extending-playbooks.md)
 5. **Configure authentication**: [`docs/guides/authentication.md`](guides/authentication.md)
 
 ### Key Resources
