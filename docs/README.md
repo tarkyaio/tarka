@@ -10,6 +10,10 @@
 - **[One Pager](one-pager.md)** - Leadership overview (why this exists)
 - **[Environment Variables](guides/environment-variables.md)** - Configuration reference
 
+## Examples
+
+- **[Sample Reports & Screenshots](../examples/README.md)** - See what Tarka produces without running the full stack
+
 ## Operating the Agent
 
 - **[Deployment Guide](guides/deployment.md)** - Kubernetes deployment
@@ -46,6 +50,7 @@ These define the contract for deterministic triage reports:
 ## Optional Features
 
 - **[Tool-Using Chat](features/chat.md)** - Case investigation assistant (PromQL, K8s, logs, memory)
+- **[Chat Tools Reference](chat_tools.md)** - Full list of agent tools, parameters, and policy gates
 - **[Action Proposals](features/actions.md)** - Policy-gated remediation suggestions
 - **[Case Memory](features/memory.md)** - Learn from past incidents (PostgreSQL + embeddings)
 

@@ -2,15 +2,15 @@
 
 > Note: the agent is pivoting toward **diagnostic modules** (universal failure modes) as the core abstraction.
 > Playbooks remain useful as evidence collectors, but new “general” behavior should prefer adding/extending a diagnostic module.
-> See: [`architecture/diagnostic_modules.md`](architecture/diagnostic_modules.md).
+> See: [`diagnostic-modules.md`](../architecture/diagnostic-modules.md).
 
 This repo is designed so you can add investigation depth without breaking the base “on-call trust” contract.
 
 ## Where to start
 
 - **Docs portal**: [`docs/README.md`](README.md)
-- **Triage methodology** (the quality bar): [`triage_methodology.md`](triage_methodology.md)
-- **Acceptance criteria**: [`report_acceptance/README.md`](report_acceptance/README.md)
+- **Triage methodology** (the quality bar): [`triage-methodology.md`](../acceptance/triage-methodology.md)
+- **Acceptance criteria**: [`README.md`](../acceptance/README.md)
 
 ## The intended split of responsibilities
 
@@ -39,7 +39,7 @@ It should not perform external calls. It should never contradict base triage hon
 ## Where playbooks live (in code)
 
 - Routing and playbook registration: `agent/playbooks.py`
-- Base triage contract and scenarios: `docs/report_acceptance/` (specs), and the code that populates `analysis.decision`
+- Base triage contract and scenarios: `docs/acceptance/` (specs), and the code that populates `analysis.decision`
 - Common evidence helpers:
   - Kubernetes context: `agent/k8s_context.py`
   - Prometheus queries: `agent/prometheus.py`
@@ -62,7 +62,7 @@ Write down what “good” looks like in terms of base triage + enrichment:
 - Enrichment should add concrete, evidence-backed discriminators
 - Next steps should be copy/paste friendly and ordered by signal/effort
 
-The base contract lives here: [`report_acceptance/base_checklist.md`](report_acceptance/base_checklist.md)
+The base contract lives here: [`base-contract.md`](../acceptance/base-contract.md)
 
 ### 3) Implement evidence collection (playbook)
 
@@ -105,4 +105,4 @@ A new playbook/enricher is “done” when:
 
 If you find yourself duplicating “pod baseline” queries (K8s context + restarts + cpu/memory + logs), consider moving toward the shared playbook approach described here:
 
-- [`architecture/shared_playbooks.md`](architecture/shared_playbooks.md)
+- [`playbook-system.md`](../architecture/playbook-system.md)

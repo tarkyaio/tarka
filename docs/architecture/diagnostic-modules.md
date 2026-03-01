@@ -72,7 +72,7 @@ High-level:
 - Pipeline test to ensure module collection happens and legacy fallback remains safe.
 
 4) Update docs:
-- Add/extend a family checklist in `docs/report_acceptance/families/` when introducing a new family.
+- Add/extend a family checklist in `docs/acceptance/families.md` when introducing a new family.
 
 ## Wider set of families (roadmap)
 

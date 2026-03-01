@@ -1,0 +1,268 @@
+{
+  "alert": {
+    "fingerprint": "a1b2c3d4e5f67890",
+    "labels": {
+      "alertname": "KubePodCrashLooping",
+      "severity": "warning",
+      "namespace": "default",
+      "pod": "my-app-7b4f5c6d8f-xk9m2",
+      "container": "my-app",
+      "cluster": "prod-cluster"
+    },
+    "core_labels": {
+      "alertname": "KubePodCrashLooping",
+      "severity": "warning",
+      "cluster": "prod-cluster",
+      "target_type": "pod",
+      "namespace": "default",
+      "pod": "my-app-7b4f5c6d8f-xk9m2",
+      "container": "my-app"
+    },
+    "source_labels": {
+      "job": "kube-state-metrics"
+    },
+    "annotations": {
+      "summary": "Pod is crash looping",
+      "description": "Pod default/my-app-7b4f5c6d8f-xk9m2 (my-app) is in waiting state (reason: CrashLoopBackOff)"
+    },
+    "starts_at": "2026-02-24T10:05:00Z",
+    "ends_at": "0001-01-01T00:00:00Z",
+    "state": "firing",
+    "normalized_state": "firing",
+    "ends_at_kind": "unknown"
+  },
+  "target": {
+    "target_type": "pod",
+    "namespace": "default",
+    "pod": "my-app-7b4f5c6d8f-xk9m2",
+    "container": "my-app",
+    "playbook": "pod_not_healthy",
+    "workload_kind": "Deployment",
+    "workload_name": "my-app",
+    "service": null,
+    "instance": null,
+    "job": null,
+    "cluster": "prod-cluster",
+    "team": null,
+    "environment": null
+  },
+  "time_window": {
+    "window": "30m",
+    "start_time": "2026-02-24T10:05:00+00:00",
+    "end_time": "2026-02-24T10:35:00+00:00"
+  },
+  "evidence": {
+    "logs": {
+      "status": "ok",
+      "reason": null,
+      "count": 37,
+      "parsed_errors": [
+        {
+          "level": "ERROR",
+          "message": "Failed to connect to database: connection refused",
+          "source": "my-app",
+          "timestamp": "2026-02-24T10:34:08Z"
+        },
+        {
+          "level": "FATAL",
+          "message": "RuntimeError: failed to connect to database at db.default.svc:5432",
+          "source": "my-app",
+          "timestamp": "2026-02-24T10:34:08Z"
+        }
+      ]
+    },
+    "github": null
+  },
+  "analysis": {
+    "features": {
+      "family": "crashloop",
+      "k8s": {
+        "pod_phase": "Running",
+        "ready": false,
+        "waiting_reason": "CrashLoopBackOff",
+        "restart_count": 7,
+        "restart_rate_5m_max": 3.2,
+        "warning_events_count": 4,
+        "oom_killed": false,
+        "oom_killed_events": 0,
+        "evicted": false,
+        "status_reason": "CrashLoopBackOff",
+        "status_message": "Back-off restarting failed container",
+        "not_ready_conditions": [
+          {"type": "Ready", "status": "False", "reason": "ContainersNotReady"},
+          {"type": "ContainersReady", "status": "False", "reason": "ContainersNotReady"}
+        ],
+        "container_waiting_reasons_top": [
+          {
+            "container": "my-app",
+            "reason": "CrashLoopBackOff",
+            "message": "back-off 5m0s restarting failed container my-app"
+          }
+        ],
+        "container_last_terminated_top": [
+          {"container": "my-app", "reason": "Error", "exit_code": 1}
+        ],
+        "recent_event_reasons_top": [
+          {"reason": "BackOff", "count": 12, "type": "Warning", "message": "Back-off restarting failed container my-app"},
+          {"reason": "Unhealthy", "count": 4, "type": "Warning", "message": "Readiness probe failed: connection refused"},
+          {"reason": "Pulled", "count": 8, "type": "Normal", "message": "Successfully pulled image \"registry.example.com/my-app:v1.2.3\""},
+          {"reason": "Started", "count": 8, "type": "Normal", "message": "Started container my-app"}
+        ]
+      },
+      "metrics": {
+        "cpu_throttle_p95_pct": null,
+        "cpu_usage_p95_cores": null,
+        "cpu_limit_cores": null,
+        "cpu_near_limit": null,
+        "pod_unhealthy_phase_observed": true,
+        "http_5xx_rate_p95": null,
+        "http_5xx_rate_max": null,
+        "memory_usage_p95_bytes": null,
+        "memory_limit_bytes": null,
+        "memory_near_limit": null
+      },
+      "logs": {
+        "status": "ok",
+        "backend": "victorialogs",
+        "reason": null,
+        "query_used": "{namespace=\"default\",pod=\"my-app-7b4f5c6d8f-xk9m2\"}",
+        "timeout_hits": 0,
+        "error_hits": 2
+      },
+      "changes": {
+        "rollout_within_window": null,
+        "last_change_ts": null,
+        "workload_kind": "Deployment",
+        "workload_name": "my-app"
+      },
+      "quality": {
+        "evidence_quality": "high",
+        "missing_inputs": [],
+        "contradiction_flags": [],
+        "impact_signals_available": true,
+        "missing_impact_signals": [],
+        "alert_age_hours": 0.6,
+        "is_long_running": false,
+        "is_recently_started": true
+      }
+    },
+    "scores": {
+      "impact_score": 72,
+      "confidence_score": 78,
+      "noise_score": 15,
+      "reason_codes": [
+        "restart_rate_elevated",
+        "waiting_crashloopbackoff",
+        "exit_code_nonzero",
+        "pod_not_ready",
+        "logs_error_pattern",
+        "no_probe_failure"
+      ],
+      "breakdown": [
+        {"code": "restart_rate_elevated", "delta": 20, "feature_ref": "k8s.restart_rate_5m_max", "why": "restart rate 3.20/5m exceeds threshold"},
+        {"code": "waiting_crashloopbackoff", "delta": 25, "feature_ref": "k8s.waiting_reason", "why": "container in CrashLoopBackOff"},
+        {"code": "exit_code_nonzero", "delta": 15, "feature_ref": "k8s.container_last_terminated_top", "why": "exit_code=1 (Error)"},
+        {"code": "pod_not_ready", "delta": 10, "feature_ref": "k8s.ready", "why": "pod not ready"},
+        {"code": "logs_error_pattern", "delta": 10, "feature_ref": "logs.error_hits", "why": "ERROR/FATAL patterns in logs"},
+        {"code": "no_probe_failure", "delta": -8, "feature_ref": null, "why": "no probe failure events — noise reduction"}
+      ]
+    },
+    "verdict": {
+      "classification": "actionable",
+      "severity": "warning",
+      "primary_driver": "CrashLoopBackOff",
+      "one_liner": "Pod my-app-7b4f5c6d8f-xk9m2 in namespace default is crash-looping (exit_code=1). Logs point to a database connectivity failure (db.default.svc:5432).",
+      "next_steps": [
+        "kubectl -n default logs my-app-7b4f5c6d8f-xk9m2 -c my-app --previous --tail=100",
+        "kubectl -n default get endpoints db",
+        "If the database is down, escalate to the database on-call team",
+        "If the database is healthy but the app cannot reach it, check NetworkPolicy and DNS resolution",
+        "kubectl -n default rollout undo deployment/my-app"
+      ]
+    },
+    "change": null,
+    "noise": {
+      "label_shape": null,
+      "prometheus": null,
+      "notes": [],
+      "flap": {"lookback": "6h", "flaps_estimate": 0.0, "flap_score_0_100": 0, "notes": []},
+      "cardinality": {"ephemeral_labels_present": [], "recommended_group_by": [], "recommended_drop_labels": []},
+      "missing_labels": {"missing": [], "inferred": [], "recommendation": []}
+    },
+    "decision": {
+      "label": "suspected_crashloop_or_probe_failure",
+      "why": [
+        "Container my-app in waiting state with reason=CrashLoopBackOff",
+        "Last terminated: exit_code=1 (reason=Error) — application crash, not OOM",
+        "Restart rate (5m max) elevated: 3.20 restarts/5m",
+        "Pod phase=Running but ready=False — container keeps restarting",
+        "4 Warning events observed in time window (BackOff, Unhealthy)"
+      ],
+      "next": [
+        "kubectl -n default logs my-app-7b4f5c6d8f-xk9m2 -c my-app --previous --tail=50",
+        "kubectl -n default describe pod my-app-7b4f5c6d8f-xk9m2",
+        "kubectl -n default rollout undo deployment/my-app"
+      ]
+    },
+    "enrichment": {
+      "label": "suspected_crashloop_exit1",
+      "why": [
+        "Container my-app terminated with exit_code=1 (reason=Error) — non-zero, non-OOM exit",
+        "CrashLoopBackOff back-off timer active (container waiting)",
+        "Restart count: 7 in pod lifetime; rate 3.20/5m in window",
+        "No probe-failure events detected — crash is from the application itself, not a health check",
+        "Logs show application error: RuntimeError: failed to connect to database at db.default.svc:5432"
+      ],
+      "next": [
+        "max by (cluster, namespace, pod, container, reason) (kube_pod_container_status_waiting_reason{namespace=\"default\",pod=\"my-app-7b4f5c6d8f-xk9m2\"})",
+        "increase(kube_pod_container_status_restarts_total{namespace=\"default\",pod=\"my-app-7b4f5c6d8f-xk9m2\"}[30m])",
+        "max by (cluster, namespace, pod, container, reason) (kube_pod_container_status_last_terminated_reason{namespace=\"default\",pod=\"my-app-7b4f5c6d8f-xk9m2\"})",
+        "Check whether the database service is reachable from the pod network",
+        "If a recent deployment introduced the regression, check rollout history"
+      ]
+    },
+    "hypotheses": [
+      {
+        "hypothesis_id": "h-crashloop-db-unreachable",
+        "title": "Application crash on startup — database unreachable",
+        "confidence_0_100": 82,
+        "why": [
+          "Container exits with code 1 immediately after start (Error, not OOM)",
+          "Logs contain: RuntimeError: failed to connect to database at db.default.svc:5432",
+          "No readiness/liveness probe failures in events — the process itself exits",
+          "Restart back-off pattern consistent with fast crash loop (crash → backoff → restart → crash)"
+        ],
+        "supporting_refs": ["logs.parsed_errors", "k8s.container_last_terminated_top"],
+        "counter_refs": [],
+        "next_tests": [
+          "kubectl -n default run dbcheck --rm -it --image=busybox -- nc -zv db.default.svc 5432",
+          "kubectl -n default get endpoints db",
+          "kubectl -n default get secret my-app-db-credentials -o yaml"
+        ],
+        "proposed_actions": []
+      },
+      {
+        "hypothesis_id": "h-crashloop-bad-deploy",
+        "title": "Bad deployment / config regression",
+        "confidence_0_100": 45,
+        "why": [
+          "No rollout change detected in the investigation window (change correlation inconclusive)",
+          "Possible: a config change (ConfigMap, Secret) was applied without a rollout restart",
+          "Exit code 1 can indicate misconfiguration (missing env var, bad connection string)"
+        ],
+        "supporting_refs": [],
+        "counter_refs": ["changes.rollout_within_window"],
+        "next_tests": [
+          "kubectl -n default rollout history deployment/my-app",
+          "Compare current ConfigMap/Secret values against the last known-good version"
+        ],
+        "proposed_actions": []
+      }
+    ],
+    "capacity": null,
+    "rca": null,
+    "llm": null,
+    "debug": null
+  },
+  "errors": []
+}

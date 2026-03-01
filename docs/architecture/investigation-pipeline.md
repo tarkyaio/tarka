@@ -156,7 +156,7 @@ This is deterministic and should not call external systems.
 This produces `investigation.analysis.decision` which is the **base report layer**.
 
 It should:
-- follow the **scenario selection matrix** in `docs/report_acceptance/base_checklist.md`
+- follow the **scenario selection matrix** in `docs/acceptance/base-contract.md`
 - list **all active blockers** (not just one)
 - produce `decision.next` as PromQL-first commands to unblock the investigation
 

@@ -24,7 +24,7 @@ The system has pivoted toward **diagnostic modules** as the default evidence col
 - Modules run first and collect evidence using shared collectors (baseline + add-ons).
 - Legacy alertname-based playbook routing remains as a fallback for unsupported (`generic`) families.
 
-See: [`diagnostic_modules.md`](diagnostic_modules.md).
+See: [`diagnostic-modules.md`](diagnostic-modules.md).
 
 ## Target state (pod-scoped baseline in `agent/playbooks.py`)
 

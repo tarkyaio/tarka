@@ -440,7 +440,7 @@ jobs:
 
 ## Next Steps
 
-- **Production Deployment**: See [deployment guide](../deployment.md) (if exists)
+- **Production Deployment**: See [deployment guide](./deployment.md) (if exists)
 - **Authentication Setup**: See [authentication guide](./authentication.md)
 - **Contributing**: See [CONTRIBUTING.md](../../CONTRIBUTING.md) (if exists)
 - **Architecture**: See [CLAUDE.md](../../CLAUDE.md) for system design

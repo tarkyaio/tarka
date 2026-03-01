@@ -11,7 +11,7 @@ This project is built around one on-call-first idea:
 3) A playbook collects evidence best-effort (Prometheus + optional Kubernetes read-only + optional logs).
 4) The agent renders a report that starts with base triage, then adds family-specific enrichment, then scoring (when present).
 
-For the deeper architecture flow, see: [`architecture/mental-model-architecture.md`](architecture/mental-model-architecture.md).
+For the deeper architecture flow, see: [`investigation-pipeline.md`](../architecture/investigation-pipeline.md).
 
 ## The base triage contract: `analysis.decision`
 
@@ -23,7 +23,7 @@ This is designed to answer in <60 seconds:
 **what broke, where, how bad, is it real, what do I do next**.
 
 The contract and quality bar live here:
-- [`report_acceptance/base_checklist.md`](report_acceptance/base_checklist.md)
+- [`base-contract.md`](base-contract.md)
 
 ### `decision.label` (one line)
 
@@ -56,30 +56,23 @@ When the agent is missing key inputs, it follows one or more scenarios rather th
 If the agent cannot confidently answer **what is affected** (missing stable identifiers), it does not guess.
 
 - Goal: discover the dimension that matters (cluster/namespace/pod/service/instance/team) and route to the right owner.
-- Spec: [`report_acceptance/scenario_a_target_identity_missing.md`](report_acceptance/scenario_a_target_identity_missing.md)
 
 ### Scenario B: Kubernetes context missing
 
 If the target is pod-scoped but K8s context cannot be fetched (pod/conditions/events unavailable), the report stays actionable using kube-state-metrics PromQL discriminators.
 
-- Spec: [`report_acceptance/scenario_b_k8s_context_missing.md`](report_acceptance/scenario_b_k8s_context_missing.md)
-
 ### Scenario C: logs missing (empty or unavailable)
 
-If logs are unavailable or empty, the report should proceed with non-log discriminators and explain the difference between “empty” and “unavailable”.
-
-- Spec: [`report_acceptance/scenario_c_logs_unavailable.md`](report_acceptance/scenario_c_logs_unavailable.md)
+If logs are unavailable or empty, the report should proceed with non-log discriminators and explain the difference between "empty" and "unavailable".
 
 ### Scenario D: Prometheus scope unavailable
 
 If the agent cannot compute scope/blast radius, it must explicitly say **scope unknown** and ask the on-call to verify in Prometheus.
-
-- Spec: [`report_acceptance/scenario_d_prometheus_scope_unavailable.md`](report_acceptance/scenario_d_prometheus_scope_unavailable.md)
 
 ## How enrichment fits in
 
 Base triage is family-agnostic. **Family enrichment** is additive and must not contradict base triage honesty about missing evidence.
 
 See:
-- Acceptance docs entry point: [`report_acceptance/README.md`](report_acceptance/README.md)
-- Shared playbooks intent: [`architecture/shared_playbooks.md`](architecture/shared_playbooks.md)
+- Acceptance docs entry point: [`README.md`](README.md)
+- Shared playbooks intent: [`playbook-system.md`](../architecture/playbook-system.md)

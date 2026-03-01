@@ -48,7 +48,7 @@ Redaction:
 ## LLM configuration (Vertex AI)
 
 Chat uses the unified LLM client (`agent/llm/client.py`) backed by Vertex AI (Gemini).
-Configuration is documented in [`env.md`](env.md) (requires `GOOGLE_CLOUD_PROJECT` + `GOOGLE_CLOUD_LOCATION` + ADC).
+Configuration is documented in [`environment-variables.md`](../guides/environment-variables.md) (requires `GOOGLE_CLOUD_PROJECT` + `GOOGLE_CLOUD_LOCATION` + ADC).
 
 If Vertex AI is not configured or unavailable, chat will fall back to a deterministic reply based on ranked hypotheses.
 
