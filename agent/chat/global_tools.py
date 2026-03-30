@@ -83,11 +83,11 @@ def _cases_latest_runs_cte(
         params.append(h)
 
     if classification:
-        cond.append("LOWER(NULLIF(r.analysis_json #>> '{analysis,verdict,classification}', '')) = LOWER(%s)")
+        cond.append("LOWER(COALESCE(r.classification, '')) = LOWER(%s)")
         params.append(classification)
 
     if family:
-        cond.append("LOWER(NULLIF(r.analysis_json #>> '{analysis,features,family}', '')) = LOWER(%s)")
+        cond.append("LOWER(COALESCE(r.family, '')) = LOWER(%s)")
         params.append(family)
 
     if team:
@@ -191,13 +191,15 @@ def _run_global_tool_db(*, policy: ChatPolicy, tool: str, args: Dict[str, Any], 
             since_hours=since_hours,
         )
 
-        # Map grouping field to a stable SQL expression (strict SSOT from analysis_json).
+        # Map grouping field to a stable SQL expression.
+        # Use direct columns for family/classification (indexed, always populated).
+        # Team has no direct column; must use JSONB.
         if by == "team":
             field = "NULLIF(r.analysis_json #>> '{target,team}', '')"
         elif by == "family":
-            field = "NULLIF(r.analysis_json #>> '{analysis,features,family}', '')"
+            field = "r.family"
         else:
-            field = "NULLIF(r.analysis_json #>> '{analysis,verdict,classification}', '')"
+            field = "r.classification"
 
         with _connect(dsn) as conn:
             rows = conn.execute(
@@ -281,10 +283,10 @@ def _run_global_tool_db(*, policy: ChatPolicy, tool: str, args: Dict[str, Any], 
                     r.run_id::text as run_id,
                     r.created_at::text as run_created_at,
                     r.alertname,
-                    NULLIF(r.analysis_json #>> '{analysis,features,family}', '') as family,
-                    NULLIF(r.analysis_json #>> '{analysis,verdict,classification}', '') as classification,
+                    r.family,
+                    r.classification,
                     NULLIF(r.analysis_json #>> '{target,team}', '') as team,
-                    NULLIF(r.analysis_json #>> '{analysis,verdict,one_liner}', '') as one_liner
+                    r.one_liner
                   FROM investigation_runs r
                   WHERE r.case_id::text = %s
                   ORDER BY r.case_id, r.created_at DESC

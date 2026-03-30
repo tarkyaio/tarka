@@ -12,6 +12,7 @@ from agent.chat.tools import run_tool
 from agent.chat.types import ChatToolEvent
 from agent.core.models import Investigation, RCAInsights
 from agent.dump import investigation_to_json_dict
+from agent.graphs.prompt_compaction import measure_prompt
 from agent.graphs.tracing import build_invoke_config, trace_tool_call
 from agent.llm.client import generate_json
 from agent.llm.schemas import RCASynthesisResponse, ToolPlanResponse
@@ -325,7 +326,10 @@ Examples of verification (adapt to your specific alert):
 
 
 def _build_planner_prompt(
-    *, analysis_json: Dict[str, Any], tool_events: List[ChatToolEvent], allowed_tools: List[str]
+    *,
+    analysis_json: Dict[str, Any],
+    tool_events: List[ChatToolEvent],
+    allowed_tools: List[str],
 ) -> str:
     # Compact case context; keep aligned with chat runtime's "SSOT-only" discipline.
     ctx: Dict[str, Any] = {}
@@ -366,7 +370,7 @@ def _build_planner_prompt(
     # Get family-specific verification guidance
     family_guidance = _get_family_specific_guidance(family or "generic")
 
-    return (
+    instructions_text = (
         "You are Tarka, an on-call incident investigation agent.\n\n"
         "Goal:\n"
         "- Reduce uncertainty and converge on a real-world root cause and remediation.\n\n"
@@ -411,9 +415,15 @@ def _build_planner_prompt(
         "- Don't repeat a tool call whose `key` already appears in TOOL_HISTORY.\n"
         "- If the last outcome was `empty` or `unavailable`, don't retry with identical args.\n"
         "- Converge through tool use—gather evidence to confirm or refute hypotheses.\n\n"
+    )
+
+    prompt = (
+        f"{instructions_text}"
         f"CASE:\n{json.dumps(ctx, sort_keys=True, ensure_ascii=False)}\n\n"
         f"TOOL_HISTORY:\n{json.dumps(tool_hist, ensure_ascii=False)}\n"
     )
+    measure_prompt(prompt, label="rca_planner")
+    return prompt
 
 
 def _build_rca_prompt(*, analysis_json: Dict[str, Any], tool_events: List[ChatToolEvent]) -> str:
@@ -441,7 +451,14 @@ def _build_rca_prompt(*, analysis_json: Dict[str, Any], tool_events: List[ChatTo
 
     tools_compact = []
     for ev in (tool_events or [])[-8:]:
-        tools_compact.append({"tool": ev.tool, "ok": ev.ok, "error": ev.error, "result": ev.result})
+        tools_compact.append(
+            {
+                "tool": ev.tool,
+                "ok": ev.ok,
+                "error": ev.error,
+                "result": ev.result,
+            }
+        )
 
     # Build task instructions with emphasis on parsed_errors if available
     has_parsed_errors = bool(ctx.get("parsed_errors"))
@@ -455,7 +472,7 @@ def _build_rca_prompt(*, analysis_json: Dict[str, Any], tool_events: List[ChatTo
             "- Ground your root_cause in the actual error messages\n"
         )
 
-    return (
+    instructions_text = (
         "You are Tarka, an on-call incident investigation agent.\n\n"
         "Task:\n"
         "- Produce a grounded root-cause analysis and concrete remediation suggestions.\n"
@@ -486,9 +503,15 @@ def _build_rca_prompt(*, analysis_json: Dict[str, Any], tool_events: List[ChatTo
         "- Keep `summary` and `root_cause` short (<= 240 chars each).\n"
         "- Cap arrays: evidence<=8, remediation<=10, unknowns<=8.\n"
         "- Do NOT include any extra top-level keys.\n\n"
+    )
+
+    prompt = (
+        f"{instructions_text}"
         f"CASE:\n{json.dumps(ctx, sort_keys=True, ensure_ascii=False)}\n\n"
         f"TOOL_RESULTS:\n{json.dumps(tools_compact, ensure_ascii=False)}\n"
     )
+    measure_prompt(prompt, label="rca_synthesis")
+    return prompt
 
 
 class _State(TypedDict, total=False):
@@ -579,10 +602,12 @@ def _compile_rca_graph(*, default_policy: ChatPolicy):
 
     def plan_node(state: _State) -> _State:
         aj0 = state.get("analysis_json") or {}
+        tool_evts = list(state.get("tool_events") or [])
+        tools_list = list(state.get("allowed_tools") or [])
         prompt = _build_planner_prompt(
             analysis_json=aj0,
-            tool_events=list(state.get("tool_events") or []),
-            allowed_tools=list(state.get("allowed_tools") or []),
+            tool_events=tool_evts,
+            allowed_tools=tools_list,
         )
         obj, err = generate_json(prompt, schema=ToolPlanResponse)
         if err or not isinstance(obj, dict):
@@ -758,7 +783,8 @@ def _compile_rca_graph(*, default_policy: ChatPolicy):
 
     def synth_node(state: _State) -> _State:
         aj0 = state.get("analysis_json") or {}
-        prompt = _build_rca_prompt(analysis_json=aj0, tool_events=list(state.get("tool_events") or []))
+        tool_evts = list(state.get("tool_events") or [])
+        prompt = _build_rca_prompt(analysis_json=aj0, tool_events=tool_evts)
         obj, err = generate_json(prompt, schema=RCASynthesisResponse)
         if err or not isinstance(obj, dict):
             errs = list(state.get("errors") or [])

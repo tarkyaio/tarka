@@ -3,10 +3,14 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import os
 from typing import Any, Dict, Optional, Tuple
 
 from agent.queue.base import AlertJob, AsyncQueueClient
+from agent.queue.nats_retry import connect_nats_with_retry
+
+logger = logging.getLogger(__name__)
 
 
 class JetStreamQueueClient(AsyncQueueClient):
@@ -30,12 +34,11 @@ class JetStreamQueueClient(AsyncQueueClient):
             return
 
         try:
-            import nats  # type: ignore[import-not-found]
             from nats.js.errors import NotFoundError  # type: ignore[import-not-found]
         except Exception as e:
             raise RuntimeError("Missing NATS client dependency. Install `nats-py` to use JetStream.") from e
 
-        nc = await nats.connect(servers=[self.nats_url])
+        nc = await connect_nats_with_retry(servers=[self.nats_url])
         js = nc.jetstream()
 
         dup_s_raw = (os.getenv("JETSTREAM_DUPLICATE_WINDOW_SECONDS") or "").strip()

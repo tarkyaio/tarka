@@ -2315,6 +2315,8 @@ async def _thread_send_stream(*, request: Request, thread_id: str, raw: Dict[str
                 ):
                     # Format and emit SSE
                     data = {"content": event.content}
+                    if event.event_type == "error":
+                        data["error"] = event.content
                     if event.tool:
                         data["tool"] = event.tool
                     if event.metadata:
@@ -2340,6 +2342,8 @@ async def _thread_send_stream(*, request: Request, thread_id: str, raw: Dict[str
             ):
                 # Format and emit SSE
                 data = {"content": event.content}
+                if event.event_type == "error":
+                    data["error"] = event.content
                 if event.tool:
                     data["tool"] = event.tool
                 if event.metadata:
