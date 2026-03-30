@@ -81,6 +81,7 @@ def _allowed_tools(policy: ChatPolicy) -> List[str]:
                 "github.workflow_logs",
                 "github.read_file",
                 "github.commit_diff",
+                "github.regression_context",
             ]
         )
     return tools

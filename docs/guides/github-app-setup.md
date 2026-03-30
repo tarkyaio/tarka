@@ -129,6 +129,16 @@ spec:
         # Optional: Restrict chat tools to specific repos
         - name: CHAT_GITHUB_REPO_ALLOWLIST
           value: "myorg/service1,myorg/service2"
+
+        # Optional: Local git mirror cache (for README/docs/diffs in chat + pipeline)
+        - name: TARKA_GIT_CACHE_DIR
+          value: "/tmp/tarka/git"
+        - name: TARKA_GIT_FETCH_TTL_SECONDS
+          value: "300"
+        - name: TARKA_GIT_CACHE_MAX_REPOS
+          value: "0"
+        - name: TARKA_GIT_REMOTE_BASE
+          value: "https://github.com"
 ```
 
 ## Step 7: Verify Setup
@@ -192,9 +202,27 @@ Example report section:
 
 **Solutions**:
 - GitHub Apps get 5,000 requests/hour per installation
-- Each investigation makes ~3-5 API calls (commits, workflows, files)
+- API calls are metadata-first:
+  - commits/workflows/logs use API
+  - README/docs and commit/file blobs are served from local mirror cache when available
+- Workflow jobs are fetched by default only for failed runs (reduces N+1 API fanout)
 - Monitor rate limit usage via chat tool or GitHub API
 - Consider increasing investigation time window to reduce frequency
+
+### Local Mirror Cache Issues
+
+**Symptom**: GitHub chat file/diff tools fail locally and fall back to REST frequently
+
+**Causes**:
+1. Cache dir not writable or too small
+2. Mirror refresh TTL too aggressive
+3. Git not available in runtime image/container
+
+**Solutions**:
+- Ensure `git --version` works in the running container
+- Verify `TARKA_GIT_CACHE_DIR` is writable by the agent process
+- Tune `TARKA_GIT_FETCH_TTL_SECONDS` (default: 300)
+- Use `TARKA_GIT_CACHE_MAX_REPOS` to control cache growth in long-running pods
 
 ### Authentication Failures
 

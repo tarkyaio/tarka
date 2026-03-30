@@ -341,6 +341,7 @@ def run_investigation(
             investigation.evidence.github.failed_workflow_logs = gh_evidence.get("failed_workflow_logs")
             investigation.evidence.github.readme = gh_evidence.get("readme")
             investigation.evidence.github.docs = gh_evidence.get("docs", [])
+            investigation.evidence.github.regression_context = gh_evidence.get("regression_context")
         except Exception:
             pass  # Never block pipeline on GitHub errors
 

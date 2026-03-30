@@ -248,7 +248,7 @@ def test_github_provider_get_commits_handles_errors(mock_github_env):
 
 
 def test_github_provider_get_workflow_runs(mock_github_env):
-    """Provider retrieves workflow runs."""
+    """Provider retrieves workflow runs and fetches jobs only for failed runs by default."""
     provider = DefaultGitHubProvider()
     provider._installation_token = "ghs_test_token"
     provider._token_expires_at = datetime.now(timezone.utc).replace(hour=23, minute=59)
@@ -312,9 +312,70 @@ def test_github_provider_get_workflow_runs(mock_github_env):
         assert runs[0]["id"] == 12345
         assert runs[0]["workflow_name"] == "CI"
         assert runs[0]["conclusion"] == "success"
-        assert len(runs[0]["jobs"]) == 2
+        assert len(runs[0]["jobs"]) == 0  # success run skipped in default failed mode
         assert runs[1]["id"] == 12346
         assert runs[1]["conclusion"] == "failure"
+        assert len(runs[1]["jobs"]) == 1
+
+
+def test_github_provider_get_workflow_runs_all_mode_fetches_all_jobs(mock_github_env):
+    """jobs_mode=all preserves old behavior: jobs fetched for all runs."""
+    provider = DefaultGitHubProvider()
+    provider._installation_token = "ghs_test_token"
+    provider._token_expires_at = datetime.now(timezone.utc).replace(hour=23, minute=59)
+
+    mock_runs_response = MagicMock()
+    mock_runs_response.json.return_value = {
+        "workflow_runs": [
+            {
+                "id": 12345,
+                "name": "CI",
+                "status": "completed",
+                "conclusion": "success",
+                "created_at": "2026-02-18T10:00:00Z",
+                "updated_at": "2026-02-18T10:05:00Z",
+                "html_url": "https://github.com/myorg/myrepo/actions/runs/12345",
+            },
+            {
+                "id": 12346,
+                "name": "Deploy",
+                "status": "completed",
+                "conclusion": "failure",
+                "created_at": "2026-02-18T09:00:00Z",
+                "updated_at": "2026-02-18T09:10:00Z",
+                "html_url": "https://github.com/myorg/myrepo/actions/runs/12346",
+            },
+        ]
+    }
+
+    mock_jobs_response_1 = MagicMock()
+    mock_jobs_response_1.json.return_value = {
+        "jobs": [
+            {"id": 101, "name": "build", "status": "completed", "conclusion": "success"},
+        ]
+    }
+    mock_jobs_response_2 = MagicMock()
+    mock_jobs_response_2.json.return_value = {
+        "jobs": [
+            {"id": 201, "name": "deploy", "status": "completed", "conclusion": "failure"},
+        ]
+    }
+
+    def mock_make_request(method, url, **kwargs):
+        if "/actions/runs" in url and "/jobs" not in url:
+            return mock_runs_response
+        if "/jobs" in url and "12345" in url:
+            return mock_jobs_response_1
+        if "/jobs" in url and "12346" in url:
+            return mock_jobs_response_2
+        return MagicMock(json=lambda: {})
+
+    with patch.object(provider, "_make_request", side_effect=mock_make_request):
+        since = datetime(2026, 2, 18, 8, 0, 0, tzinfo=timezone.utc)
+        runs = provider.get_workflow_runs("myorg/myrepo", since, limit=10, jobs_mode="all")
+
+        assert len(runs) == 2
+        assert len(runs[0]["jobs"]) == 1
         assert len(runs[1]["jobs"]) == 1
 
 

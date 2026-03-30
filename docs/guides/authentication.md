@@ -557,7 +557,13 @@ See the detailed [GitHub App Setup Guide](github-app-setup.md) for step-by-step 
    GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n..."
    GITHUB_EVIDENCE_ENABLED=1
    CHAT_ALLOW_GITHUB_READ=1
+   TARKA_GIT_CACHE_DIR=/tmp/tarka/git
+   TARKA_GIT_FETCH_TTL_SECONDS=300
    ```
+
+Optional:
+- `GITHUB_TOKEN` can be provided as an explicit git clone/fetch credential source.
+- If `GITHUB_TOKEN` is not set, git mirror auth falls back to GitHub App installation tokens.
 
 **Why GitHub App over Personal Access Token?**
 - Scoped to specific repositories
@@ -671,3 +677,8 @@ spec:
 | `CHAT_ALLOW_GITHUB_READ` | No | `false` | Enable GitHub chat tools |
 | `CHAT_GITHUB_REPO_ALLOWLIST` | No | - | Comma-separated list of allowed GitHub repos |
 | `GITHUB_DEFAULT_ORG` | No | - | Default GitHub organization for repo discovery |
+| `GITHUB_TOKEN` | No | - | Optional explicit token for git clone/fetch auth |
+| `TARKA_GIT_CACHE_DIR` | No | `/tmp/tarka/git` | Local bare-mirror cache directory |
+| `TARKA_GIT_FETCH_TTL_SECONDS` | No | `300` | Mirror refresh TTL in seconds |
+| `TARKA_GIT_CACHE_MAX_REPOS` | No | `0` | Max cached repos before LRU eviction (`0`=disabled) |
+| `TARKA_GIT_REMOTE_BASE` | No | `https://github.com` | Base remote URL (set for GitHub Enterprise) |

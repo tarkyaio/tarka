@@ -130,6 +130,21 @@ Notes:\n
 - Tracing is **env-gated**: if `LANGSMITH_TRACING` is not truthy, the agent does not emit traces.\n
 - Endpoint defaults to LangSmith Cloud (no `LANGSMITH_ENDPOINT` needed).\n
 
+## Git mirror cache (local code/content access)
+
+Used by GitHub evidence collection to fetch file/diff blobs locally from a per-repo bare mirror, while keeping GitHub API calls metadata-first.
+
+**ConfigMap**
+- `TARKA_GIT_CACHE_DIR` (default: `/tmp/tarka/git`)
+- `TARKA_GIT_FETCH_TTL_SECONDS` (default: `300`)
+- `TARKA_GIT_CACHE_MAX_REPOS` (default: `0` = disabled)
+- `TARKA_GIT_REMOTE_BASE` (default: `https://github.com`; set for GitHub Enterprise)
+
+Auth notes:
+- If `GITHUB_TOKEN` is set, it is used for clone/fetch.
+- Otherwise, the agent reuses GitHub App installation token flow.
+- Tokens are never persisted in mirror remote URLs and are redacted from errors/logs.
+
 ## Tool-using chat (policy)
 
 **ConfigMap**

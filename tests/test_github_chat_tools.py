@@ -378,7 +378,174 @@ class TestRecentCommitsLimitAndAutoWiden:
 
 
 # ---------------------------------------------------------------------------
-# E. RCA graph registration
+# E. Service abstraction usage
+# ---------------------------------------------------------------------------
+
+
+class TestGitHubServiceUsage:
+    def test_read_file_routes_through_github_data_service(self):
+        policy = _make_policy()
+        aj = _make_analysis_json(github_repo="acme/myrepo")
+
+        mock_service = MagicMock()
+        mock_service.read_file.return_value = {"source": "mirror", "content": "hello from mirror"}
+
+        with patch("agent.services.github_data_service.get_github_data_service", return_value=mock_service):
+            with patch(
+                "agent.providers.github_provider.get_github_provider",
+                side_effect=AssertionError("chat tool should not call provider directly"),
+            ):
+                result = run_tool(
+                    policy=policy,
+                    action_policy=None,
+                    tool="github.read_file",
+                    args={"path": "README.md"},
+                    analysis_json=aj,
+                )
+
+        assert result.ok is True
+        assert result.result["content"] == "hello from mirror"
+        mock_service.read_file.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# F. RCA graph registration
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# F. github.regression_context tool tests
+# ---------------------------------------------------------------------------
+
+
+class TestRegressionContext:
+    def test_regression_context_returns_pack(self):
+        """Happy path: returns pack with error_hints passed through."""
+        policy = _make_policy()
+        aj = _make_analysis_json(github_repo="acme/myrepo")
+
+        fake_pack = {
+            "repo": "acme/myrepo",
+            "candidate_range": {"base": "aaa", "head": "bbb", "source": "time_window", "widened_window": False},
+            "selected_files": [{"path": "src/main.py", "status": "M", "score": 10, "grep_hits": 2}],
+            "diff_hunks": [{"path": "src/main.py", "line_count": 5, "truncated": False, "patch": "+new code"}],
+            "file_snippets": [],
+            "limits": {"max_files": 10, "max_diff_lines_per_file": 200, "max_total_diff_lines": 1200},
+        }
+
+        with patch("agent.analysis.git_regression.build_regression_context_pack", return_value=fake_pack) as mock_build:
+            result = run_tool(
+                policy=policy,
+                action_policy=None,
+                tool="github.regression_context",
+                args={"error_hints": ["ConnectionTimeout", "S3Error"]},
+                analysis_json=aj,
+            )
+
+        assert result.ok is True
+        assert result.result["repo"] == "acme/myrepo"
+        assert len(result.result["selected_files"]) == 1
+        # Verify error_hints were passed through
+        call_kwargs = mock_build.call_args[1]
+        assert call_kwargs["error_hints"] == ["ConnectionTimeout", "S3Error"]
+        assert call_kwargs["max_files"] == 10
+
+    def test_regression_context_policy_blocks(self):
+        """allow_github_read=False returns tool_not_allowed."""
+        policy = _make_policy(allow_github_read=False)
+        result = run_tool(
+            policy=policy,
+            action_policy=None,
+            tool="github.regression_context",
+            args={},
+            analysis_json=_make_analysis_json(github_repo="acme/repo"),
+        )
+        assert result.ok is False
+        assert result.error == "tool_not_allowed"
+
+    def test_regression_context_repo_allowlist(self):
+        """Blocked repo returns repo_not_allowed."""
+        policy = _make_policy(github_repo_allowlist=["acme/allowed-only"])
+        result = run_tool(
+            policy=policy,
+            action_policy=None,
+            tool="github.regression_context",
+            args={},
+            analysis_json=_make_analysis_json(github_repo="acme/blocked-repo"),
+        )
+        assert result.ok is False
+        assert "repo_not_allowed" in (result.error or "")
+
+    def test_regression_context_error_hints_comma_string(self):
+        """Comma-separated string is parsed into list correctly."""
+        policy = _make_policy()
+        aj = _make_analysis_json(github_repo="acme/myrepo")
+
+        fake_pack = {
+            "repo": "acme/myrepo",
+            "candidate_range": {"base": "aaa", "head": "bbb", "source": "time_window", "widened_window": False},
+            "selected_files": [],
+            "diff_hunks": [],
+            "file_snippets": [],
+            "limits": {"max_files": 10, "max_diff_lines_per_file": 200, "max_total_diff_lines": 1200},
+        }
+
+        with patch("agent.analysis.git_regression.build_regression_context_pack", return_value=fake_pack) as mock_build:
+            result = run_tool(
+                policy=policy,
+                action_policy=None,
+                tool="github.regression_context",
+                args={"error_hints": "ConnectionTimeout, S3Error, NullPointer"},
+                analysis_json=aj,
+            )
+
+        assert result.ok is True
+        call_kwargs = mock_build.call_args[1]
+        assert call_kwargs["error_hints"] == ["ConnectionTimeout", "S3Error", "NullPointer"]
+
+    def test_regression_context_mirror_failure(self):
+        """Mirror failure returns structured error."""
+        policy = _make_policy()
+        aj = _make_analysis_json(github_repo="acme/myrepo")
+
+        with patch(
+            "agent.analysis.git_regression.build_regression_context_pack",
+            side_effect=RuntimeError("clone failed"),
+        ):
+            result = run_tool(
+                policy=policy,
+                action_policy=None,
+                tool="github.regression_context",
+                args={},
+                analysis_json=aj,
+            )
+
+        assert result.ok is False
+        assert "github_error:RuntimeError" in (result.error or "")
+
+
+# ---------------------------------------------------------------------------
+# G. Model field test
+# ---------------------------------------------------------------------------
+
+
+class TestGitHubEvidenceModel:
+    def test_github_evidence_regression_context_field(self):
+        """GitHubEvidence accepts regression_context dict and defaults to None."""
+        from agent.core.models import GitHubEvidence
+
+        # Default is None
+        e = GitHubEvidence()
+        assert e.regression_context is None
+
+        # Accepts dict
+        e2 = GitHubEvidence(regression_context={"repo": "acme/x", "selected_files": []})
+        assert e2.regression_context is not None
+        assert e2.regression_context["repo"] == "acme/x"
+
+
+# ---------------------------------------------------------------------------
+# H. RCA graph registration
 # ---------------------------------------------------------------------------
 
 
@@ -396,6 +563,7 @@ class TestRCAGraphGitHub:
             "github.workflow_logs",
             "github.read_file",
             "github.commit_diff",
+            "github.regression_context",
         ]
         for t in expected:
             assert t in tools, f"{t} not found in RCA allowed_tools"

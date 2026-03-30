@@ -406,7 +406,7 @@ def collect_github_evidence(investigation: Any) -> Dict[str, Any]:
     - docs: List of doc files
     - errors: List of error messages
     """
-    from agent.providers.github_provider import get_github_provider
+    from agent.services.github_data_service import get_github_data_service
 
     errors: List[str] = []
 
@@ -424,7 +424,7 @@ def collect_github_evidence(investigation: Any) -> Dict[str, Any]:
         svc.get("github_repo") == repo for svc in third_party_catalog.get("third_party_services", {}).values()
     )
 
-    github = get_github_provider()
+    github_data = get_github_data_service()
     time_window = investigation.time_window
 
     # Recent commits (2h window before alert)
@@ -433,13 +433,14 @@ def collect_github_evidence(investigation: Any) -> Dict[str, Any]:
         since = time_window.start_time - timedelta(hours=2)
         until = time_window.end_time
 
-        commits = github.get_recent_commits(repo=repo, since=since, until=until, branch="main")
+        commits_resp = github_data.recent_commits(repo=repo, since=since, until=until, branch="main")
+        commits = commits_resp.get("commits", [])
 
         # Filter out error responses
-        if commits and isinstance(commits, list) and not (len(commits) == 1 and "error" in commits[0]):
+        if commits_resp.get("error"):
+            errors.append(f"commits:{commits_resp.get('message', 'unknown')}")
+        elif commits and isinstance(commits, list):
             recent_commits = commits[:10]  # Cap at 10
-        elif commits and "error" in commits[0]:
-            errors.append(f"commits:{commits[0].get('message', 'unknown')}")
     except Exception as e:
         errors.append(f"commits:{type(e).__name__}")
 
@@ -447,10 +448,13 @@ def collect_github_evidence(investigation: Any) -> Dict[str, Any]:
     workflow_runs = []
     failed_logs = None
     try:
-        runs = github.get_workflow_runs(repo=repo, since=time_window.start_time, limit=5)
+        runs_resp = github_data.workflow_runs(repo=repo, since=time_window.start_time, limit=5)
+        runs = runs_resp.get("workflow_runs", [])
 
         # Filter out error responses
-        if runs and isinstance(runs, list) and not (len(runs) == 1 and "error" in runs[0]):
+        if runs_resp.get("error"):
+            errors.append(f"workflows:{runs_resp.get('message', 'unknown')}")
+        elif runs and isinstance(runs, list):
             workflow_runs = runs
 
             # Fetch logs for first failed run
@@ -458,33 +462,32 @@ def collect_github_evidence(investigation: Any) -> Dict[str, Any]:
             if failed_run:
                 failed_job = next((j for j in failed_run.get("jobs", []) if j.get("conclusion") == "failure"), None)
                 if failed_job:
-                    logs = github.get_workflow_run_logs(repo=repo, run_id=failed_run["id"], job_id=failed_job["id"])
-                    if not logs.startswith("Error"):
-                        failed_logs = logs
-        elif runs and "error" in runs[0]:
-            errors.append(f"workflows:{runs[0].get('message', 'unknown')}")
+                    logs_resp = github_data.workflow_logs(repo=repo, run_id=failed_run["id"], job_id=failed_job["id"])
+                    if not logs_resp.get("error"):
+                        failed_logs = logs_resp.get("logs")
     except Exception as e:
         errors.append(f"workflows:{type(e).__name__}")
 
-    # Documentation (README + docs/)
-    readme = None
-    docs = []
-    try:
-        readme = github.get_file_contents(repo=repo, path="README.md")
-    except Exception:
-        pass  # README not found is common, don't log error
+    docs_resp = github_data.readme_and_docs(repo=repo, mirror_ref="HEAD", api_ref="main", max_docs=5)
+    readme = docs_resp.get("readme")
+    docs = docs_resp.get("docs", [])
 
+    # Best-effort regression context (no error_hints at pipeline stage; LLM hasn't run yet)
+    regression_context = None
     try:
-        doc_files = github.list_directory(repo=repo, path="docs")
-        for file in doc_files[:5]:  # Cap at 5 docs
-            if file.endswith(".md"):
-                try:
-                    content = github.get_file_contents(repo=repo, path=f"docs/{file}")
-                    docs.append({"path": f"docs/{file}", "content": content})
-                except Exception:
-                    pass
-    except Exception:
-        pass  # docs/ not found is common, don't log error
+        from agent.analysis.git_regression import build_regression_context_pack
+
+        regression_context = build_regression_context_pack(
+            repo=repo,
+            incident_start=time_window.start_time,
+            incident_end=time_window.end_time,
+            branch="main",
+            max_files=8,
+            max_diff_lines_per_file=150,
+            max_total_diff_lines=800,
+        )
+    except Exception as e:
+        errors.append(f"regression_context:{type(e).__name__}")
 
     return {
         "repo": repo,
@@ -495,6 +498,7 @@ def collect_github_evidence(investigation: Any) -> Dict[str, Any]:
         "failed_workflow_logs": failed_logs,
         "readme": readme,
         "docs": docs,
+        "regression_context": regression_context,
         "errors": errors,
     }
 

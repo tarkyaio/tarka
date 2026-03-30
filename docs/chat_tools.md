@@ -381,6 +381,11 @@ Agent: "VPC endpoint vpce-abc123 (S3 gateway) is available."
 
 GitHub tools provide code change context during investigations. Requires GitHub App setup.
 
+**Data path**:
+- Metadata-first: commits/workflows/logs use GitHub API.
+- Content/blobs (`github.read_file`, `github.commit_diff`) use local git mirror cache first, then GitHub REST fallback if local git fails.
+- Chat and pipeline share the same GitHub data service layer for consistent behavior.
+
 **Policy gate**: `CHAT_ALLOW_GITHUB_READ=1` (default: false)
 
 **Repo allowlist**: `CHAT_GITHUB_REPO_ALLOWLIST=myorg/repo1,myorg/repo2` (optional)
@@ -445,7 +450,7 @@ Agent: "Recent builds:
 - Status (queued, in_progress, completed)
 - Conclusion (success, failure, cancelled, skipped)
 - Created/updated timestamps
-- Job details (for failed runs)
+- Job details (fetched by default only for failed runs to reduce API fanout)
 
 **Limits**:
 - Max runs: 5 (most recent)
@@ -462,7 +467,7 @@ Fetch logs from a specific workflow run.
 **Arguments**:
 - `repo` (required): GitHub repo in `org/repo` format
 - `run_id` (required): Workflow run ID
-- `job_id` (optional): Specific job ID (defaults to first failed job)
+- `job_id` (required): Workflow job ID
 
 **Example**:
 ```
@@ -485,6 +490,7 @@ context canceled: connection timeout to registry.io"
 ### `github.read_file`
 
 Fetch specific file contents from repository (e.g., README, runbook).
+Uses local mirror cache first, then GitHub REST fallback.
 
 **Arguments**:
 - `repo` (required): GitHub repo in `org/repo` format
@@ -509,6 +515,61 @@ Agent: "Runbook says to check database connection pool size (currently 10, shoul
 - Access service documentation during incidents
 - Read runbooks for troubleshooting steps
 - Check configuration files
+
+### `github.commit_diff`
+
+Fetch changed files and patch snippets for a commit.
+Uses local mirror cache first, then GitHub REST fallback.
+
+**Arguments**:
+- `repo` (required): GitHub repo in `org/repo` format
+- `sha` (required): Commit SHA (short or full)
+
+**Returns**:
+- Commit SHA and message
+- Changed files with status/additions/deletions
+- Patch snippets (capped for readability/prompt safety)
+
+**Use cases**:
+- Correlate incidents with exact code/config changes
+- Inspect likely regression hunks quickly
+
+### `github.regression_context`
+
+Build a bounded regression context pack: ranked changed files, diff hunks, and code snippets for the incident time window. Uses the local git mirror cache.
+
+**Arguments**:
+- `repo` (optional): GitHub repo in `org/repo` format (auto-discovered)
+- `error_hints` (optional): List of error strings or comma-separated string. Used to rank files by grep relevance (e.g., `["ConnectionTimeout", "S3AccessDenied"]`)
+- `since` (optional): ISO8601 timestamp for range start (defaults to investigation time window)
+- `until` (optional): ISO8601 timestamp for range end (defaults to investigation time window)
+- `deployed_sha` (optional): Deployed commit SHA to use as range head instead of time-based discovery
+- `branch` (optional): Branch to search (defaults to `main`)
+
+**Example**:
+```
+User: "What code changed around the time of this incident?"
+Agent: [calls github.regression_context with error_hints=["ConnectionTimeout"]]
+Agent: "3 files changed in the incident window. Top ranked:
+- src/config/database.py (score 25, 2 grep hits for 'ConnectionTimeout')
+- src/app/retry.py (score 12)
+Diff shows connection pool size was reduced from 50 to 10 in database.py."
+```
+
+**Returns**:
+- `repo`: Repository name
+- `candidate_range`: Base/head SHAs, source (time_window or deployed_sha), whether window was widened
+- `selected_files`: Ranked file list with scores and grep hit counts
+- `diff_hunks`: Truncated diff patches per file
+- `file_snippets`: Code snippets around grep hits (up to 3)
+- `limits`: Applied size limits
+
+**Key value-add**: When called by the RCA agent with `error_hints` from its analysis, files containing error-related code are ranked higher, providing targeted context for root cause identification.
+
+**Use cases**:
+- Regression analysis: find what code changed before the incident
+- Targeted RCA: pass error patterns to rank files by relevance
+- Code context for LLM analysis: bounded diff hunks + snippets
 
 ---
 

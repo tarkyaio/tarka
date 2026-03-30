@@ -772,7 +772,7 @@ def run_tool(
                 },
             }
 
-            return ToolResult(ok=True, result=result)
+            return ToolResult(ok=True, result=_compact(result))
         except Exception as e:
             log.warning(f"CloudTrail events query failed: region={region} error={str(e)[:400]}")
             return ToolResult(ok=False, error=f"aws_error:{type(e).__name__}:{str(e)[:200]}")
@@ -922,39 +922,28 @@ def run_tool(
             since = until - timedelta(hours=2)
 
         try:
-            from agent.providers.github_provider import get_github_provider
+            from agent.services.github_data_service import get_github_data_service
 
-            github = get_github_provider()
-            commits = github.get_recent_commits(repo=repo, since=since, until=until, branch=branch)
+            github_data = get_github_data_service()
+            commits_resp = github_data.recent_commits(repo=repo, since=since, until=until, branch=branch)
+            commits = commits_resp.get("commits", [])
 
             # Filter out error responses
-            if (
-                commits
-                and isinstance(commits, list)
-                and len(commits) >= 1
-                and isinstance(commits[0], dict)
-                and "error" in commits[0]
-            ):
-                err_msg = commits[0].get("message", "")
+            if commits_resp.get("error"):
+                err_msg = commits_resp.get("message", "")
                 log.warning("github.recent_commits: provider error for repo=%s: %s", repo, err_msg)
-                return ToolResult(ok=False, error=f"{commits[0].get('error', 'github_error')}: {err_msg}")
+                return ToolResult(ok=False, error=f"{commits_resp.get('error', 'github_error')}: {err_msg}")
 
             # Auto-widen: if default 2h window returned 0 commits, retry with 24h
             if not commits and using_default_window:
                 since = until - timedelta(hours=24)
                 log.info("github.recent_commits: 0 commits in 2h window, auto-widening to 24h for repo=%s", repo)
-                commits = github.get_recent_commits(repo=repo, since=since, until=until, branch=branch)
-                # Check for error on retry too
-                if (
-                    commits
-                    and isinstance(commits, list)
-                    and len(commits) >= 1
-                    and isinstance(commits[0], dict)
-                    and "error" in commits[0]
-                ):
-                    err_msg = commits[0].get("message", "")
+                commits_resp = github_data.recent_commits(repo=repo, since=since, until=until, branch=branch)
+                commits = commits_resp.get("commits", [])
+                if commits_resp.get("error"):
+                    err_msg = commits_resp.get("message", "")
                     log.warning("github.recent_commits: provider error for repo=%s: %s", repo, err_msg)
-                    return ToolResult(ok=False, error=f"{commits[0].get('error', 'github_error')}: {err_msg}")
+                    return ToolResult(ok=False, error=f"{commits_resp.get('error', 'github_error')}: {err_msg}")
 
             searched_hours = round((until - since).total_seconds() / 3600)
             total = len(commits)
@@ -1004,16 +993,17 @@ def run_tool(
             since = datetime.now(timezone.utc) - timedelta(hours=2)
 
         try:
-            from agent.providers.github_provider import get_github_provider
+            from agent.services.github_data_service import get_github_data_service
 
-            github = get_github_provider()
-            runs = github.get_workflow_runs(repo=repo, since=since, limit=limit)
+            github_data = get_github_data_service()
+            runs_resp = github_data.workflow_runs(repo=repo, since=since, limit=limit)
+            runs = runs_resp.get("workflow_runs", [])
 
             # Filter out error responses
-            if runs and isinstance(runs, list) and len(runs) >= 1 and isinstance(runs[0], dict) and "error" in runs[0]:
-                err_msg = runs[0].get("message", "")
+            if runs_resp.get("error"):
+                err_msg = runs_resp.get("message", "")
                 log.warning("github.workflow_runs: provider error for repo=%s: %s", repo, err_msg)
-                return ToolResult(ok=False, error=f"{runs[0].get('error', 'github_error')}: {err_msg}")
+                return ToolResult(ok=False, error=f"{runs_resp.get('error', 'github_error')}: {err_msg}")
 
             return ToolResult(ok=True, result=_compact({"repo": repo, "workflow_runs": runs}))
         except Exception as e:
@@ -1045,14 +1035,13 @@ def run_tool(
             return ToolResult(ok=False, error=f"repo_not_allowed:{repo} - not in configured allowlist")
 
         try:
-            from agent.providers.github_provider import get_github_provider
+            from agent.services.github_data_service import get_github_data_service
 
-            github = get_github_provider()
-            logs = github.get_workflow_run_logs(repo=repo, run_id=run_id, job_id=job_id)
-
-            # Check if logs contain error message
-            if logs.startswith("Error fetching logs"):
-                return ToolResult(ok=False, error="github_error:log_fetch_failed")
+            github_data = get_github_data_service()
+            logs_resp = github_data.workflow_logs(repo=repo, run_id=run_id, job_id=job_id)
+            if logs_resp.get("error"):
+                return ToolResult(ok=False, error=logs_resp.get("error", "github_error:log_fetch_failed"))
+            logs = logs_resp.get("logs", "")
 
             return ToolResult(
                 ok=True, result=_compact({"repo": repo, "run_id": run_id, "job_id": job_id, "logs": logs})
@@ -1090,10 +1079,14 @@ def run_tool(
             return ToolResult(ok=False, error=f"repo_not_allowed:{repo} - not in configured allowlist")
 
         try:
-            from agent.providers.github_provider import get_github_provider
+            from agent.services.github_data_service import get_github_data_service
 
-            github = get_github_provider()
-            content = github.get_file_contents(repo=repo, path=path, ref=ref)
+            github_data = get_github_data_service()
+            read_resp = github_data.read_file(repo=repo, path=path, ref=ref)
+            if read_resp.get("error"):
+                msg = read_resp.get("message", "")
+                return ToolResult(ok=False, error=f"{read_resp.get('error', 'github_error')}: {msg}")
+            content = read_resp.get("content", "")
 
             return ToolResult(ok=True, result=_compact({"repo": repo, "path": path, "ref": ref, "content": content}))
         except Exception as e:
@@ -1123,20 +1116,87 @@ def run_tool(
             return ToolResult(ok=False, error=f"repo_not_allowed:{repo} - not in configured allowlist")
 
         try:
-            from agent.providers.github_provider import get_github_provider
+            from agent.services.github_data_service import get_github_data_service
 
-            github = get_github_provider()
-            diff = github.get_commit_diff(repo=repo, sha=sha)
-
-            # Check for error dict from provider
-            if isinstance(diff, dict) and "error" in diff:
-                err_msg = diff.get("message", "")
+            github_data = get_github_data_service()
+            diff_resp = github_data.commit_diff(repo=repo, sha=sha)
+            if diff_resp.get("error"):
+                err_msg = diff_resp.get("message", "")
                 log.warning("github.commit_diff: provider error for repo=%s sha=%s: %s", repo, sha, err_msg)
-                return ToolResult(ok=False, error=f"{diff.get('error', 'github_error')}: {err_msg}")
+                return ToolResult(ok=False, error=f"{diff_resp.get('error', 'github_error')}: {err_msg}")
+            diff = diff_resp.get("diff", {})
 
             return ToolResult(ok=True, result=_compact({"repo": repo, **diff}))
         except Exception as e:
             log.warning("github.commit_diff failed: repo=%s sha=%s error=%s", repo, sha, str(e)[:200])
+            return ToolResult(ok=False, error=f"github_error:{type(e).__name__}")
+
+    if tool == "github.regression_context":
+        if not policy.allow_github_read:
+            return ToolResult(ok=False, error="tool_not_allowed")
+
+        repo, source = _resolve_github_repo(args, analysis_json)
+        if not repo:
+            log.warning("github.regression_context: repo not discovered (raw=%s, source=%s)", args.get("repo"), source)
+            return ToolResult(
+                ok=False,
+                error="repo_not_discovered: could not resolve repo. Try 'org/repo' format, or add to service-catalog.yaml",
+            )
+
+        log.info("github.regression_context: using repo=%s (source=%s)", repo, source)
+
+        if policy.github_repo_allowlist and repo not in policy.github_repo_allowlist:
+            log.warning("github.regression_context: repo not in allowlist: %s", repo)
+            return ToolResult(ok=False, error=f"repo_not_allowed:{repo} - not in configured allowlist")
+
+        # Parse error_hints: accept list or comma-separated string
+        raw_hints = args.get("error_hints")
+        if isinstance(raw_hints, list):
+            error_hints = [str(h).strip() for h in raw_hints if str(h).strip()]
+        elif isinstance(raw_hints, str) and raw_hints.strip():
+            error_hints = [h.strip() for h in raw_hints.split(",") if h.strip()]
+        else:
+            error_hints = None
+
+        # Parse time window: explicit args or fall back to analysis_json.time_window
+        since_str = str(args.get("since") or "").strip()
+        until_str = str(args.get("until") or "").strip()
+        if since_str:
+            since = _parse_iso(since_str)
+        else:
+            tw = analysis_json.get("time_window") if isinstance(analysis_json.get("time_window"), dict) else {}
+            since = _parse_iso(str(tw.get("start_time") or ""))
+        if until_str:
+            until = _parse_iso(until_str)
+        else:
+            tw = analysis_json.get("time_window") if isinstance(analysis_json.get("time_window"), dict) else {}
+            until = _parse_iso(str(tw.get("end_time") or ""))
+
+        if not since:
+            since = datetime.now(timezone.utc) - timedelta(hours=2)
+        if not until:
+            until = datetime.now(timezone.utc)
+
+        deployed_sha = str(args.get("deployed_sha") or "").strip() or None
+        branch = str(args.get("branch") or "main").strip()
+
+        try:
+            from agent.analysis.git_regression import build_regression_context_pack
+
+            pack = build_regression_context_pack(
+                repo=repo,
+                incident_start=since,
+                incident_end=until,
+                deployed_sha=deployed_sha,
+                branch=branch,
+                error_hints=error_hints,
+                max_files=10,
+                max_diff_lines_per_file=200,
+                max_total_diff_lines=1200,
+            )
+            return ToolResult(ok=True, result=_compact(pack))
+        except Exception as e:
+            log.warning("github.regression_context failed: repo=%s error=%s", repo, str(e)[:200])
             return ToolResult(ok=False, error=f"github_error:{type(e).__name__}")
 
     # --------------------
