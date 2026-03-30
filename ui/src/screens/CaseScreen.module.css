@@ -25,7 +25,7 @@
 }
 
 .crumbCurrent {
-  color: rgba(15, 23, 42, 0.78);
+  color: var(--text-secondary);
 }
 
 .caseTitle {
@@ -54,7 +54,7 @@
 }
 
 .markdown {
-  line-height: 1.45;
+  line-height: 1.6;
 }
 
 .markdown :where(h1, h2, h3) {
@@ -71,13 +71,12 @@
   background: var(--surface-dark-2);
   padding: 2px 6px;
   border-radius: 6px;
-  color: rgba(15, 23, 42, 0.85);
-  border: 1px solid var(--border-dark);
+  color: var(--text-default);
 }
 
 .markdown pre {
   background: var(--surface-dark-2);
-  border: 1px solid var(--border-dark);
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
   padding: 14px;
   margin: 10px 0;
@@ -90,7 +89,7 @@
   border: none;
   padding: 0;
   font-size: 13px;
-  color: rgba(15, 23, 42, 0.85);
+  color: var(--text-default);
   display: block;
   white-space: pre;
 }
@@ -251,7 +250,7 @@
 }
 
 .reportHeader {
-  padding: 22px 22px;
+  padding: 28px 28px;
   border-bottom: 1px solid var(--border-dark);
   background: var(--surface-dark);
   display: flex;
@@ -283,9 +282,9 @@
   min-width: 0;
   max-width: 100%;
   overflow-wrap: anywhere;
-  font-size: 30px;
+  font-size: 28px;
   line-height: 1.15;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text);
 }
@@ -312,10 +311,10 @@
   height: 22px;
   padding: 0 8px;
   border-radius: 999px;
-  border: 1px solid rgba(19, 91, 236, 0.22);
-  background: rgba(19, 91, 236, 0.1);
-  color: rgba(19, 91, 236, 0.95);
-  font-weight: 750;
+  border: 1px solid var(--primary-border);
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  font-weight: 600;
   font-size: 11px;
   white-space: nowrap;
   position: relative;
@@ -350,7 +349,7 @@
   padding: 0 14px;
   border-radius: 12px;
   background: var(--surface-dark);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-xs);
 }
 
 .printBtn:hover {
@@ -358,10 +357,10 @@
 }
 
 .reportBody {
-  padding: 22px 22px;
+  padding: 28px 28px;
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: 32px;
 }
 
 .section {
@@ -372,21 +371,21 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 18px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 650;
   color: var(--text);
   border-bottom: 1px solid var(--border-dark);
   padding-bottom: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 
 .callout {
   display: flex;
   gap: 12px;
-  padding: 14px 14px;
+  padding: 16px 18px;
   border-radius: 12px;
-  border: 1px solid rgba(19, 91, 236, 0.18);
-  background: rgba(19, 91, 236, 0.08);
+  border: 1px solid var(--primary-border-soft);
+  background: var(--primary-bg-soft);
   margin-bottom: 14px;
 }
 
@@ -398,15 +397,15 @@
 
 .calloutTitle {
   font-size: 13px;
-  font-weight: 800;
-  color: rgba(15, 23, 42, 0.92);
+  font-weight: 600;
+  color: var(--text-strong);
 }
 
 .calloutText {
   margin-top: 6px;
   font-size: 14px;
-  line-height: 1.5;
-  color: rgba(15, 23, 42, 0.82);
+  line-height: 1.6;
+  color: var(--text-body);
 }
 
 .calloutMuted {
@@ -426,7 +425,7 @@
 }
 
 .metaValue {
-  color: rgba(15, 23, 42, 0.92);
+  color: var(--text-strong);
   font-weight: 650;
   font-size: 14px;
 }
@@ -438,7 +437,7 @@
 }
 
 .codeBox {
-  border: 1px solid var(--border-dark);
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
   overflow: hidden;
   background: var(--surface-dark);
@@ -457,7 +456,7 @@
 .codeBoxName {
   font-family: var(--mono);
   font-size: 12px;
-  color: rgba(15, 23, 42, 0.6);
+  color: var(--text-faint);
   font-weight: 650;
 }
 
@@ -468,23 +467,23 @@
 
 .codeBoxBody {
   margin: 0;
-  padding: 12px 12px;
+  padding: 16px 18px;
   font-family: var(--mono);
   font-size: 12px;
-  color: rgba(15, 23, 42, 0.84);
+  color: var(--text-default);
   overflow: auto;
   background: var(--surface-dark);
 }
 
 .evidenceList {
   margin: 0;
-  padding-left: 18px;
-  color: rgba(15, 23, 42, 0.8);
+  padding-left: 22px;
+  color: var(--text-body);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .evidenceMuted {
@@ -492,8 +491,8 @@
 }
 
 .verdictText {
-  color: rgba(15, 23, 42, 0.82);
-  line-height: 1.6;
+  color: var(--text-body);
+  line-height: 1.65;
 }
 
 .mutedBlock {
@@ -506,23 +505,23 @@
   border: 1px solid var(--border-dark);
   border-radius: 12px;
   background: var(--surface-dark-2);
-  padding: 12px 12px;
+  padding: 16px 18px;
 }
 
 .nextStepsTitle {
   font-size: 13px;
-  font-weight: 800;
-  color: rgba(15, 23, 42, 0.92);
+  font-weight: 600;
+  color: var(--text-strong);
   margin-bottom: 8px;
 }
 
 .nextStepsList {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 22px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  color: rgba(15, 23, 42, 0.8);
+  gap: 8px;
+  color: var(--text-body);
 }
 
 .scoresGrid {
@@ -542,16 +541,16 @@
   color: var(--muted-2);
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  font-weight: 800;
+  font-weight: 600;
   font-size: 11px;
   margin-bottom: 8px;
 }
 
 .scoreValue {
-  font-size: 26px;
+  font-size: 24px;
   line-height: 1.1;
-  font-weight: 900;
-  color: rgba(15, 23, 42, 0.92);
+  font-weight: 700;
+  color: var(--text-strong);
 }
 
 .scoreCard_low,
@@ -573,7 +572,7 @@
   color: var(--red);
 }
 .scoreValue_confidence_muted {
-  color: rgba(15, 23, 42, 0.7);
+  color: var(--text-tertiary);
 }
 
 /* Impact: high=red, mid=amber, low=green */
@@ -587,7 +586,7 @@
   color: var(--green);
 }
 .scoreValue_impact_muted {
-  color: rgba(15, 23, 42, 0.7);
+  color: var(--text-tertiary);
 }
 
 /* Noise: high=red, mid=amber, low=green (high noise is bad) */
@@ -601,7 +600,7 @@
   color: var(--green);
 }
 .scoreValue_noise_muted {
-  color: rgba(15, 23, 42, 0.7);
+  color: var(--text-tertiary);
 }
 
 .scoreHint {
@@ -616,7 +615,7 @@
   padding-left: 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
 }
 
 .timelineItem {
@@ -647,8 +646,8 @@
 
 .timelineTime {
   font-size: 13px;
-  font-weight: 800;
-  color: rgba(15, 23, 42, 0.9);
+  font-weight: 600;
+  color: var(--text-strong);
 }
 
 .timelineText {
@@ -663,31 +662,31 @@
 }
 
 .enrichmentSummary {
-  color: rgba(15, 23, 42, 0.86);
-  line-height: 1.5;
+  color: var(--text-default);
+  line-height: 1.6;
 }
 
 .enrichmentBlock {
   border: 1px solid var(--border-dark);
   border-radius: 12px;
   background: var(--surface-dark-2);
-  padding: 12px 12px;
+  padding: 16px 18px;
 }
 
 .enrichmentTitle {
   font-size: 13px;
-  font-weight: 800;
-  color: rgba(15, 23, 42, 0.92);
+  font-weight: 600;
+  color: var(--text-strong);
   margin-bottom: 8px;
 }
 
 .enrichmentList {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 22px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  color: rgba(15, 23, 42, 0.8);
+  gap: 8px;
+  color: var(--text-body);
 }
 
 .rawDetails {
@@ -700,9 +699,9 @@
 .rawSummary {
   cursor: pointer;
   user-select: none;
-  padding: 12px 12px;
-  color: rgba(19, 91, 236, 0.96);
-  font-weight: 750;
+  padding: 16px 18px;
+  color: var(--primary-text);
+  font-weight: 600;
   background: var(--surface-dark-2);
   border-bottom: 1px solid var(--border-dark);
 }
@@ -712,14 +711,14 @@
 }
 
 .rawDetails .markdown {
-  padding: 12px 12px;
+  padding: 16px 18px;
 }
 
 .memoryMarkdown {
   border: 1px solid var(--border-dark);
   border-radius: 12px;
   background: var(--surface-dark);
-  padding: 12px 12px;
+  padding: 16px 18px;
 }
 
 .memoryMarkdown :where(h3, h4) {
@@ -728,7 +727,7 @@
 
 .memoryMarkdown :where(ul) {
   margin: 8px 0;
-  padding-left: 18px;
+  padding-left: 22px;
 }
 
 .chatWrap {
@@ -769,8 +768,8 @@
 }
 
 .chatUser .chatBubble {
-  background: rgba(19, 91, 236, 0.08);
-  border-color: rgba(19, 91, 236, 0.18);
+  background: var(--primary-bg-soft);
+  border-color: var(--primary-border-soft);
 }
 
 .chatComposer {
@@ -790,8 +789,8 @@
 }
 
 .chatInput:focus {
-  border-color: rgba(19, 91, 236, 0.28);
-  box-shadow: 0 0 0 2px rgba(19, 91, 236, 0.1);
+  border-color: var(--primary-focus);
+  box-shadow: 0 0 0 2px var(--primary-bg);
 }
 
 .chatSendBtn {
@@ -812,7 +811,7 @@
 
 .resolveLabel {
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -828,8 +827,8 @@
 
 .resolveInput:focus,
 .resolveSelect:focus {
-  border-color: rgba(19, 91, 236, 0.28);
-  box-shadow: 0 0 0 2px rgba(19, 91, 236, 0.1);
+  border-color: var(--primary-focus);
+  box-shadow: 0 0 0 2px var(--primary-bg);
 }
 
 .resolveActions {
@@ -842,7 +841,7 @@
   border: 1px solid var(--border-dark);
   border-radius: 12px;
   background: var(--surface-dark-2);
-  padding: 12px 12px;
+  padding: 16px 18px;
 }
 
 .resolutionHeaderRow {
@@ -879,7 +878,7 @@
   background: rgba(34, 197, 94, 0.1);
   color: rgba(22, 101, 52, 0.98);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0.02em;
 }
 
@@ -898,9 +897,9 @@
   border-radius: 999px;
   border: 1px solid var(--border-dark);
   background: rgba(255, 255, 255, 0.55);
-  color: rgba(15, 23, 42, 0.78);
+  color: var(--text-secondary);
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 600;
   text-transform: lowercase;
 }
 
@@ -911,8 +910,8 @@
 }
 
 .resolutionLink {
-  color: rgba(19, 91, 236, 0.96);
-  font-weight: 750;
+  color: var(--primary-text);
+  font-weight: 600;
   font-size: 13px;
 }
 
@@ -921,8 +920,8 @@
 }
 
 .resolutionSummary {
-  color: rgba(15, 23, 42, 0.82);
-  line-height: 1.55;
+  color: var(--text-body);
+  line-height: 1.6;
   font-size: 13px;
 }
 
@@ -932,8 +931,8 @@
 
 .resolutionIntroTitle {
   font-size: 13px;
-  font-weight: 900;
-  color: rgba(15, 23, 42, 0.92);
+  font-weight: 700;
+  color: var(--text-strong);
 }
 
 .resolutionIntroSub {
@@ -963,7 +962,7 @@
 
 .actionsSubTitle {
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--muted);
   text-transform: uppercase;
@@ -980,7 +979,7 @@
   grid-template-columns: 1fr auto;
   gap: 12px;
   align-items: start;
-  padding: 10px 12px;
+  padding: 16px 18px;
   border-radius: 14px;
   border: 1px solid var(--border-dark);
   background: var(--surface-dark);
@@ -996,13 +995,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--text);
 }
 
 .actionStatus {
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid var(--border-dark);
@@ -1012,7 +1011,7 @@
 
 .actionRisk {
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -1035,7 +1034,7 @@
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
   margin-bottom: 12px;
 }
 
@@ -1062,15 +1061,15 @@
 
 .rcaRootCauseTitle {
   font-size: 13px;
-  font-weight: 800;
-  color: rgba(15, 23, 42, 0.92);
+  font-weight: 600;
+  color: var(--text-strong);
   margin-bottom: 6px;
 }
 
 .rcaRootCauseText {
-  font-size: 15px;
-  line-height: 1.5;
-  color: rgba(15, 23, 42, 0.88);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-default);
 }
 
 /* Confidence indicator */
@@ -1086,13 +1085,13 @@
 /* Evidence, remediation, unknowns lists */
 .rcaList {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 22px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  color: rgba(15, 23, 42, 0.8);
+  gap: 8px;
+  color: var(--text-body);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .rcaSubsection {
@@ -1101,8 +1100,8 @@
 
 .rcaSubsectionTitle {
   font-size: 13px;
-  font-weight: 800;
-  color: rgba(15, 23, 42, 0.92);
+  font-weight: 600;
+  color: var(--text-strong);
   margin-bottom: 8px;
 }
 
@@ -1138,7 +1137,7 @@
 
 .errorDetail {
   margin-top: 6px;
-  color: rgba(15, 23, 42, 0.74);
+  color: var(--text-tertiary);
   font-family: var(--mono);
   font-size: 12px;
 }
