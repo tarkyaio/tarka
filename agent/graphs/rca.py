@@ -10,11 +10,12 @@ from agent.authz.policy import ChatPolicy, load_chat_policy
 from agent.chat.tool_summaries import compact_args_for_prompt, summarize_tool_result, tool_call_key
 from agent.chat.tools import run_tool
 from agent.chat.types import ChatToolEvent
-from agent.core.models import Investigation, RCAInsights
+from agent.core.models import Investigation, LLMTokenUsage, RCAInsights
 from agent.dump import investigation_to_json_dict
 from agent.graphs.prompt_compaction import measure_prompt
 from agent.graphs.tracing import build_invoke_config, trace_tool_call
 from agent.llm.client import generate_json
+from agent.llm.pricing import estimate_cost
 from agent.llm.schemas import RCASynthesisResponse, ToolPlanResponse
 from agent.pipeline.pipeline import run_investigation
 
@@ -532,6 +533,10 @@ class _State(TypedDict, total=False):
     stop: bool
     rca_obj: Dict[str, Any]
     errors: List[str]
+    # LLM token usage accumulators
+    llm_usage_input: int
+    llm_usage_output: int
+    llm_usage_total: int
 
 
 def _safe_load_policy() -> ChatPolicy:
@@ -610,7 +615,11 @@ def _compile_rca_graph(*, default_policy: ChatPolicy):
             tool_events=tool_evts,
             allowed_tools=tools_list,
         )
-        obj, err = generate_json(prompt, schema=ToolPlanResponse)
+        obj, err, call_usage = generate_json(prompt, schema=ToolPlanResponse)
+        if call_usage:
+            state["llm_usage_input"] = state.get("llm_usage_input", 0) + call_usage.get("input_tokens", 0)
+            state["llm_usage_output"] = state.get("llm_usage_output", 0) + call_usage.get("output_tokens", 0)
+            state["llm_usage_total"] = state.get("llm_usage_total", 0) + call_usage.get("total_tokens", 0)
         if err or not isinstance(obj, dict):
             errs = list(state.get("errors") or [])
             errs.append(str(err or "planner_error"))
@@ -786,7 +795,11 @@ def _compile_rca_graph(*, default_policy: ChatPolicy):
         aj0 = state.get("analysis_json") or {}
         tool_evts = list(state.get("tool_events") or [])
         prompt = _build_rca_prompt(analysis_json=aj0, tool_events=tool_evts)
-        obj, err = generate_json(prompt, schema=RCASynthesisResponse)
+        obj, err, call_usage = generate_json(prompt, schema=RCASynthesisResponse)
+        if call_usage:
+            state["llm_usage_input"] = state.get("llm_usage_input", 0) + call_usage.get("input_tokens", 0)
+            state["llm_usage_output"] = state.get("llm_usage_output", 0) + call_usage.get("output_tokens", 0)
+            state["llm_usage_total"] = state.get("llm_usage_total", 0) + call_usage.get("total_tokens", 0)
         if err or not isinstance(obj, dict):
             errs = list(state.get("errors") or [])
             errs.append(str(err or "rca_error"))
@@ -875,6 +888,9 @@ def maybe_attach_rca(
         "remaining_tool_calls": int(getattr(policy, "max_tool_calls", 6) or 6),
         "stop": False,
         "errors": [],
+        "llm_usage_input": 0,
+        "llm_usage_output": 0,
+        "llm_usage_total": 0,
     }
 
     labels = alert.get("labels", {}) if isinstance(alert, dict) else {}
@@ -890,6 +906,20 @@ def maybe_attach_rca(
     out = app.invoke(init, config=cfg)
     tool_events_out = list(out.get("tool_events") or [])
     rca_obj = out.get("rca_obj") if isinstance(out.get("rca_obj"), dict) else {}
+
+    # Build accumulated LLM token usage for RCA
+    rca_token_usage = None
+    rca_inp = int(out.get("llm_usage_input") or 0)
+    rca_out = int(out.get("llm_usage_output") or 0)
+    rca_tot = int(out.get("llm_usage_total") or 0)
+    if rca_inp or rca_out or rca_tot:
+        model_name = (os.getenv("LLM_MODEL") or "").strip() or "gemini-2.5-flash"
+        rca_token_usage = LLMTokenUsage(
+            input_tokens=rca_inp,
+            output_tokens=rca_out,
+            total_tokens=rca_tot,
+            estimated_cost_usd=estimate_cost(model_name, rca_inp, rca_out),
+        )
 
     # Attach tool trace (best-effort) for debugging/auditability.
     try:
@@ -918,6 +948,7 @@ def maybe_attach_rca(
             evidence=[str(x) for x in (rca_obj.get("evidence") or []) if str(x).strip()][:8],
             remediation=[str(x) for x in (rca_obj.get("remediation") or []) if str(x).strip()][:10],
             unknowns=[str(x) for x in (rca_obj.get("unknowns") or []) if str(x).strip()][:8],
+            usage=rca_token_usage,
         )
     except Exception as e:
         investigation.analysis.rca = RCAInsights(status="error", summary=f"RCA parse error: {type(e).__name__}")

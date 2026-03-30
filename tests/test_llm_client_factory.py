@@ -51,7 +51,7 @@ def test_provider_selection_vertexai(monkeypatch) -> None:
 
     from agent.llm.client import generate_json
 
-    obj, err = generate_json("hello")
+    obj, err, _ = generate_json("hello")
     assert err is None
     assert obj == {"provider": "vertexai"}
 
@@ -81,7 +81,7 @@ def test_provider_selection_anthropic(monkeypatch) -> None:
 
     from agent.llm.client import generate_json
 
-    obj, err = generate_json("hello")
+    obj, err, _ = generate_json("hello")
     assert err is None
     assert obj == {"provider": "anthropic"}
 
@@ -93,7 +93,7 @@ def test_provider_not_configured(monkeypatch) -> None:
 
     from agent.llm.client import generate_json
 
-    obj, err = generate_json("hello")
+    obj, err, _ = generate_json("hello")
     assert obj is None
     assert err == "provider_not_configured"
 
@@ -107,7 +107,7 @@ def test_provider_default_is_vertexai(monkeypatch) -> None:
 
     from agent.llm.client import generate_json
 
-    obj, err = generate_json("hello")
+    obj, err, _ = generate_json("hello")
     assert obj is None
     # Should attempt vertexai and fail on missing project
     assert err == "missing_gcp_project"
@@ -156,7 +156,7 @@ def test_provider_aliases_vertex(monkeypatch) -> None:
 
         from agent.llm.client import generate_json
 
-        obj, err = generate_json("hello")
+        obj, err, _ = generate_json("hello")
         assert err is None, f"Alias {alias} failed with error: {err}"
         assert obj == {"ok": True}
 
@@ -194,6 +194,6 @@ def test_lazy_loading_prevents_unused_sdk_imports(monkeypatch) -> None:
     # but at least verify Anthropic works without Vertex SDK installed
     from agent.llm.client import generate_json
 
-    obj, err = generate_json("hello")
+    obj, err, _ = generate_json("hello")
     assert err is None
     assert obj == {"ok": True}

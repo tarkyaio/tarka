@@ -67,7 +67,7 @@ def test_global_chat_with_mock_llm():
 
         with patch("agent.chat.global_runtime.generate_json") as mock_generate:
             # Simulate LLM unavailable
-            mock_generate.return_value = (None, "missing_api_key")
+            mock_generate.return_value = (None, "missing_api_key", None)
 
             with patch("langgraph.graph.StateGraph") as mock_state_graph:
                 mock_graph = MagicMock()
@@ -104,7 +104,7 @@ def test_global_chat_llm_unavailable():
 
     with patch("agent.chat.global_runtime.generate_json") as mock_generate:
         # Simulate LLM error
-        mock_generate.return_value = (None, "missing_api_key")
+        mock_generate.return_value = (None, "missing_api_key", None)
 
         with patch("langgraph.graph.StateGraph") as mock_state_graph:
             mock_graph = MagicMock()

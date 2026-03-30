@@ -58,6 +58,7 @@ def _slow_generate_json(prompt, schema=None):
             "meta": None,
         },
         None,
+        None,
     )
 
 
@@ -177,6 +178,7 @@ async def test_no_tool_shortcut_skips_second_llm_call() -> None:
                 "tool_calls": [],
                 "meta": None,
             },
+            None,
             None,
         )
 

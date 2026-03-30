@@ -11,8 +11,9 @@ from __future__ import annotations
 import json
 import os
 
-from agent.core.models import Investigation, LLMInsights
+from agent.core.models import Investigation, LLMInsights, LLMTokenUsage
 from agent.llm.evidence import build_evidence_pack
+from agent.llm.pricing import estimate_cost
 from agent.llm.schemas import EnrichmentResponse
 
 
@@ -92,20 +93,36 @@ def maybe_enrich_investigation(investigation: Investigation, *, enabled: bool) -
         # Lazy import: only when enabled.
         from agent.llm.client import generate_json  # noqa: WPS433
 
-        obj, err = generate_json(prompt, schema=EnrichmentResponse)
+        obj, err, usage_raw = generate_json(prompt, schema=EnrichmentResponse)
+
+        # Build token usage from raw usage dict
+        model_name = (os.getenv("LLM_MODEL") or "").strip() or "gemini-2.5-flash"
+        token_usage = None
+        if usage_raw:
+            inp = usage_raw.get("input_tokens")
+            out = usage_raw.get("output_tokens")
+            token_usage = LLMTokenUsage(
+                input_tokens=inp,
+                output_tokens=out,
+                total_tokens=usage_raw.get("total_tokens"),
+                estimated_cost_usd=estimate_cost(model_name, inp, out),
+            )
+
         if err:
             investigation.analysis.llm = LLMInsights(
                 provider=(os.getenv("LLM_PROVIDER") or "").strip().lower() or "vertexai",
                 status=_status_from_err(err),
                 error=err,
+                usage=token_usage,
             )
             return
 
         investigation.analysis.llm = LLMInsights(
             provider=(os.getenv("LLM_PROVIDER") or "").strip().lower() or "vertexai",
             status="ok",
-            model=(os.getenv("LLM_MODEL") or "").strip() or "gemini-2.5-flash",
+            model=model_name,
             output=obj,
+            usage=token_usage,
         )
     except Exception as e:
         investigation.analysis.llm = LLMInsights(

@@ -399,7 +399,7 @@ async def run_chat_stream(
         # Offload to thread so we don't block the uvicorn event loop
         try:
             logger.debug("case_chat: calling generate_json (step=%d)", step)
-            obj, err = await asyncio.wait_for(
+            obj, err, _ = await asyncio.wait_for(
                 asyncio.to_thread(generate_json, prompt, schema=ToolPlanResponse),
                 timeout=120.0,
             )

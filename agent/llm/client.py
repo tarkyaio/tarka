@@ -281,9 +281,32 @@ def _get_llm_instance(provider: str, cfg: LLMConfig, enable_thinking: bool = Tru
         return None, "provider_not_configured"
 
 
+def _extract_usage(msg: Any) -> Optional[Dict[str, int]]:
+    """Extract token usage from a LangChain AIMessage (best-effort)."""
+    # LangChain stores usage in `usage_metadata` (dict with input_tokens, output_tokens, total_tokens)
+    meta = getattr(msg, "usage_metadata", None)
+    if isinstance(meta, dict) and meta.get("input_tokens") is not None:
+        return {
+            "input_tokens": int(meta.get("input_tokens", 0)),
+            "output_tokens": int(meta.get("output_tokens", 0)),
+            "total_tokens": int(meta.get("total_tokens", 0)),
+        }
+    # Fallback: some providers put it in response_metadata.usage
+    resp_meta = getattr(msg, "response_metadata", None)
+    if isinstance(resp_meta, dict):
+        usage = resp_meta.get("usage") or resp_meta.get("token_usage")
+        if isinstance(usage, dict) and usage.get("input_tokens") is not None:
+            return {
+                "input_tokens": int(usage.get("input_tokens", 0)),
+                "output_tokens": int(usage.get("output_tokens", 0)),
+                "total_tokens": int(usage.get("total_tokens", 0)),
+            }
+    return None
+
+
 def generate_json(
     prompt: str, *, schema: Optional[Type[SchemaT]] = None, enable_thinking: bool = True
-) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+) -> Tuple[Optional[Dict[str, Any]], Optional[str], Optional[Dict[str, int]]]:
     """
     Provider-agnostic JSON call.
 
@@ -293,7 +316,8 @@ def generate_json(
         enable_thinking: Whether to enable extended thinking (default: True).
                         Automatically disabled for structured output to avoid incompatibility.
 
-    Returns: (obj, err_code). Exactly one is non-None.
+    Returns: (obj, err_code, usage). obj and err_code are mutually exclusive.
+             usage is a dict with input_tokens/output_tokens/total_tokens (or None).
     """
     if _env_bool("LLM_MOCK", False):
         if schema is not None:
@@ -302,10 +326,10 @@ def generate_json(
                 # Pydantic v2 models provide `.model_validate` and `.model_dump`.
                 obj0 = getattr(schema, "model_validate")({})  # type: ignore[misc]
                 dump = getattr(obj0, "model_dump")(mode="json")  # type: ignore[misc]
-                return dump if isinstance(dump, dict) else {}, None
+                return dump if isinstance(dump, dict) else {}, None, None
             except Exception:
-                return _mock_response(), None
-        return _mock_response(), None
+                return _mock_response(), None, None
+        return _mock_response(), None, None
 
     p = _provider()
     cfg = _load_config()
@@ -316,26 +340,30 @@ def generate_json(
     # Get LangChain model instance using factory
     llm, err = _get_llm_instance(p, cfg, enable_thinking=use_thinking)
     if err:
-        return None, err
+        return None, err, None
 
     t0 = time.monotonic()
     try:
         if schema is not None:
-            # Use LangChain's with_structured_output (works for both providers)
-            structured = llm.with_structured_output(schema)  # type: ignore[call-arg, attr-defined]
-            out = structured.invoke(prompt)
-            if hasattr(out, "model_dump"):
-                d = out.model_dump(mode="json")  # type: ignore[no-any-return]
-                return (d, None) if isinstance(d, dict) else (None, "schema_dump_failed")
-            if isinstance(out, dict):
-                return out, None
-            return None, "schema_output_unexpected"
+            # Use LangChain's with_structured_output with include_raw=True to get usage
+            structured = llm.with_structured_output(schema, include_raw=True)  # type: ignore[call-arg, attr-defined]
+            result = structured.invoke(prompt)
+            raw_msg = result.get("raw") if isinstance(result, dict) else None
+            usage = _extract_usage(raw_msg) if raw_msg is not None else None
+            parsed = result.get("parsed") if isinstance(result, dict) else result
+            if hasattr(parsed, "model_dump"):
+                d = parsed.model_dump(mode="json")  # type: ignore[no-any-return]
+                return (d, None, usage) if isinstance(d, dict) else (None, "schema_dump_failed", usage)
+            if isinstance(parsed, dict):
+                return parsed, None, usage
+            return None, "schema_output_unexpected", usage
 
         # Non-schema mode: parse JSON from text
         msg = llm.invoke(prompt)
+        usage = _extract_usage(msg)
         text = getattr(msg, "content", None)
         obj = _extract_json_object(str(text or ""))
-        return (obj, None) if obj is not None else (None, "json_parse_failed")
+        return (obj, None, usage) if obj is not None else (None, "json_parse_failed", usage)
 
     except Exception as e:
         elapsed = time.monotonic() - t0
@@ -352,4 +380,4 @@ def generate_json(
             type(e).__name__,
             str(e)[:300],
         )
-        return None, err_code
+        return None, err_code, None

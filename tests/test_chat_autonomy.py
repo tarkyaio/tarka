@@ -140,8 +140,8 @@ def test_chat_uses_tools_instead_of_manual_commands(
         # First call: LLM plans to use tool
         # Second call: LLM provides final answer after tool execution
         mock_generate_json.side_effect = [
-            (mock_llm_response, None),
-            ({"reply": "Here's what I found: status is healthy.", "tool_calls": []}, None),
+            (mock_llm_response, None, None),
+            ({"reply": "Here's what I found: status is healthy.", "tool_calls": []}, None, None),
         ]
 
         result = run_chat(
@@ -204,8 +204,8 @@ def test_chat_does_not_suggest_kubectl_in_passive_mode():
     ):
 
         mock_generate_json.side_effect = [
-            (mock_llm_response, None),
-            ({"reply": "Pod is running.", "tool_calls": []}, None),
+            (mock_llm_response, None, None),
+            ({"reply": "Pod is running.", "tool_calls": []}, None, None),
         ]
 
         result = run_chat(
@@ -277,9 +277,9 @@ def test_global_chat_uses_database_tools_immediately():
             json_side_effect.call_count += 1
 
             if json_side_effect.call_count % 2 == 1:
-                return (mock_llm_response_plan, None)
+                return (mock_llm_response_plan, None, None)
             else:
-                return (mock_llm_response_final, None)
+                return (mock_llm_response_final, None, None)
 
         mock_generate_json.side_effect = json_side_effect
 
@@ -349,8 +349,8 @@ def test_chat_maintains_warm_conversational_tone():
     ):
 
         mock_generate_json.side_effect = [
-            (mock_llm_response, None),
-            ({"reply": "Good news—the pod's running smoothly!", "tool_calls": []}, None),
+            (mock_llm_response, None, None),
+            ({"reply": "Good news—the pod's running smoothly!", "tool_calls": []}, None, None),
         ]
 
         result = run_chat(
@@ -423,8 +423,8 @@ def test_chat_asks_user_for_context_outside_tool_scope():
     ):
 
         mock_generate_json.side_effect = [
-            (mock_llm_response, None),
-            ({"reply": "Currently at 3 replicas. What's your capacity target?", "tool_calls": []}, None),
+            (mock_llm_response, None, None),
+            ({"reply": "Currently at 3 replicas. What's your capacity target?", "tool_calls": []}, None, None),
         ]
 
         result = run_chat(
