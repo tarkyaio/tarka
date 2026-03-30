@@ -48,7 +48,7 @@ spec:
             # LLM integration (optional) uses Vertex AI via ADC.
             # LLM_* and GOOGLE_CLOUD_* non-secret config comes from envFrom `tarka-config`.
             # Optional: Postgres password for memory store. This secret exists only when
-            # you provision it (dev via ExternalSecret, or RDS).
+            # you provision it (synced from ASM by deploy.sh, or RDS).
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -219,7 +219,7 @@ spec:
             name: tarka-service-catalog
         - name: gcp-wif-cred
           secret:
-            # Client library config JSON is a secret (synced from AWS Secrets Manager via ExternalSecrets).
+            # Client library config JSON is a secret (synced from AWS Secrets Manager by deploy.sh).
             secretName: tarka
             items:
               - key: GCP_WIF_CRED_JSON

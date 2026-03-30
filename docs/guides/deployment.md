@@ -461,7 +461,7 @@ See [operations.md](operations.md#troubleshooting) for detailed troubleshooting 
 
 1. **Least privilege**: Use read-only ServiceAccount for K8s access
 2. **Network policies**: Restrict traffic to necessary services only
-3. **Secrets management**: Use external secrets operator (e.g., Sealed Secrets, External Secrets)
+3. **Secrets management**: Use AWS Secrets Manager (synced by `deploy.sh` / `scripts/sync-secrets.sh`)
 4. **Authentication**: Enable Google OIDC for Console UI access
 5. **TLS**: Use Ingress with TLS for production Console UI
 

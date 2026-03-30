@@ -48,7 +48,7 @@ spec:
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  # Shared secret populated by External Secrets Operator from AWS Secrets Manager.
+                  # Shared secret synced from AWS Secrets Manager by deploy.sh.
                   name: tarka
                   key: POSTGRES_PASSWORD
           # Persistent storage using PVC to preserve data across pod restarts

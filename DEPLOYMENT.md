@@ -62,15 +62,7 @@ Before deploying, ensure you have the following tools installed and configured:
      aws ecr create-repository --repository-name tarka-ui --region us-east-1
      ```
 
-3. **Kubernetes Add-ons**
-   - **External Secrets Operator** (required for AWS Secrets Manager integration)
-     ```bash
-     helm repo add external-secrets https://charts.external-secrets.io
-     helm install external-secrets external-secrets/external-secrets \
-       -n external-secrets-system --create-namespace
-     ```
-
-4. **Observability Stack** (required for data sources)
+3. **Observability Stack** (required for data sources)
    - Prometheus (or compatible, e.g., VictoriaMetrics)
    - Alertmanager
    - Optional: VictoriaLogs or similar log aggregation
@@ -483,20 +475,18 @@ aws ecr get-login-password --region us-east-1 | \
 
 ### Secret Not Syncing
 
-**Symptom:** `kubectl -n tarka get secret tarka` shows no data
+**Symptom:** `kubectl -n tarka get secret tarka` shows no data or stale values
 
 **Solution:**
-1. Check External Secrets Operator is running:
+1. Re-sync secrets from AWS Secrets Manager:
    ```bash
-   kubectl -n external-secrets-system get pods
+   ./scripts/sync-secrets.sh              # update Secret
+   ./scripts/sync-secrets.sh --restart    # update Secret + rolling restart
    ```
-2. Check ExternalSecret status:
+2. Verify the AWS Secrets Manager secret exists and has the expected keys:
    ```bash
-   kubectl -n tarka describe externalsecret tarka
-   ```
-3. Verify AWS Secrets Manager secret exists:
-   ```bash
-   aws secretsmanager describe-secret --secret-id tarka --region us-east-1
+   aws secretsmanager get-secret-value --secret-id tarka --region us-east-1 \
+     --query SecretString --output text | python3 -m json.tool
    ```
 
 ### No Alerts Processed

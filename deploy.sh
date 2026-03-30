@@ -63,7 +63,7 @@ ALERTNAME_ALLOWLIST="${ALERTNAME_ALLOWLIST:-CPUThrottlingHigh,KubePodCPUThrottli
 # Optional: dev Postgres (in-cluster) for experimenting with memory/indexing.
 ENABLE_DEV_POSTGRES="${ENABLE_DEV_POSTGRES:-1}"
 
-# External Secrets / AWS Secrets Manager (agent secret bundle)
+# AWS Secrets Manager (agent secret bundle)
 ASM_SECRET_NAME="${ASM_SECRET_NAME:-tarka}"
 # If your Secrets Manager secret uses a customer-managed KMS key, set this to enable kms:Decrypt in the IRSA policy
 # and to use that key when creating the secret.
@@ -678,6 +678,9 @@ print(json.dumps(merged))
   [[ -z "${GCP_WIF_CRED_JSON}" ]] && log_warning "GCP_WIF_CRED_JSON not set - update secret manually if needed"
   [[ -z "${OIDC_CLIENT_ID}" ]] && log_info "OIDC not configured - local auth only"
   [[ -z "${GITHUB_APP_ID}" ]] && log_info "GitHub App not configured - GitHub evidence and chat tools disabled"
+
+  # Save final secret JSON for K8s Secret creation later
+  FINAL_SECRET_JSON="${_merged_secret:-${_new_secret_json}}"
 fi
 
 if [[ "${SKIP_IAM_SETUP}" != "1" ]]; then
@@ -1086,47 +1089,54 @@ kubectl create configmap tarka-service-catalog \
   -n tarka --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 log_success "Service catalog ConfigMap applied"
 
-log_info "Applying External Secrets (AWS Secrets Manager -> K8s Secret)..."
-
-# Detect External Secrets API version (v1 or v1beta1)
-ESO_API_VERSION=$(kubectl api-resources --api-group=external-secrets.io 2>/dev/null | grep "^secretstores" | awk '{print $3}')
-
-if [[ -z "${ESO_API_VERSION}" ]]; then
-  log_error "External Secrets Operator not found. Please install it first:"
-  log_info "  helm repo add external-secrets https://charts.external-secrets.io"
-  log_info "  helm install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace"
-  exit 1
+# Clean up legacy ESO resources if present (migration from ESO-based deployment)
+if kubectl -n tarka get externalsecret tarka >/dev/null 2>&1; then
+    # Remove ownerReference first to prevent garbage collection of the Secret
+    kubectl -n tarka patch secret tarka --type=json \
+        -p='[{"op":"remove","path":"/metadata/ownerReferences"}]' 2>/dev/null || true
+    kubectl -n tarka delete externalsecret tarka --ignore-not-found >/dev/null
+    kubectl -n tarka delete secretstore tarka --ignore-not-found >/dev/null
+    log_info "Cleaned up legacy ExternalSecret/SecretStore CRDs"
 fi
 
-log_info "Using External Secrets API version: ${ESO_API_VERSION}"
+log_info "Syncing K8s Secret from AWS Secrets Manager..."
 
-# Apply SecretStore with detected API version
-sed -e "s|us-east-1|${AWS_REGION}|g" \
-    -e "s|external-secrets.io/v1beta1|${ESO_API_VERSION}|g" \
-    "${K8S_DIR}/secretstore.yaml" | kubectl apply -f - >/dev/null
+# If ASM step was skipped, fetch from ASM now
+if [[ -z "${FINAL_SECRET_JSON:-}" ]]; then
+    FINAL_SECRET_JSON="$(aws secretsmanager get-secret-value \
+        --secret-id "${ASM_SECRET_NAME}" \
+        --region "${AWS_REGION}" \
+        --query 'SecretString' \
+        --output text)"
+fi
 
-# Apply ExternalSecret with detected API version
-sed -e "s|key: tarka|key: ${ASM_SECRET_NAME}|g" \
-    -e "s|external-secrets.io/v1beta1|${ESO_API_VERSION}|g" \
-    "${K8S_DIR}/externalsecret.yaml" | kubectl apply -f - >/dev/null
+# Generate K8s Secret manifest and apply (kubectl accepts JSON natively)
+python3 -c "
+import json, sys, base64
+data = json.loads(sys.stdin.read())
+secret = {
+    'apiVersion': 'v1',
+    'kind': 'Secret',
+    'metadata': {
+        'name': 'tarka',
+        'namespace': 'tarka',
+        'labels': {'app.kubernetes.io/managed-by': 'deploy-script'}
+    },
+    'type': 'Opaque',
+    'data': {
+        k: base64.b64encode(v.encode('utf-8')).decode('ascii')
+        for k, v in sorted(data.items()) if v
+    }
+}
+print(json.dumps(secret))
+" <<< "${FINAL_SECRET_JSON}" | kubectl apply -f -
 
-log_success "External Secrets configured"
+log_success "K8s Secret created/updated"
 
 if [[ "${ENABLE_DEV_POSTGRES}" == "1" ]]; then
-  log_info "Waiting for secret sync (POSTGRES_PASSWORD)..."
-  _have_pg_pw="0"
-  for _i in {1..30}; do
-    if kubectl -n tarka get secret tarka -o jsonpath='{.data.POSTGRES_PASSWORD}' 2>/dev/null | grep -q '.'; then
-      _have_pg_pw="1"
-      break
-    fi
-    sleep 2
-  done
-  if [[ "${_have_pg_pw}" != "1" ]]; then
-    log_warning "POSTGRES_PASSWORD not found in secret yet"
-    log_info "Ensure AWS secret ${ASM_SECRET_NAME} includes POSTGRES_PASSWORD"
-  else
-    log_success "Secret synced"
+  if ! kubectl -n tarka get secret tarka -o jsonpath='{.data.POSTGRES_PASSWORD}' 2>/dev/null | grep -q '.'; then
+    log_error "POSTGRES_PASSWORD not found in K8s secret"
+    exit 1
   fi
 
   log_info "Deploying PostgreSQL (in-cluster)..."

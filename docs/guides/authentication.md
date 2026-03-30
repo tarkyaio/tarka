@@ -579,7 +579,7 @@ Optional:
 
 **Recommended**:
 - Store `AUTH_SESSION_SECRET`, `OIDC_CLIENT_SECRET`, `ADMIN_INITIAL_PASSWORD`, `GITHUB_APP_PRIVATE_KEY` in Kubernetes Secrets
-- Use sealed secrets, external secrets operator, or cloud-native secret managers (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault)
+- Use cloud-native secret managers (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault) synced via `deploy.sh` or `scripts/sync-secrets.sh`
 - Rotate secrets periodically (90 days for admin passwords, GitHub private keys)
 
 **Example with Kubernetes Secrets**:
