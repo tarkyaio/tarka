@@ -124,6 +124,7 @@ spec:
         - name: gcp-wif-cred
           secret:
             secretName: tarka
+            optional: true
             items:
               - key: GCP_WIF_CRED_JSON
                 path: wif-cred.json

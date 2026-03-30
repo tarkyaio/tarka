@@ -93,10 +93,11 @@ def maybe_enrich_investigation(investigation: Investigation, *, enabled: bool) -
         # Lazy import: only when enabled.
         from agent.llm.client import generate_json  # noqa: WPS433
 
-        obj, err, usage_raw = generate_json(prompt, schema=EnrichmentResponse)
+        obj, err, usage_raw = generate_json(prompt, schema=EnrichmentResponse, call_site="enrichment")
 
         # Build token usage from raw usage dict
-        model_name = (os.getenv("LLM_MODEL") or "").strip() or "gemini-2.5-flash"
+        model_name = (usage_raw or {}).get("model") or (os.getenv("LLM_MODEL") or "").strip() or "gemini-2.5-flash"
+        provider_name = (os.getenv("LLM_PROVIDER") or "").strip().lower() or "vertexai"
         token_usage = None
         if usage_raw:
             inp = usage_raw.get("input_tokens")
@@ -110,7 +111,7 @@ def maybe_enrich_investigation(investigation: Investigation, *, enabled: bool) -
 
         if err:
             investigation.analysis.llm = LLMInsights(
-                provider=(os.getenv("LLM_PROVIDER") or "").strip().lower() or "vertexai",
+                provider=provider_name,
                 status=_status_from_err(err),
                 error=err,
                 usage=token_usage,
@@ -118,7 +119,7 @@ def maybe_enrich_investigation(investigation: Investigation, *, enabled: bool) -
             return
 
         investigation.analysis.llm = LLMInsights(
-            provider=(os.getenv("LLM_PROVIDER") or "").strip().lower() or "vertexai",
+            provider=provider_name,
             status="ok",
             model=model_name,
             output=obj,

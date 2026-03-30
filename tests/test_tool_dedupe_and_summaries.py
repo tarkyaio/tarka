@@ -63,7 +63,7 @@ def test_case_chat_executor_skips_duplicate_tool_call(monkeypatch) -> None:
         {"schema_version": "tarka.tool_plan.v1", "reply": "done", "tool_calls": []},
     ]
 
-    def _fake_generate_json(_prompt: str, *, schema=None):
+    def _fake_generate_json(_prompt: str, *, schema=None, **kw):
         return (llm_outputs.pop(0), None, None)
 
     calls = {"n": 0}

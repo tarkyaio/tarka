@@ -47,7 +47,7 @@ def _mock_policy():
     )
 
 
-def _slow_generate_json(prompt, schema=None):
+def _slow_generate_json(prompt, schema=None, **kw):
     """Simulate a slow LLM call that would block the event loop if not offloaded."""
     time.sleep(0.5)
     return (
@@ -168,7 +168,7 @@ async def test_no_tool_shortcut_skips_second_llm_call() -> None:
 
     call_count = 0
 
-    def _counting_generate_json(prompt, schema=None):
+    def _counting_generate_json(prompt, schema=None, **kw):
         nonlocal call_count
         call_count += 1
         return (

@@ -537,6 +537,7 @@ class _State(TypedDict, total=False):
     llm_usage_input: int
     llm_usage_output: int
     llm_usage_total: int
+    llm_usage_cost: float
 
 
 def _safe_load_policy() -> ChatPolicy:
@@ -615,11 +616,19 @@ def _compile_rca_graph(*, default_policy: ChatPolicy):
             tool_events=tool_evts,
             allowed_tools=tools_list,
         )
-        obj, err, call_usage = generate_json(prompt, schema=ToolPlanResponse)
+        obj, err, call_usage = generate_json(prompt, schema=ToolPlanResponse, call_site="rca_planner")
         if call_usage:
             state["llm_usage_input"] = state.get("llm_usage_input", 0) + call_usage.get("input_tokens", 0)
             state["llm_usage_output"] = state.get("llm_usage_output", 0) + call_usage.get("output_tokens", 0)
             state["llm_usage_total"] = state.get("llm_usage_total", 0) + call_usage.get("total_tokens", 0)
+            # Accumulate per-call cost for accurate multi-model costing
+            _model = call_usage.get("model") or ""
+            _inp = call_usage.get("input_tokens", 0)
+            _out = call_usage.get("output_tokens", 0)
+            if _model and (_inp or _out):
+                state["llm_usage_cost"] = (state.get("llm_usage_cost") or 0.0) + (
+                    estimate_cost(_model, _inp, _out) or 0.0
+                )
         if err or not isinstance(obj, dict):
             errs = list(state.get("errors") or [])
             errs.append(str(err or "planner_error"))
@@ -795,11 +804,19 @@ def _compile_rca_graph(*, default_policy: ChatPolicy):
         aj0 = state.get("analysis_json") or {}
         tool_evts = list(state.get("tool_events") or [])
         prompt = _build_rca_prompt(analysis_json=aj0, tool_events=tool_evts)
-        obj, err, call_usage = generate_json(prompt, schema=RCASynthesisResponse)
+        obj, err, call_usage = generate_json(prompt, schema=RCASynthesisResponse, call_site="rca_synthesis")
         if call_usage:
             state["llm_usage_input"] = state.get("llm_usage_input", 0) + call_usage.get("input_tokens", 0)
             state["llm_usage_output"] = state.get("llm_usage_output", 0) + call_usage.get("output_tokens", 0)
             state["llm_usage_total"] = state.get("llm_usage_total", 0) + call_usage.get("total_tokens", 0)
+            # Accumulate per-call cost for accurate multi-model costing
+            _model = call_usage.get("model") or ""
+            _inp = call_usage.get("input_tokens", 0)
+            _out = call_usage.get("output_tokens", 0)
+            if _model and (_inp or _out):
+                state["llm_usage_cost"] = (state.get("llm_usage_cost") or 0.0) + (
+                    estimate_cost(_model, _inp, _out) or 0.0
+                )
         if err or not isinstance(obj, dict):
             errs = list(state.get("errors") or [])
             errs.append(str(err or "rca_error"))
@@ -891,6 +908,7 @@ def maybe_attach_rca(
         "llm_usage_input": 0,
         "llm_usage_output": 0,
         "llm_usage_total": 0,
+        "llm_usage_cost": 0.0,
     }
 
     labels = alert.get("labels", {}) if isinstance(alert, dict) else {}
@@ -913,12 +931,17 @@ def maybe_attach_rca(
     rca_out = int(out.get("llm_usage_output") or 0)
     rca_tot = int(out.get("llm_usage_total") or 0)
     if rca_inp or rca_out or rca_tot:
-        model_name = (os.getenv("LLM_MODEL") or "").strip() or "gemini-2.5-flash"
+        # Use pre-accumulated per-call cost (accurate for multi-model routing).
+        # Falls back to single-model estimate if accumulated cost is zero.
+        accumulated_cost = float(out.get("llm_usage_cost") or 0.0)
+        if not accumulated_cost:
+            model_name = (os.getenv("LLM_MODEL") or "").strip() or "gemini-2.5-flash"
+            accumulated_cost = estimate_cost(model_name, rca_inp, rca_out)
         rca_token_usage = LLMTokenUsage(
             input_tokens=rca_inp,
             output_tokens=rca_out,
             total_tokens=rca_tot,
-            estimated_cost_usd=estimate_cost(model_name, rca_inp, rca_out),
+            estimated_cost_usd=accumulated_cost,
         )
 
     # Attach tool trace (best-effort) for debugging/auditability.

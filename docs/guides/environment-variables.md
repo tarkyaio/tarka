@@ -79,7 +79,8 @@ Important:
 
 **ConfigMap**
 - `LLM_PROVIDER` (default: `vertexai`)
-- `LLM_MODEL` (default: `gemini-2.5-flash`)
+- `LLM_MODEL` (default: `gemini-2.5-flash`) — model for heavy tasks (RCA synthesis, case chat, streaming)
+- `LLM_MODEL_LIGHT` (default: empty → uses `LLM_MODEL`) — cheaper model for light tasks (enrichment, RCA planner, global chat). Must be from the same provider as `LLM_MODEL`.
 - `GOOGLE_CLOUD_PROJECT` (required)
 - `GOOGLE_CLOUD_LOCATION` (required)
 - `LLM_ENABLED` (default: `0`)
