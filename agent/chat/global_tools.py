@@ -175,7 +175,7 @@ def _run_global_tool_db(*, policy: ChatPolicy, tool: str, args: Dict[str, Any], 
     # --------------------
     if tool == "cases.top":
         by = str(args.get("by") or "").strip().lower() or "team"
-        if by not in ("team", "family", "classification"):
+        if by not in ("team", "family", "classification", "component"):
             return ToolResult(ok=False, error="by_invalid")
         limit = _norm_int(args.get("limit"), default=8, lo=1, hi=20)
 
@@ -198,6 +198,8 @@ def _run_global_tool_db(*, policy: ChatPolicy, tool: str, args: Dict[str, Any], 
             field = "NULLIF(r.analysis_json #>> '{target,team}', '')"
         elif by == "family":
             field = "r.family"
+        elif by == "component":
+            field = "NULLIF(r.analysis_json #>> '{target,workload_name}', '')"
         else:
             field = "r.classification"
 

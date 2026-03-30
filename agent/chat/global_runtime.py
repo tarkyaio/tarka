@@ -80,7 +80,7 @@ def _build_prompt(
         "  family values use snake_case: cpu_throttling, oom_killed, http_5xx, job_failure, pod_crash_loop, etc.\n"
         "  classification values: actionable, informational, noisy, artifact.\n"
         "  status values: open, closed, all (default).\n"
-        "- cases.top: returns top keys by count (by=team|family|classification).\n"
+        "- cases.top: returns top keys by count (by=team|family|classification|component). component groups by workload name.\n"
         "- cases.lookup: resolves a case_id or prefix.\n"
         "- cases.summary: returns a minimal summary for a case.\n\n"
         "Examples (GOOD vs BAD):\n"
