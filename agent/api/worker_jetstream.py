@@ -8,6 +8,7 @@ from typing import Any
 
 from agent.api.worker import run_job_from_env
 from agent.queue.base import AlertJob
+from agent.queue.nats_retry import connect_nats_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -218,7 +219,6 @@ async def run_worker_forever() -> None:
     - WORKER_IN_PROGRESS_SECONDS (default: 30) heartbeat interval to extend ack deadline
     """
     try:
-        import nats  # type: ignore[import-not-found]
         from nats.errors import TimeoutError  # type: ignore[import-not-found]
         from nats.js.errors import NotFoundError  # type: ignore[import-not-found]
     except Exception as e:
@@ -234,7 +234,7 @@ async def run_worker_forever() -> None:
     timeout_s = max(1, _env_int("WORKER_FETCH_TIMEOUT_SECONDS", 1))
 
     logger.info(f"Connecting to NATS at {nats_url}...")
-    nc = await nats.connect(servers=[nats_url])
+    nc = await connect_nats_with_retry(servers=[nats_url])
     logger.info("✓ Connected to NATS")
 
     js = nc.jetstream()

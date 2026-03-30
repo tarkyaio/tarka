@@ -343,11 +343,11 @@ def try_handle_case_intents(*, analysis_json: Dict[str, Any], user_message: str)
                     r.run_id,
                     r.case_id,
                     r.created_at,
-                    NULLIF(r.analysis_json #>> '{{analysis,features,family}}', '') as family,
+                    r.family,
                     NULLIF(r.analysis_json #>> '{{analysis,features,k8s,oom_killed}}', '') as oom_flag,
-                    NULLIF(r.analysis_json #>> '{{target,service}}', '') as svc,
-                    NULLIF(r.analysis_json #>> '{{target,namespace}}', '') as ns,
-                    NULLIF(r.analysis_json #>> '{{target,cluster}}', '') as cl
+                    r.service as svc,
+                    r.namespace as ns,
+                    r.cluster as cl
                   FROM investigation_runs r
                   WHERE r.created_at >= (now() - (%s::int * interval '1 day'))
                 )

@@ -26,10 +26,14 @@ Anthropic requirements:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
+import time
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple, Type, TypeVar
+
+logger = logging.getLogger(__name__)
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -314,6 +318,7 @@ def generate_json(
     if err:
         return None, err
 
+    t0 = time.monotonic()
     try:
         if schema is not None:
             # Use LangChain's with_structured_output (works for both providers)
@@ -333,4 +338,18 @@ def generate_json(
         return (obj, None) if obj is not None else (None, "json_parse_failed")
 
     except Exception as e:
-        return None, _classify_error(e, model=cfg.model)
+        elapsed = time.monotonic() - t0
+        err_code = _classify_error(e, model=cfg.model)
+        logger.warning(
+            "llm_call_failed provider=%s model=%s timeout_cfg=%ds elapsed=%.1fs "
+            "prompt_chars=%d err_code=%s exception=%s: %s",
+            p,
+            cfg.model,
+            cfg.timeout,
+            elapsed,
+            len(prompt),
+            err_code,
+            type(e).__name__,
+            str(e)[:300],
+        )
+        return None, err_code

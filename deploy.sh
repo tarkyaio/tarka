@@ -28,7 +28,7 @@ UI_IMAGE_NAME="${UI_IMAGE_NAME:-}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 PROMETHEUS_URL="${PROMETHEUS_URL:-}"
 ALERTMANAGER_URL="${ALERTMANAGER_URL:-}"
-S3_BUCKET="${S3_BUCKET:-}"
+S3_BUCKET="${S3_BUCKET:-tarka-${CLUSTER_NAME}}"
 AUTH_PUBLIC_BASE_URL="${AUTH_PUBLIC_BASE_URL:-}"
 GOOGLE_CLOUD_PROJECT="${GOOGLE_CLOUD_PROJECT:-}"
 GCP_WIF_AUDIENCE="${GCP_WIF_AUDIENCE:-}"
@@ -560,13 +560,16 @@ fi
 if [[ "${SKIP_ASM_SECRET_CREATE}" != "1" ]]; then
   log_info "Creating or updating AWS Secrets Manager secret: ${ASM_SECRET_NAME}"
 
-  # Escape special characters in secret values
+  # Escape a value for embedding in a JSON string.
+  # Handles literal \n sequences (common in .env files for multi-line values
+  # like PEM keys) by converting them to real newlines before JSON-escaping.
   _escape_json() {
-    local val="$1"
-    val="${val//\\/\\\\}"
-    val="${val//\"/\\\"}"
-    val="${val//$'\n'/\\n}"
-    echo "${val}"
+    printf '%s' "$1" | python3 -c "
+import json, sys
+v = sys.stdin.read()
+v = v.replace('\\\\n', '\\n')
+print(json.dumps(v)[1:-1])
+"
   }
 
   # Build new secret JSON
@@ -1189,5 +1192,14 @@ kubectl apply -f "${K8S_DIR}/console-ui-service.yaml" >/dev/null
 sed "s|REPLACE_ME_UI_IMAGE|${UI_IMAGE}|g" \
   "${K8S_DIR}/console-ui-deployment.yaml" | kubectl apply -f - >/dev/null
 log_success "Console UI deployed"
+
+log_section "Rolling Restart Deployments"
+for _deploy in tarka-console-ui tarka-webhook tarka-worker; do
+  if kubectl -n tarka get deploy "${_deploy}" >/dev/null 2>&1; then
+    log_info "Rolling restart: ${_deploy}..."
+    kubectl -n tarka rollout restart deploy/"${_deploy}" >/dev/null
+    log_success "${_deploy} restarted"
+  fi
+done
 
 show_deployment_summary
