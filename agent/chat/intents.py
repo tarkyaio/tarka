@@ -267,6 +267,29 @@ def try_handle_global_intents(*, policy: ChatPolicy, user_message: str) -> Inten
             intent_id="global.cases_top_team",
         )
 
+    if "top component" in s or "which component" in s or "affected component" in s:
+        args = {"by": "component", "status": "all", "limit": 8}
+        res = run_global_tool(policy=policy, tool="cases.top", args=args)
+        ev = ChatToolEvent(tool="cases.top", args=args, ok=bool(res.ok), result=res.result, error=res.error)
+        if not res.ok:
+            return IntentResult(
+                handled=True,
+                reply="I couldn't compute top components right now (db/tool unavailable).",
+                tool_events=[ev],
+                intent_id="global.cases_top_component",
+            )
+        items = (res.result or {}).get("items") if isinstance(res.result, dict) else []
+        lines = []
+        for it in (items or [])[:8]:
+            if isinstance(it, dict):
+                lines.append(f"- {it.get('key')}: {it.get('count')}")
+        return IntentResult(
+            handled=True,
+            reply="Top components by case count:\n" + ("\n".join(lines) if lines else "—"),
+            tool_events=[ev],
+            intent_id="global.cases_top_component",
+        )
+
     return IntentResult(handled=False)
 
 
