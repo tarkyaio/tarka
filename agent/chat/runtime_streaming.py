@@ -16,7 +16,9 @@ Key benefits:
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from dataclasses import dataclass, field
 from typing import Any, AsyncGenerator, Dict, List, Literal, Optional
 
@@ -30,6 +32,8 @@ from agent.graphs.tracing import trace_tool_call
 from agent.llm.client import generate_json
 from agent.llm.client_streaming import stream_text_response
 from agent.llm.schemas import ToolPlanResponse
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -392,8 +396,21 @@ async def run_chat_stream(
             tool_events=tool_events,
         )
 
-        # BLOCKING call with structured output (reliable, fast <1s)
-        obj, err = generate_json(prompt, schema=ToolPlanResponse)
+        # Offload to thread so we don't block the uvicorn event loop
+        try:
+            logger.debug("case_chat: calling generate_json (step=%d)", step)
+            obj, err = await asyncio.wait_for(
+                asyncio.to_thread(generate_json, prompt, schema=ToolPlanResponse),
+                timeout=120.0,
+            )
+            logger.debug("case_chat: generate_json returned err=%s", err)
+        except asyncio.TimeoutError:
+            logger.warning("case_chat: generate_json timed out after 120s")
+            yield ChatStreamEvent(
+                event_type="error",
+                content="LLM response timed out (120s). The provider may be overloaded — please try again.",
+            )
+            return
 
         if err or not isinstance(obj, dict):
             # LLM unavailable - emit error with fallback
@@ -471,9 +488,10 @@ async def run_chat_stream(
                 content=_get_tool_start_message(tool),
             )
 
-            # Execute tool (blocking)
+            # Execute tool — offload to thread to keep event loop responsive
             try:
-                res = trace_tool_call(
+                res = await asyncio.to_thread(
+                    trace_tool_call,
                     tool=tool,
                     args=args,
                     fn=lambda: run_tool(
@@ -488,9 +506,6 @@ async def run_chat_stream(
                 )
             except Exception as e:
                 # Catch any unhandled exceptions from tool execution
-                import logging
-
-                logger = logging.getLogger(__name__)
                 logger.exception(f"Tool {tool} raised unhandled exception")
                 from agent.chat.tools import ToolResult
 
@@ -538,6 +553,29 @@ async def run_chat_stream(
             break
 
         # Continue loop if we still have budget and didn't hit max steps
+
+    # Shortcut: if the LLM didn't request any tools and none were executed,
+    # the first LLM call's reply is already usable — skip the expensive
+    # second streaming call.
+    if not tool_events:
+        first_reply = str(obj.get("reply") or "").strip() if isinstance(obj, dict) else ""  # type: ignore[union-attr]
+        if first_reply:
+            # Stream the first-call reply as tokens for consistent UX
+            chunk_size = 50
+            for i in range(0, len(first_reply), chunk_size):
+                yield ChatStreamEvent(
+                    event_type="token",
+                    content=first_reply[i : i + chunk_size],
+                )
+            yield ChatStreamEvent(
+                event_type="done",
+                content=first_reply,
+                metadata={
+                    "tool_events": [],
+                    "updated_analysis": updated_analysis,
+                },
+            )
+            return
 
     # Step 4: Final Response (STREAMING text)
     final_prompt = _build_final_response_prompt(

@@ -13,7 +13,9 @@ Flow:
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from dataclasses import dataclass, field
 from typing import Any, AsyncGenerator, Dict, List, Literal, Optional
 
@@ -26,6 +28,8 @@ from agent.graphs.tracing import trace_tool_call
 from agent.llm.client import generate_json
 from agent.llm.client_streaming import stream_text_response
 from agent.llm.schemas import ToolPlanResponse
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -105,6 +109,9 @@ def _build_tool_plan_prompt(
         f"{json.dumps(tools)}\n\n"
         "Tool semantics:\n"
         "- cases.count: returns case counts filtered by status/team/family/classification (optionally since_hours).\n"
+        "  family values use snake_case: cpu_throttling, oom_killed, http_5xx, job_failure, pod_crash_loop, etc.\n"
+        "  classification values: actionable, informational, noisy, artifact.\n"
+        "  status values: open, closed, all (default).\n"
         "- cases.top: returns top keys by count (by=team|family|classification).\n"
         "- cases.lookup: resolves a case_id or prefix.\n"
         "- cases.summary: returns a minimal summary for a case.\n\n"
@@ -266,8 +273,21 @@ async def run_global_chat_stream(
             tool_events=tool_events,
         )
 
-        # BLOCKING call with structured output
-        obj, err = generate_json(prompt, schema=ToolPlanResponse)
+        # Offload to thread so we don't block the uvicorn event loop
+        try:
+            logger.debug("global_chat: calling generate_json (step=%d)", step)
+            obj, err = await asyncio.wait_for(
+                asyncio.to_thread(generate_json, prompt, schema=ToolPlanResponse),
+                timeout=120.0,
+            )
+            logger.debug("global_chat: generate_json returned err=%s", err)
+        except asyncio.TimeoutError:
+            logger.warning("global_chat: generate_json timed out after 120s")
+            yield GlobalChatStreamEvent(
+                event_type="error",
+                content="LLM response timed out (120s). The provider may be overloaded — please try again.",
+            )
+            return
 
         if err or not isinstance(obj, dict):
             yield GlobalChatStreamEvent(
@@ -339,18 +359,16 @@ async def run_global_chat_stream(
                 content=_get_global_tool_start_message(tool),
             )
 
-            # Execute tool
+            # Execute tool — offload to thread to keep event loop responsive
             try:
-                res = trace_tool_call(
+                res = await asyncio.to_thread(
+                    trace_tool_call,
                     tool=tool,
                     args=args,
                     fn=lambda: run_global_tool(policy=policy, tool=tool, args=args),
                 )
             except Exception as e:
                 # Catch any unhandled exceptions from tool execution
-                import logging
-
-                logger = logging.getLogger(__name__)
                 logger.exception(f"Tool {tool} raised unhandled exception")
                 from agent.chat.tools import ToolResult
 
@@ -386,6 +404,25 @@ async def run_global_chat_stream(
 
         if not ran_any:
             break
+
+    # Shortcut: if the LLM didn't request any tools and none were executed,
+    # the first LLM call's reply is already usable — skip the expensive
+    # second streaming call.
+    if not tool_events:
+        first_reply = str(obj.get("reply") or "").strip() if isinstance(obj, dict) else ""  # type: ignore[union-attr]
+        if first_reply:
+            chunk_size = 50
+            for i in range(0, len(first_reply), chunk_size):
+                yield GlobalChatStreamEvent(
+                    event_type="token",
+                    content=first_reply[i : i + chunk_size],
+                )
+            yield GlobalChatStreamEvent(
+                event_type="done",
+                content=first_reply,
+                metadata={"tool_events": []},
+            )
+            return
 
     # Step 4: Final Response (STREAMING text)
     final_prompt = _build_final_response_prompt(

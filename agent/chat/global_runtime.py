@@ -77,6 +77,9 @@ def _build_prompt(
         f"{json.dumps(tools)}\n\n"
         "Tool semantics:\n"
         "- cases.count: returns case counts filtered by status/team/family/classification (optionally since_hours).\n"
+        "  family values use snake_case: cpu_throttling, oom_killed, http_5xx, job_failure, pod_crash_loop, etc.\n"
+        "  classification values: actionable, informational, noisy, artifact.\n"
+        "  status values: open, closed, all (default).\n"
         "- cases.top: returns top keys by count (by=team|family|classification).\n"
         "- cases.lookup: resolves a case_id or prefix.\n"
         "- cases.summary: returns a minimal summary for a case.\n\n"
@@ -302,45 +305,3 @@ def run_global_chat(*, policy: ChatPolicy, user_message: str, history: List[Chat
         pass
     # LangGraph-based loop (primary).
     return _run_global_chat_langgraph(policy=policy, user_message=user_message, history=history)
-
-    tool_events: List[ChatToolEvent] = []
-    remaining_calls = int(policy.max_tool_calls)
-
-    for _step in range(int(policy.max_steps)):
-        prompt = _build_prompt(policy=policy, user_message=user_message, history=history, tool_events=tool_events)
-        obj, err = generate_json(prompt, schema=ToolPlanResponse)
-        if err or not isinstance(obj, dict):
-            return GlobalChatRunResult(
-                reply="LLM chat is unavailable. Ask about a specific case in Case Detail view, or configure Gemini.",
-                tool_events=tool_events,
-            )
-
-        reply = str(obj.get("reply") or "").strip()
-        tool_calls = obj.get("tool_calls") if isinstance(obj.get("tool_calls"), list) else []
-
-        if not tool_calls:
-            return GlobalChatRunResult(reply=reply or "OK.", tool_events=tool_events)
-
-        ran_any = False
-        for tc in tool_calls:
-            if remaining_calls <= 0:
-                break
-            if not isinstance(tc, dict):
-                continue
-            tool = str(tc.get("tool") or "").strip()
-            args = tc.get("args") if isinstance(tc.get("args"), dict) else {}
-            res = run_global_tool(policy=policy, tool=tool, args=args)
-            ev = ChatToolEvent(tool=tool, args=args, ok=bool(res.ok), result=res.result, error=res.error)
-            tool_events.append(ev)
-            remaining_calls -= 1
-            ran_any = True
-
-        if not ran_any:
-            return GlobalChatRunResult(
-                reply=(reply or "I couldn't run the requested tools. Please rephrase."), tool_events=tool_events
-            )
-
-    return GlobalChatRunResult(
-        reply="I reached the tool-call limit for this chat turn. Please narrow the question (e.g., specify team/family).",
-        tool_events=tool_events,
-    )
