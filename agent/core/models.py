@@ -259,6 +259,13 @@ class Hypothesis(BaseModelStrict):
     proposed_actions: List[ActionProposal] = Field(default_factory=list)
 
 
+class LLMTokenUsage(BaseModelStrict):
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
+    estimated_cost_usd: Optional[float] = None
+
+
 LLMStatus = Literal["ok", "disabled", "unavailable", "error", "rate_limited"]
 
 
@@ -268,6 +275,7 @@ class LLMInsights(BaseModelStrict):
     model: Optional[str] = None
     error: Optional[str] = None
     output: Optional[Dict[str, Any]] = None
+    usage: Optional[LLMTokenUsage] = None
 
 
 RCAStatus = Literal["ok", "unknown", "blocked", "unavailable", "error"]
@@ -288,6 +296,7 @@ class RCAInsights(BaseModelStrict):
     evidence: List[str] = Field(default_factory=list)
     remediation: List[str] = Field(default_factory=list)
     unknowns: List[str] = Field(default_factory=list)
+    usage: Optional[LLMTokenUsage] = None
 
 
 class Analysis(BaseModelStrict):

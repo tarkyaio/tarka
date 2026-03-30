@@ -435,8 +435,8 @@ class TestRunChatGreetingSkipsLLM:
         ):
 
             mock_generate_json.side_effect = [
-                ({"reply": "Let me check.", "tool_calls": [{"tool": "k8s.pod_context", "args": {}}]}, None),
-                ({"reply": "Pod is running.", "tool_calls": []}, None),
+                ({"reply": "Let me check.", "tool_calls": [{"tool": "k8s.pod_context", "args": {}}]}, None, None),
+                ({"reply": "Pod is running.", "tool_calls": []}, None, None),
             ]
 
             from agent.chat.runtime import run_chat

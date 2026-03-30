@@ -365,6 +365,32 @@ def render_deterministic_report(investigation: Investigation, *, generated_at: O
     lines.append(f"- **Noise:** {scores.noise_score}/100")
     lines.append("")
 
+    # Pipeline cost (aggregate LLM token usage)
+    llm_usage = getattr(investigation.analysis.llm, "usage", None) if investigation.analysis.llm else None
+    rca_usage = getattr(investigation.analysis.rca, "usage", None) if investigation.analysis.rca else None
+    if llm_usage is not None or rca_usage is not None:
+        total_input = 0
+        total_output = 0
+        total_tokens = 0
+        total_cost = 0.0
+        has_cost = False
+        for u in (llm_usage, rca_usage):
+            if u is None:
+                continue
+            total_input += u.input_tokens or 0
+            total_output += u.output_tokens or 0
+            total_tokens += u.total_tokens or 0
+            if u.estimated_cost_usd is not None:
+                total_cost += u.estimated_cost_usd
+                has_cost = True
+        if total_input or total_output or total_tokens:
+            lines.append("## Pipeline cost")
+            lines.append("")
+            lines.append(f"- **Tokens:** input={total_input:,}, output={total_output:,}, total={total_tokens:,}")
+            if has_cost:
+                lines.append(f"- **Estimated cost:** ${total_cost:.4f}")
+            lines.append("")
+
     if scores.reason_codes:
         lines.append("## Reason codes")
         lines.append("")

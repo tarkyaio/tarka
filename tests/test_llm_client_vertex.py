@@ -8,7 +8,7 @@ def test_llm_mock_returns_obj(monkeypatch) -> None:
     monkeypatch.setenv("LLM_MOCK", "1")
     from agent.llm.client import generate_json
 
-    obj, err = generate_json("hello")
+    obj, err, _ = generate_json("hello")
     assert err is None
     assert isinstance(obj, dict)
     assert obj.get("summary")
@@ -19,7 +19,7 @@ def test_llm_mock_with_schema_returns_envelope(monkeypatch) -> None:
     from agent.llm.client import generate_json
     from agent.llm.schemas import ToolPlanResponse
 
-    obj, err = generate_json("hello", schema=ToolPlanResponse)
+    obj, err, _ = generate_json("hello", schema=ToolPlanResponse)
     assert err is None
     assert isinstance(obj, dict)
     assert obj.get("schema_version") == "tarka.tool_plan.v1"
@@ -34,7 +34,7 @@ def test_vertex_requires_project(monkeypatch) -> None:
 
     from agent.llm.client import generate_json
 
-    obj, err = generate_json("hello")
+    obj, err, _ = generate_json("hello")
     assert obj is None
     assert err == "missing_gcp_project"
 
@@ -47,7 +47,7 @@ def test_vertex_requires_location(monkeypatch) -> None:
 
     from agent.llm.client import generate_json
 
-    obj, err = generate_json("hello")
+    obj, err, _ = generate_json("hello")
     assert obj is None
     assert err == "missing_gcp_location"
 
@@ -102,7 +102,7 @@ def test_vertex_success_parses_json(monkeypatch) -> None:
 
     from agent.llm.client import generate_json
 
-    obj, err = generate_json("hello")
+    obj, err, _ = generate_json("hello")
     assert err is None
     assert obj == {"ok": True, "answer": 42}
 
@@ -148,14 +148,17 @@ def test_vertex_schema_structured_output_single_call(monkeypatch) -> None:
             assert kwargs.get("location") == "us-central1"
             assert kwargs.get("model") == "gemini-2.5-flash"
 
-        def with_structured_output(self, schema):
+        def with_structured_output(self, schema, include_raw=False):
             # Ensure we request schema-based structured output
             assert schema is ToolPlanResponse
 
             class _Structured:
                 def invoke(self, _prompt: str):
                     calls["structured_invoke"] += 1
-                    return ToolPlanResponse(reply="ok", tool_calls=[])
+                    parsed = ToolPlanResponse(reply="ok", tool_calls=[])
+                    if include_raw:
+                        return {"raw": None, "parsed": parsed}
+                    return parsed
 
             return _Structured()
 
@@ -167,7 +170,7 @@ def test_vertex_schema_structured_output_single_call(monkeypatch) -> None:
 
     from agent.llm.client import generate_json
 
-    obj, err = generate_json("hello", schema=ToolPlanResponse)
+    obj, err, _ = generate_json("hello", schema=ToolPlanResponse)
     assert err is None
     assert obj is not None
     assert obj.get("schema_version") == "tarka.tool_plan.v1"

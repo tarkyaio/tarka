@@ -121,7 +121,7 @@ def test_generate_json_with_mock_mode():
     from agent.llm.client import generate_json
 
     with patch.dict(os.environ, {"LLM_MOCK": "1"}):
-        result, err = generate_json("test prompt")
+        result, err, _ = generate_json("test prompt")
 
         assert err is None
         assert isinstance(result, dict)

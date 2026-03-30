@@ -64,7 +64,7 @@ def test_case_chat_executor_skips_duplicate_tool_call(monkeypatch) -> None:
     ]
 
     def _fake_generate_json(_prompt: str, *, schema=None):
-        return (llm_outputs.pop(0), None)
+        return (llm_outputs.pop(0), None, None)
 
     calls = {"n": 0}
 
