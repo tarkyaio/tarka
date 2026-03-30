@@ -936,10 +936,10 @@ export function CaseScreen() {
                           <div className={styles.memoryMarkdown}>
                             {memoryLive.similar_cases.length ? (
                               <>
-                                <div style={{ fontWeight: 900, marginBottom: 6 }}>
+                                <div style={{ fontWeight: 700, marginBottom: 6 }}>
                                   Similar cases
                                 </div>
-                                <ul style={{ margin: "6px 0", paddingLeft: 18 }}>
+                                <ul style={{ margin: "6px 0", paddingLeft: 22 }}>
                                   {memoryLive.similar_cases.slice(0, 5).map((s) => (
                                     <li key={`${s.case_id}-${s.run_id}`}>
                                       <span className="mono">{String(s.case_id).slice(0, 7)}</span>{" "}
@@ -966,7 +966,7 @@ export function CaseScreen() {
                             ) : null}
                             {memoryLive.skills.length ? (
                               <>
-                                <div style={{ fontWeight: 900, marginTop: 12, marginBottom: 6 }}>
+                                <div style={{ fontWeight: 700, marginTop: 12, marginBottom: 6 }}>
                                   Matched skills
                                 </div>
                                 {memoryLive.skills.slice(0, 5).map((sk) => (
@@ -974,7 +974,7 @@ export function CaseScreen() {
                                     key={`${sk.name}-${sk.version}`}
                                     style={{ marginBottom: 10 }}
                                   >
-                                    <div style={{ fontWeight: 800 }}>
+                                    <div style={{ fontWeight: 600 }}>
                                       {sk.name} (v{sk.version})
                                     </div>
                                     {sk.rendered ? (
