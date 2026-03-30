@@ -139,6 +139,11 @@ class GitHubEvidence(BaseModelAllowExtra):
     readme: Optional[str] = None
     docs: List[Dict[str, Any]] = Field(default_factory=list)  # [{path, content}]
 
+    regression_context: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Bounded regression context pack (candidate range, ranked files, diff hunks, snippets)",
+    )
+
 
 class Evidence(BaseModelAllowExtra):
     k8s: K8sEvidence = Field(default_factory=K8sEvidence)

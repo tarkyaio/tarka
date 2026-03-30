@@ -49,6 +49,7 @@ class GitHubProvider(Protocol):
         repo: str,
         since: datetime,
         limit: int = 10,
+        jobs_mode: str = "failed",
     ) -> List[Dict[str, Any]]:
         """
         Get recent GitHub Actions workflow runs.
@@ -57,6 +58,10 @@ class GitHubProvider(Protocol):
             repo: Repository in "org/repo" format
             since: Start of time window
             limit: Maximum number of runs to return
+            jobs_mode: Job-fetch strategy:
+                - "failed": fetch jobs only for failed runs (default)
+                - "all": fetch jobs for all runs
+                - "none": never fetch jobs
 
         Returns:
             List of workflow run dicts with keys:
@@ -392,6 +397,7 @@ class DefaultGitHubProvider:
         repo: str,
         since: datetime,
         limit: int = 10,
+        jobs_mode: str = "failed",
     ) -> List[Dict[str, Any]]:
         """
         Get recent GitHub Actions workflow runs.
@@ -399,6 +405,10 @@ class DefaultGitHubProvider:
         Returns workflow runs in reverse chronological order (newest first).
         """
         try:
+            mode = (jobs_mode or "failed").strip().lower()
+            if mode not in {"failed", "all", "none"}:
+                mode = "failed"
+
             url = f"https://api.github.com/repos/{repo}/actions/runs"
             params = {
                 "created": f">={since.isoformat()}",
@@ -411,27 +421,29 @@ class DefaultGitHubProvider:
             # Transform to simplified format
             runs = []
             for r in runs_raw[:limit]:
-                # Get jobs for this run
-                jobs_url = f"https://api.github.com/repos/{repo}/actions/runs/{r['id']}/jobs"
-                jobs_response = self._make_request("GET", jobs_url)
-                jobs_raw = jobs_response.json().get("jobs", [])
-
-                jobs = [
-                    {
-                        "id": j.get("id"),
-                        "name": j.get("name", ""),
-                        "status": j.get("status", ""),
-                        "conclusion": j.get("conclusion", ""),
-                    }
-                    for j in jobs_raw
-                ]
+                conclusion = r.get("conclusion", "")
+                should_fetch_jobs = mode == "all" or (mode == "failed" and conclusion == "failure")
+                jobs = []
+                if should_fetch_jobs:
+                    jobs_url = f"https://api.github.com/repos/{repo}/actions/runs/{r['id']}/jobs"
+                    jobs_response = self._make_request("GET", jobs_url)
+                    jobs_raw = jobs_response.json().get("jobs", [])
+                    jobs = [
+                        {
+                            "id": j.get("id"),
+                            "name": j.get("name", ""),
+                            "status": j.get("status", ""),
+                            "conclusion": j.get("conclusion", ""),
+                        }
+                        for j in jobs_raw
+                    ]
 
                 runs.append(
                     {
                         "id": r.get("id"),
                         "workflow_name": r.get("name", ""),
                         "status": r.get("status", ""),
-                        "conclusion": r.get("conclusion", ""),
+                        "conclusion": conclusion,
                         "created_at": r.get("created_at", ""),
                         "updated_at": r.get("updated_at", ""),
                         "url": r.get("html_url", ""),

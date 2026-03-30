@@ -2,8 +2,10 @@ FROM python:3.13-slim AS runtime
 
 WORKDIR /app
 
-# System deps (certs for HTTPS endpoints / AWS)
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+# System deps (certs for HTTPS endpoints / AWS + local git mirror cache)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
 RUN pip install --no-cache-dir poetry==1.8.2

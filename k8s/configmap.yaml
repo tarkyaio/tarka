@@ -88,6 +88,14 @@ data:
   CHAT_ALLOW_GITHUB_READ: "false"  # Enable GitHub chat tools (requires GitHub App)
   CHAT_GITHUB_REPO_ALLOWLIST: ""  # Restrict to specific repos (empty = allow all discovered)
   GITHUB_DEFAULT_ORG: ""  # Optional: default GitHub org for repo discovery
+  # Local git mirror cache for code/content access (metadata-first strategy).
+  # Mirrors are created/refreshed only when content blobs are needed.
+  TARKA_GIT_CACHE_DIR: "/tmp/tarka/git"
+  TARKA_GIT_FETCH_TTL_SECONDS: "300"
+  # Optional LRU cap. "0" disables eviction.
+  TARKA_GIT_CACHE_MAX_REPOS: "0"
+  # Override for GitHub Enterprise, e.g. "https://github.company.com".
+  TARKA_GIT_REMOTE_BASE: "https://github.com"
 
   # ---- K8s Events Tool ----
   # No additional permissions needed (uses existing RBAC for events)

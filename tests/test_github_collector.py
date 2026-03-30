@@ -7,7 +7,10 @@ from __future__ import annotations
 # Import unittest.mock for mock_open
 import unittest.mock
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from agent.collectors.github_context import collect_github_evidence
 
@@ -32,6 +35,15 @@ def _mock_investigation(
     inv.time_window.end_time = now
 
     return inv
+
+
+@pytest.fixture(autouse=True)
+def _disable_real_git_cache_calls():
+    """Prevent unit tests from cloning/fetching real remotes."""
+    mock_cache = MagicMock()
+    mock_cache.ensure_mirror.side_effect = RuntimeError("git cache disabled in unit tests")
+    with patch("agent.providers.git_mirror_provider.get_git_mirror_cache", return_value=mock_cache):
+        yield
 
 
 def test_collect_github_evidence_repo_not_found(monkeypatch):
@@ -269,3 +281,159 @@ def test_collect_github_evidence_caps_docs_at_5(monkeypatch):
 
     # Should cap at 5
     assert len(result["docs"]) == 5
+
+
+def test_collect_github_evidence_reads_docs_from_local_git(monkeypatch):
+    """Collector uses local git mirror for README/docs when available."""
+    monkeypatch.setenv("GITHUB_DEFAULT_ORG", "myorg")
+    inv = _mock_investigation(workload_name="test-service")
+
+    mock_provider = MagicMock()
+    mock_provider.get_recent_commits.return_value = []
+    mock_provider.get_workflow_runs.return_value = []
+    mock_provider.get_file_contents.side_effect = AssertionError("REST fallback should not be used")
+    mock_provider.list_directory.side_effect = AssertionError("REST fallback should not be used")
+
+    mirror_path = Path("/tmp/tarka/git/myorg/test-service.git")
+    mock_cache = MagicMock()
+    mock_cache.ensure_mirror.return_value = mirror_path
+    mock_cache.list_dir.return_value = ["setup.md", "runbook.md", "notes.txt"]
+
+    def _read_local(*args, **kwargs):
+        file_path = kwargs.get("file_path")
+        if file_path is None and len(args) >= 3:
+            file_path = args[2]
+        if file_path == "README.md":
+            return "# Local README"
+        if file_path == "docs/setup.md":
+            return "Setup content"
+        if file_path == "docs/runbook.md":
+            return "Runbook content"
+        raise Exception("not found")
+
+    mock_cache.read_file.side_effect = _read_local
+
+    with patch("agent.providers.github_provider.get_github_provider", return_value=mock_provider):
+        with patch("agent.providers.git_mirror_provider.get_git_mirror_cache", return_value=mock_cache):
+            result = collect_github_evidence(inv)
+
+    assert result["readme"] == "# Local README"
+    assert result["docs"] == [
+        {"path": "docs/setup.md", "content": "Setup content"},
+        {"path": "docs/runbook.md", "content": "Runbook content"},
+    ]
+
+
+def test_collect_github_evidence_falls_back_to_rest_when_local_git_fails(monkeypatch):
+    """Collector falls back to GitHub REST content APIs when local git operations fail."""
+    monkeypatch.setenv("GITHUB_DEFAULT_ORG", "myorg")
+    inv = _mock_investigation(workload_name="test-service")
+
+    mock_provider = MagicMock()
+    mock_provider.get_recent_commits.return_value = []
+    mock_provider.get_workflow_runs.return_value = []
+    mock_provider.list_directory.return_value = ["setup.md"]
+
+    def _read_rest(*args, **kwargs):
+        path = kwargs.get("path")
+        if path is None and len(args) >= 2:
+            path = args[1]
+        if path == "README.md":
+            return "# REST README"
+        if path == "docs/setup.md":
+            return "REST setup content"
+        raise Exception("not found")
+
+    mock_provider.get_file_contents.side_effect = _read_rest
+
+    mock_cache = MagicMock()
+    mock_cache.ensure_mirror.side_effect = RuntimeError("clone failed")
+
+    with patch("agent.providers.github_provider.get_github_provider", return_value=mock_provider):
+        with patch("agent.providers.git_mirror_provider.get_git_mirror_cache", return_value=mock_cache):
+            result = collect_github_evidence(inv)
+
+    assert result["readme"] == "# REST README"
+    assert result["docs"] == [{"path": "docs/setup.md", "content": "REST setup content"}]
+
+
+def test_collect_github_evidence_includes_regression_context(monkeypatch):
+    """Collector returns regression_context when mirror succeeds."""
+    monkeypatch.setenv("GITHUB_DEFAULT_ORG", "myorg")
+    inv = _mock_investigation(workload_name="test-service")
+
+    mock_service = MagicMock()
+    mock_service.recent_commits.return_value = {"commits": []}
+    mock_service.workflow_runs.return_value = {"workflow_runs": []}
+    mock_service.readme_and_docs.return_value = {"readme": None, "docs": []}
+
+    fake_pack = {
+        "repo": "myorg/test-service",
+        "candidate_range": {"base": "aaa", "head": "bbb", "source": "time_window", "widened_window": False},
+        "selected_files": [{"path": "src/main.py", "status": "M", "score": 7, "grep_hits": 0}],
+        "diff_hunks": [],
+        "file_snippets": [],
+        "limits": {"max_files": 8, "max_diff_lines_per_file": 150, "max_total_diff_lines": 800},
+    }
+
+    with patch("agent.services.github_data_service.get_github_data_service", return_value=mock_service):
+        with patch("agent.analysis.git_regression.build_regression_context_pack", return_value=fake_pack):
+            result = collect_github_evidence(inv)
+
+    assert result["regression_context"] is not None
+    assert result["regression_context"]["repo"] == "myorg/test-service"
+    assert len(result["regression_context"]["selected_files"]) == 1
+
+
+def test_collect_github_evidence_regression_context_failure_nonfatal(monkeypatch):
+    """Regression context failure doesn't block other evidence."""
+    monkeypatch.setenv("GITHUB_DEFAULT_ORG", "myorg")
+    inv = _mock_investigation(workload_name="test-service")
+
+    mock_service = MagicMock()
+    mock_service.recent_commits.return_value = {"commits": [{"sha": "abc"}]}
+    mock_service.workflow_runs.return_value = {"workflow_runs": []}
+    mock_service.readme_and_docs.return_value = {"readme": "# Hi", "docs": []}
+
+    with patch("agent.services.github_data_service.get_github_data_service", return_value=mock_service):
+        with patch(
+            "agent.analysis.git_regression.build_regression_context_pack",
+            side_effect=RuntimeError("mirror failed"),
+        ):
+            result = collect_github_evidence(inv)
+
+    assert result["regression_context"] is None
+    assert any("regression_context:RuntimeError" in e for e in result["errors"])
+    # Other evidence still present
+    assert result["repo"] == "myorg/test-service"
+    assert result["readme"] == "# Hi"
+    assert len(result["recent_commits"]) == 1
+
+
+def test_collect_github_evidence_routes_through_shared_service():
+    """Collector uses GitHubDataService for data retrieval."""
+    inv = _mock_investigation(workload_name="ignored")
+    inv.alert.labels = {"github_repo": "acme/myrepo"}
+
+    mock_service = MagicMock()
+    mock_service.recent_commits.return_value = {"source": "api", "commits": [{"sha": "abc", "author": "a"}]}
+    mock_service.workflow_runs.return_value = {"source": "api", "workflow_runs": []}
+    mock_service.readme_and_docs.return_value = {
+        "source": "mirror",
+        "readme": "# Shared",
+        "docs": [{"path": "docs/setup.md", "content": "setup"}],
+    }
+
+    with patch("agent.services.github_data_service.get_github_data_service", return_value=mock_service):
+        with patch(
+            "agent.providers.github_provider.get_github_provider",
+            side_effect=AssertionError("collector should not call provider directly for data"),
+        ):
+            result = collect_github_evidence(inv)
+
+    assert result["repo"] == "acme/myrepo"
+    assert result["readme"] == "# Shared"
+    assert result["docs"] == [{"path": "docs/setup.md", "content": "setup"}]
+    mock_service.recent_commits.assert_called_once()
+    mock_service.workflow_runs.assert_called_once()
+    mock_service.readme_and_docs.assert_called_once()
