@@ -35,6 +35,18 @@ from typing import Any, Dict, Optional, Tuple, Type, TypeVar
 
 logger = logging.getLogger(__name__)
 
+# Call sites routed to the lighter (cheaper) model when LLM_MODEL_LIGHT is set.
+_LIGHT_SITES = frozenset({"enrichment", "rca_planner", "global_chat"})
+
+
+def _resolve_model(call_site: str = "default") -> str:
+    """Return model name for a call site. Light sites use LLM_MODEL_LIGHT if set."""
+    if call_site in _LIGHT_SITES:
+        light = (os.getenv("LLM_MODEL_LIGHT") or "").strip()
+        if light:
+            return light
+    return (os.getenv("LLM_MODEL") or "").strip() or "gemini-2.5-flash"
+
 
 def _env_bool(name: str, default: bool = False) -> bool:
     raw = (os.getenv(name) or "").strip().lower()
@@ -129,8 +141,8 @@ class LLMConfig:
     timeout: int = 120
 
 
-def _load_config() -> LLMConfig:
-    model = (os.getenv("LLM_MODEL") or "").strip() or "gemini-2.5-flash"
+def _load_config(model_override: Optional[str] = None) -> LLMConfig:
+    model = model_override or (os.getenv("LLM_MODEL") or "").strip() or "gemini-2.5-flash"
     try:
         temperature = float((os.getenv("LLM_TEMPERATURE") or "").strip() or "0.2")
     except Exception:
@@ -305,8 +317,12 @@ def _extract_usage(msg: Any) -> Optional[Dict[str, int]]:
 
 
 def generate_json(
-    prompt: str, *, schema: Optional[Type[SchemaT]] = None, enable_thinking: bool = True
-) -> Tuple[Optional[Dict[str, Any]], Optional[str], Optional[Dict[str, int]]]:
+    prompt: str,
+    *,
+    schema: Optional[Type[SchemaT]] = None,
+    enable_thinking: bool = True,
+    call_site: str = "default",
+) -> Tuple[Optional[Dict[str, Any]], Optional[str], Optional[Dict[str, Any]]]:
     """
     Provider-agnostic JSON call.
 
@@ -315,9 +331,11 @@ def generate_json(
         schema: Optional Pydantic schema for structured output
         enable_thinking: Whether to enable extended thinking (default: True).
                         Automatically disabled for structured output to avoid incompatibility.
+        call_site: Logical call site name for model routing (e.g. "enrichment", "rca_planner").
+                   Light sites use LLM_MODEL_LIGHT when set; others use LLM_MODEL.
 
     Returns: (obj, err_code, usage). obj and err_code are mutually exclusive.
-             usage is a dict with input_tokens/output_tokens/total_tokens (or None).
+             usage is a dict with input_tokens/output_tokens/total_tokens/model/call_site (or None).
     """
     if _env_bool("LLM_MOCK", False):
         if schema is not None:
@@ -332,7 +350,8 @@ def generate_json(
         return _mock_response(), None, None
 
     p = _provider()
-    cfg = _load_config()
+    resolved_model = _resolve_model(call_site)
+    cfg = _load_config(model_override=resolved_model)
 
     # Disable thinking for structured output (incompatible with forced tool calling)
     use_thinking = enable_thinking and schema is None
@@ -342,6 +361,11 @@ def generate_json(
     if err:
         return None, err, None
 
+    def _enrich_usage(u: Optional[Dict[str, int]]) -> Optional[Dict[str, Any]]:
+        if u is None:
+            return None
+        return {**u, "model": cfg.model, "call_site": call_site}
+
     t0 = time.monotonic()
     try:
         if schema is not None:
@@ -349,7 +373,7 @@ def generate_json(
             structured = llm.with_structured_output(schema, include_raw=True)  # type: ignore[call-arg, attr-defined]
             result = structured.invoke(prompt)
             raw_msg = result.get("raw") if isinstance(result, dict) else None
-            usage = _extract_usage(raw_msg) if raw_msg is not None else None
+            usage = _enrich_usage(_extract_usage(raw_msg) if raw_msg is not None else None)
             parsed = result.get("parsed") if isinstance(result, dict) else result
             if hasattr(parsed, "model_dump"):
                 d = parsed.model_dump(mode="json")  # type: ignore[no-any-return]
@@ -360,7 +384,7 @@ def generate_json(
 
         # Non-schema mode: parse JSON from text
         msg = llm.invoke(prompt)
-        usage = _extract_usage(msg)
+        usage = _enrich_usage(_extract_usage(msg))
         text = getattr(msg, "content", None)
         obj = _extract_json_object(str(text or ""))
         return (obj, None, usage) if obj is not None else (None, "json_parse_failed", usage)

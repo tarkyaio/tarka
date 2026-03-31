@@ -31,7 +31,7 @@ def test_llm_ok_adds_section(monkeypatch) -> None:
     # Stub provider call
     import agent.llm.client as llm_client
 
-    monkeypatch.setattr(llm_client, "generate_json", lambda _p, schema=None: ({"summary": "ok"}, None, None))
+    monkeypatch.setattr(llm_client, "generate_json", lambda _p, schema=None, **kw: ({"summary": "ok"}, None, None))
 
     maybe_enrich_investigation(investigation, enabled=True)
     assert investigation.analysis.llm is not None
@@ -48,7 +48,7 @@ def test_llm_rate_limited_sets_status(monkeypatch) -> None:
 
     import agent.llm.client as llm_client
 
-    monkeypatch.setattr(llm_client, "generate_json", lambda _p, schema=None: (None, "rate_limited", None))
+    monkeypatch.setattr(llm_client, "generate_json", lambda _p, schema=None, **kw: (None, "rate_limited", None))
 
     maybe_enrich_investigation(investigation, enabled=True)
     assert investigation.analysis.llm is not None

@@ -127,6 +127,15 @@ def _build_prompt(
         ev = analysis_json.get("evidence") if isinstance(analysis_json.get("evidence"), dict) else {}
         if ev:
             ctx["evidence"] = ev
+        # LLM token usage so chat can answer cost/token questions when keyword intent misses.
+        llm_info = a.get("llm") if isinstance(a.get("llm"), dict) else {}
+        rca_info = a.get("rca") if isinstance(a.get("rca"), dict) else {}
+        if llm_info.get("usage") or rca_info.get("usage"):
+            ctx["llm_usage"] = {}
+            if isinstance(llm_info.get("usage"), dict):
+                ctx["llm_usage"]["enrichment"] = {"model": llm_info.get("model"), **llm_info["usage"]}
+            if isinstance(rca_info.get("usage"), dict):
+                ctx["llm_usage"]["rca"] = {"model": rca_info.get("model"), **rca_info["usage"]}
     except Exception:
         ctx = {}
 
@@ -275,7 +284,7 @@ def _run_chat_langgraph(
             history=state.get("history") or [],
             tool_events=tool_events,
         )
-        obj, err, _ = generate_json(prompt, schema=ToolPlanResponse)
+        obj, err, _ = generate_json(prompt, schema=ToolPlanResponse, call_site="case_chat")
         if err or not isinstance(obj, dict):
             return {
                 **state,

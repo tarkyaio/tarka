@@ -120,6 +120,9 @@ data:
   LLM_PROVIDER: "vertexai"
   # Generic model selector for LangChain providers (optional; provider-specific defaults apply).
   LLM_MODEL: "gemini-2.5-flash"
+  # Optional: cheaper model for light tasks (enrichment, RCA planner, global chat).
+  # If unset, all call sites use LLM_MODEL. Example: "claude-haiku-4-5-20251001"
+  LLM_MODEL_LIGHT: ""
   LLM_ENABLED: "false"
   LLM_MOCK: "false"
   LLM_TIMEOUT_SECONDS: "180"

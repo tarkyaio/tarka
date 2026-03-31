@@ -277,7 +277,7 @@ async def run_global_chat_stream(
         try:
             logger.debug("global_chat: calling generate_json (step=%d)", step)
             obj, err, _ = await asyncio.wait_for(
-                asyncio.to_thread(generate_json, prompt, schema=ToolPlanResponse),
+                asyncio.to_thread(generate_json, prompt, schema=ToolPlanResponse, call_site="global_chat"),
                 timeout=120.0,
             )
             logger.debug("global_chat: generate_json returned err=%s", err)

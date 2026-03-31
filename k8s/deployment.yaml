@@ -221,6 +221,7 @@ spec:
           secret:
             # Client library config JSON is a secret (synced from AWS Secrets Manager by deploy.sh).
             secretName: tarka
+            optional: true
             items:
               - key: GCP_WIF_CRED_JSON
                 path: wif-cred.json

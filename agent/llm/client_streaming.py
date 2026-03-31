@@ -26,7 +26,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, AsyncGenerator, Dict
 
-from agent.llm.client import _env_bool, _get_llm_instance, _load_config, _provider
+from agent.llm.client import _env_bool, _get_llm_instance, _load_config, _provider, _resolve_model
 
 
 @dataclass
@@ -44,6 +44,7 @@ async def stream_text_response(
     enable_thinking: bool = True,
     batch_size: int = 5,
     batch_timeout_ms: int = 100,
+    call_site: str = "streaming",
 ) -> AsyncGenerator[LLMStreamChunk, None]:
     """
     Stream natural language text response (NOT structured JSON).
@@ -75,7 +76,8 @@ async def stream_text_response(
         return
 
     provider = _provider()
-    cfg = _load_config()
+    resolved_model = _resolve_model(call_site)
+    cfg = _load_config(model_override=resolved_model)
 
     # Get LangChain model instance
     # Disable thinking for streaming to avoid Anthropic API 400 errors

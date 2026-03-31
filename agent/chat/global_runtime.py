@@ -140,7 +140,7 @@ def _run_global_chat_langgraph(
             history=state.get("history") or [],
             tool_events=state.get("tool_events") or [],
         )
-        obj, err, _ = generate_json(prompt, schema=ToolPlanResponse)
+        obj, err, _ = generate_json(prompt, schema=ToolPlanResponse, call_site="global_chat")
         if err or not isinstance(obj, dict):
             return {
                 **state,

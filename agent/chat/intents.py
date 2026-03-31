@@ -84,6 +84,16 @@ _SUMMARY_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
+
+def _is_token_cost_question(s: str) -> bool:
+    """Keyword check: is the user asking about LLM token usage or investigation cost?"""
+    if "token" in s or "llm" in s:
+        return True
+    if "cost" in s and ("this" in s or "investigation" in s or "case" in s or "run" in s):
+        return True
+    return False
+
+
 _STATUS_PATTERNS = re.compile(
     r"^(what'?s?\s+(the\s+)?status|is\s+(it|this)\s+(resolved|fixed|still\s+(firing|active|down|broken))|"
     r"still\s+(happening|firing|active|down|broken)|"
@@ -150,6 +160,43 @@ def _build_status_reply(analysis_json: Dict[str, Any]) -> str:
     parts.append("If you'd like fresh data, ask me to re-check with live tools.")
 
     return "\n".join(parts)
+
+
+def _build_token_usage_reply(analysis_json: Dict[str, Any]) -> Optional[str]:
+    """Build a deterministic reply about LLM token usage from the SSOT. Returns None if no data."""
+    a = analysis_json.get("analysis") if isinstance(analysis_json.get("analysis"), dict) else {}
+    llm_info = a.get("llm") if isinstance(a.get("llm"), dict) else {}
+    rca_info = a.get("rca") if isinstance(a.get("rca"), dict) else {}
+    llm_usage = llm_info.get("usage") if isinstance(llm_info.get("usage"), dict) else {}
+    rca_usage = rca_info.get("usage") if isinstance(rca_info.get("usage"), dict) else {}
+
+    if not llm_usage and not rca_usage:
+        return None
+
+    parts: List[str] = []
+    total_tokens = 0
+    total_cost = 0.0
+
+    if llm_usage:
+        tokens = llm_usage.get("total_tokens") or 0
+        cost = llm_usage.get("estimated_cost_usd") or 0
+        model = llm_info.get("model")
+        total_tokens += tokens
+        total_cost += cost
+        label = f"**Enrichment** ({model})" if model else "**Enrichment**"
+        parts.append(f"- {label}: {tokens:,} tokens" + (f" — ${cost:.4f}" if cost else ""))
+
+    if rca_usage:
+        tokens = rca_usage.get("total_tokens") or 0
+        cost = rca_usage.get("estimated_cost_usd") or 0
+        model = rca_info.get("model")
+        total_tokens += tokens
+        total_cost += cost
+        label = f"**RCA** ({model})" if model else "**RCA**"
+        parts.append(f"- {label}: {tokens:,} tokens" + (f" — ${cost:.4f}" if cost else ""))
+
+    header = f"**Total: {total_tokens:,} tokens" + (f" — ${total_cost:.4f}**" if total_cost else "**")
+    return header + "\n" + "\n".join(parts)
 
 
 _FAMILY_SYNONYMS = {
@@ -309,6 +356,16 @@ def try_handle_case_intents(*, analysis_json: Dict[str, Any], user_message: str)
             handled=True,
             reply=f"Hey! I'm here to help with **{target_name}**. What would you like to know?",
             intent_id="case.greeting",
+        )
+
+    # Intent: case.token_usage — answer token/cost questions from SSOT, zero tools.
+    # If keywords match but no data in SSOT, reply directly instead of wasting an LLM call.
+    if _is_token_cost_question(s):
+        reply = _build_token_usage_reply(analysis_json)
+        return IntentResult(
+            handled=True,
+            reply=reply or "Token and cost information is not available for this investigation.",
+            intent_id="case.token_usage",
         )
 
     # Intent: case.summary — build reply from analysis_json, zero tools

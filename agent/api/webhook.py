@@ -2437,6 +2437,117 @@ async def chat_thread_case(request: Request, case_id: str, req: Dict[str, Any]) 
     )
 
 
+# ---------------------------------------------------------------------------
+# LLM pricing management
+# ---------------------------------------------------------------------------
+
+
+class LLMPricingUpsertRequest(BaseModel):
+    model_pattern: str
+    provider: Optional[str] = None
+    input_cost_per_1m: float
+    output_cost_per_1m: float
+
+
+@app.get("/api/v1/llm-pricing")
+async def list_llm_pricing():
+    """List all LLM pricing entries."""
+    from agent.memory.config import build_postgres_dsn, load_memory_config
+
+    dsn = build_postgres_dsn(load_memory_config())
+    if not dsn:
+        return []
+
+    try:
+        import psycopg  # type: ignore[import-not-found]
+
+        with psycopg.connect(dsn) as conn:
+            rows = conn.execute(
+                "SELECT model_pattern, provider, input_cost_per_1m, output_cost_per_1m, source, updated_at "
+                "FROM llm_pricing ORDER BY provider, model_pattern"
+            ).fetchall()
+
+        return [
+            {
+                "model_pattern": r[0],
+                "provider": r[1],
+                "input_cost_per_1m": r[2],
+                "output_cost_per_1m": r[3],
+                "source": r[4],
+                "updated_at": r[5].isoformat() if r[5] else None,
+            }
+            for r in rows
+        ]
+    except Exception as exc:
+        logger.warning("Failed to list llm_pricing: %s", exc)
+        return []
+
+
+@app.put("/api/v1/llm-pricing")
+async def upsert_llm_pricing(req: LLMPricingUpsertRequest):
+    """Upsert a pricing entry (sets source='manual')."""
+    from agent.llm.pricing import invalidate_cache
+    from agent.memory.config import build_postgres_dsn, load_memory_config
+
+    dsn = build_postgres_dsn(load_memory_config())
+    if not dsn:
+        raise HTTPException(status_code=503, detail="Postgres not configured")
+
+    try:
+        import psycopg  # type: ignore[import-not-found]
+
+        with psycopg.connect(dsn) as conn:
+            with conn.transaction():
+                conn.execute(
+                    "INSERT INTO llm_pricing (model_pattern, provider, input_cost_per_1m, output_cost_per_1m, source, updated_at) "
+                    "VALUES (%s, %s, %s, %s, 'manual', now()) "
+                    "ON CONFLICT (model_pattern) DO UPDATE SET "
+                    "  provider = COALESCE(EXCLUDED.provider, llm_pricing.provider), "
+                    "  input_cost_per_1m = EXCLUDED.input_cost_per_1m, "
+                    "  output_cost_per_1m = EXCLUDED.output_cost_per_1m, "
+                    "  source = 'manual', "
+                    "  updated_at = now()",
+                    (req.model_pattern, req.provider, req.input_cost_per_1m, req.output_cost_per_1m),
+                )
+
+        invalidate_cache()
+        return {"ok": True, "model_pattern": req.model_pattern}
+    except Exception as exc:
+        logger.error("Failed to upsert llm_pricing: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.delete("/api/v1/llm-pricing/{model_pattern:path}")
+async def delete_llm_pricing(model_pattern: str):
+    """Delete a pricing entry."""
+    from agent.llm.pricing import invalidate_cache
+    from agent.memory.config import build_postgres_dsn, load_memory_config
+
+    dsn = build_postgres_dsn(load_memory_config())
+    if not dsn:
+        raise HTTPException(status_code=503, detail="Postgres not configured")
+
+    try:
+        import psycopg  # type: ignore[import-not-found]
+
+        with psycopg.connect(dsn) as conn:
+            with conn.transaction():
+                result = conn.execute(
+                    "DELETE FROM llm_pricing WHERE model_pattern = %s",
+                    (model_pattern,),
+                )
+                if result.rowcount == 0:
+                    raise HTTPException(status_code=404, detail="Not found")
+
+        invalidate_cache()
+        return {"ok": True, "deleted": model_pattern}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Failed to delete llm_pricing: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @app.post("/alerts")
 async def alerts(request: Request) -> JSONResponse:
     try:
@@ -2454,7 +2565,12 @@ async def alerts(request: Request) -> JSONResponse:
             logger.error("Payload field 'alerts' is not a list: %s", type(alerts_list).__name__)
             raise HTTPException(status_code=400, detail="Payload field 'alerts' must be a list")
 
-        logger.info("Processing %d alert(s) from webhook", len(alerts_list))
+        logger.info(
+            "Processing %d alert(s) from webhook: %s",
+            len(alerts_list),
+            ", ".join((a.get("labels") or {}).get("alertname", "Unknown") for a in alerts_list if isinstance(a, dict))
+            or "N/A",
+        )
 
         time_window = os.getenv("TIME_WINDOW", "1h").strip() or "1h"
         parent_status = payload.get("status")
@@ -2487,11 +2603,16 @@ async def alerts(request: Request) -> JSONResponse:
                 labels = alert_norm.get("labels", {}) or {}
                 alertname = labels.get("alertname") or "Unknown"
 
+                namespace = labels.get("namespace", "")
                 state = (alert_norm.get("status", {}) or {}).get("state") or "unknown"
                 if state != "firing":
+                    logger.debug(
+                        "Skipping alert=%s namespace=%s reason=not_firing state=%s", alertname, namespace, state
+                    )
                     skipped_resolved += 1
                     continue
                 if allowlist is not None and str(alertname) not in allowlist:
+                    logger.debug("Skipping alert=%s namespace=%s reason=not_in_allowlist", alertname, namespace)
                     skipped_allowlist += 1
                     continue
 
@@ -2539,17 +2660,29 @@ async def alerts(request: Request) -> JSONResponse:
                     msg_id = compute_msg_id_from_dedup_key(dedup)
 
                 if msg_id in seen_keys:
+                    logger.debug("Skipping alert=%s namespace=%s reason=duplicate_in_batch", alertname, namespace)
                     skipped_duplicate += 1
                     continue
                 seen_keys.add(msg_id)
 
                 job = AlertJob(alert=raw, time_window=time_window, parent_status=parent_status_s)
                 await client.enqueue(job, msg_id=msg_id)
+                logger.info("Enqueued alert=%s namespace=%s fingerprint=%s", alertname, namespace, fp)
                 enqueued += 1
             except Exception:
                 errors += 1
                 logger.exception("Error enqueueing webhook alert job")
                 continue
+
+        logger.info(
+            "Webhook batch done: received=%d enqueued=%d skipped_resolved=%d skipped_allowlist=%d skipped_duplicate=%d errors=%d",
+            len(alerts_list),
+            enqueued,
+            skipped_resolved,
+            skipped_allowlist,
+            skipped_duplicate,
+            errors,
+        )
 
         return JSONResponse(
             status_code=202,
