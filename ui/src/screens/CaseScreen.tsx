@@ -242,6 +242,12 @@ export function CaseScreen() {
   // Convenience alias (used by the Verdict section).
   const analysis = analysisJson?.analysis || null;
 
+  // LLM cost badge data
+  const llmUsage = (analysis?.llm as any)?.usage;
+  const rcaUsage = (analysis?.rca as any)?.usage;
+  const totalTokens = (llmUsage?.total_tokens || 0) + (rcaUsage?.total_tokens || 0);
+  const totalCost = (llmUsage?.estimated_cost_usd || 0) + (rcaUsage?.estimated_cost_usd || 0);
+
   const decision = analysisJson?.analysis?.decision || null;
   const verdict = analysisJson?.analysis?.verdict || null;
   const scores = analysisJson?.analysis?.scores || null;
@@ -493,10 +499,15 @@ export function CaseScreen() {
                       <div className={styles.reportMetaRow}>
                         <ClassificationPill classification={classification} />
                         <SeverityPill severity={severity} />
-                        <span className={styles.metaText}>Age: {age}</span>
-                        <span className={styles.metaText}>
-                          ID: {shortId(String(caseId || ""), 7)}
-                        </span>
+                        {totalTokens > 0 && (
+                          <span className={styles.costBadge}>
+                            <MaterialIcon name="sell" filled />
+                            {totalTokens.toLocaleString()}
+                            {totalCost > 0 && (
+                              <span className={styles.costUsd}>${totalCost.toFixed(4)}</span>
+                            )}
+                          </span>
+                        )}
                       </div>
                       <div className={styles.reportTitleRow}>
                         <div className={styles.reportTitleLine}>

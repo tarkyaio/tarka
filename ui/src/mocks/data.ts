@@ -198,6 +198,22 @@ export function mockRunDetail(runId: string): InvestigationRunDetailResponse {
               "Mock next step: check saturation",
             ],
           },
+          llm: {
+            usage: {
+              input_tokens: 12480,
+              output_tokens: 3200,
+              total_tokens: 15680,
+              estimated_cost_usd: 0.0855,
+            },
+          },
+          rca: {
+            usage: {
+              input_tokens: 8100,
+              output_tokens: 2400,
+              total_tokens: 10500,
+              estimated_cost_usd: 0.0603,
+            },
+          },
         },
         target: {
           service: row.service,
