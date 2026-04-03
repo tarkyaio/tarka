@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from agent.core.models import ChangeCorrelation, ChangeEvent, ChangeTimeline, Investigation
+from agent.core.models import ChangeCorrelation, ChangeEvent, ChangeTimeline, InfraChangeSignal, Investigation
 
 
 def _parse_iso(ts: Optional[str]) -> Optional[datetime]:
@@ -209,3 +209,65 @@ def analyze_changes(investigation: Investigation) -> None:
     except Exception as e:
         investigation.errors.append(f"Changes: {e}")
         return
+
+
+def _format_signal_message(signal: InfraChangeSignal) -> str:
+    if signal.signal_type == "argocd_revision_change":
+        if signal.old_value and signal.new_value:
+            return f"{signal.old_value} → {signal.new_value}"
+        return signal.new_value or signal.old_value or signal.signal_type
+    if signal.signal_type == "argocd_image_change":
+        if signal.old_value and signal.new_value:
+            return f"image tag {signal.old_value} → {signal.new_value}"
+        return signal.new_value or signal.old_value or "image tag changed"
+    if signal.signal_type == "terraform_resource_change":
+        parts = []
+        if signal.categories:
+            parts.append(", ".join(signal.categories))
+        if signal.resource_types:
+            parts.append(f"({', '.join(signal.resource_types[:3])})")
+        return " ".join(parts) if parts else signal.signal_type
+    return signal.signal_type
+
+
+def _update_change_score(investigation: Investigation) -> None:
+    """Re-score change correlation after infra events have been appended."""
+    if not investigation.analysis.change or not investigation.analysis.change.timeline:
+        return
+    try:
+        investigation.analysis.change = correlate_changes_for_investigation(
+            investigation, investigation.analysis.change.timeline
+        )
+    except Exception:
+        pass
+
+
+def inject_infra_change_events(investigation: Investigation) -> None:
+    """Merge infra change signals into the existing change timeline (never raises)."""
+    try:
+        if not investigation.evidence.infra_context:
+            return
+
+        # Ensure analysis.change exists (may be absent for non-pod targets)
+        if not investigation.analysis.change:
+            investigation.analysis.change = ChangeCorrelation(timeline=ChangeTimeline(source="infra_context"))
+        if not investigation.analysis.change.timeline:
+            investigation.analysis.change.timeline = ChangeTimeline(source="infra_context")
+
+        for infra_repo in investigation.evidence.infra_context:
+            for signal in infra_repo.change_signals:
+                investigation.analysis.change.timeline.events.append(
+                    ChangeEvent(
+                        timestamp=signal.timestamp,
+                        kind="InfraChange",
+                        name=f"{infra_repo.display_name}: {signal.signal_type}",
+                        namespace=infra_repo.type,
+                        reason=signal.signal_type,
+                        message=_format_signal_message(signal),
+                        source="infra_context",
+                    )
+                )
+
+        _update_change_score(investigation)
+    except Exception as e:
+        investigation.errors.append(f"inject_infra_change_events: {e}")

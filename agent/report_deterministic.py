@@ -939,6 +939,94 @@ def render_deterministic_report(investigation: Investigation, *, generated_at: O
                     lines.append(f"- {doc_path} available")
             lines.append("")
 
+    # Infrastructure context evidence (org-wide infra repos)
+    infra_context = getattr(investigation.evidence, "infra_context", [])
+    if infra_context:
+        lines.append("### Infrastructure Context")
+        lines.append("")
+
+        service_name = investigation.target.workload_name or investigation.target.pod or "unknown"
+        lines.append(f"Service `{service_name}` — scoped paths in org-wide infra repos.")
+        lines.append("")
+
+        for infra_repo in infra_context:
+            lines.append(f"**{infra_repo.display_name}** · `{infra_repo.repo}`")
+            lines.append("")
+
+            if not infra_repo.files:
+                lines.append(f"No paths found for `{infra_repo.service_name_matched}`.")
+                lines.append("")
+                if infra_repo.errors:
+                    lines.append(f"_Errors: {'; '.join(infra_repo.errors[:3])}_")
+                    lines.append("")
+                lines.append("---")
+                lines.append("")
+                continue
+
+            for file_ctx in infra_repo.files:
+                lines.append(f"`{file_ctx.path}`")
+
+                # Signals for this file
+                file_signals = [
+                    s for s in infra_repo.change_signals if not s.files_changed or file_ctx.path in s.files_changed
+                ]
+                for signal in file_signals:
+                    if signal.signal_type == "argocd_revision_change":
+                        if signal.old_value and signal.new_value:
+                            lines.append(
+                                f"> Signal: targetRevision changed `{signal.old_value}` → `{signal.new_value}`"
+                            )
+                        else:
+                            lines.append("> Signal: targetRevision changed")
+                        if signal.timestamp:
+                            lines.append(f"> Timestamp: {signal.timestamp}")
+                    elif signal.signal_type == "argocd_image_change":
+                        if signal.old_value and signal.new_value:
+                            lines.append(f"> Signal: image tag changed `{signal.old_value}` → `{signal.new_value}`")
+                        else:
+                            lines.append("> Signal: image tag changed")
+                        if signal.timestamp:
+                            lines.append(f"> Timestamp: {signal.timestamp}")
+                    elif signal.signal_type == "terraform_resource_change":
+                        cats = ", ".join(signal.categories) if signal.categories else "unknown"
+                        rtypes = ", ".join(signal.resource_types[:3]) if signal.resource_types else ""
+                        lines.append(
+                            f"> Signal: Terraform resource change — categories: {cats}"
+                            + (f" ({rtypes})" if rtypes else "")
+                        )
+                        if signal.timestamp:
+                            lines.append(f"> Timestamp: {signal.timestamp}")
+
+                if file_ctx.diff:
+                    lines.append("")
+                    lines.append("Diff:")
+                    lines.append("```diff")
+                    lines.append(file_ctx.diff)
+                    lines.append("```")
+
+                lines.append("")
+
+            # Recent commits touching these paths
+            if infra_repo.recent_commits:
+                lines.append("Recent commits (touching these paths):")
+                for commit in infra_repo.recent_commits[:5]:
+                    sha = commit.get("sha", "?")[:7]
+                    author = commit.get("author", "?")
+                    message = commit.get("message", "").split("\n")[0][:80]
+                    ts = commit.get("timestamp", "")
+                    entry = f"- `{sha}` by {author}: {message}"
+                    if ts:
+                        entry += f" · {ts}"
+                    lines.append(entry)
+                lines.append("")
+
+            if infra_repo.errors:
+                lines.append(f"_Errors: {'; '.join(infra_repo.errors[:3])}_")
+                lines.append("")
+
+            lines.append("---")
+            lines.append("")
+
     return "\n".join(lines)
 
 

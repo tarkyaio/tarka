@@ -345,6 +345,15 @@ def run_investigation(
         except Exception:
             pass  # Never block pipeline on GitHub errors
 
+    # Optional infra context evidence (best-effort, gated by GITHUB_EVIDENCE_ENABLED)
+    if _env_bool("GITHUB_EVIDENCE_ENABLED", False):
+        try:
+            from agent.collectors.infra_context import collect_infra_context
+
+            investigation.evidence.infra_context = collect_infra_context(investigation)
+        except Exception:
+            pass  # Never block pipeline on infra context errors
+
     # Always compute noise (works without pod target).
     analyze_noise(investigation)
 
@@ -363,6 +372,11 @@ def run_investigation(
     if has_pod_target:
         analyze_changes(investigation)
         analyze_capacity(investigation)
+
+    if investigation.evidence.infra_context:
+        from agent.pipeline.changes import inject_infra_change_events
+
+        inject_infra_change_events(investigation)
 
     # Deterministic features -> scores -> verdict
     features = compute_features(investigation)

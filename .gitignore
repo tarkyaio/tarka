@@ -92,3 +92,5 @@ eval/fixtures/*/*.yaml
 # service-catalog is for private services
 # third-party-catalog is for public services
 config/service-catalog.yaml
+# Contains org-specific infra repo names
+config/infra-context-repos.yaml

@@ -629,6 +629,33 @@ async def _startup_jetstream_warmup() -> None:
     logger.info("JetStream warmup OK (enqueue-only mode)")
 
 
+@app.on_event("startup")
+def _startup_warm_infra_mirrors() -> None:
+    """Pre-warm git mirrors for configured infra-context repos."""
+    import os
+
+    if os.getenv("GITHUB_EVIDENCE_ENABLED", "").strip() not in ("1", "true", "True"):
+        return
+    try:
+        from agent.collectors.infra_context import load_infra_repo_configs
+        from agent.providers.git_mirror_provider import get_git_mirror_cache
+
+        configs = load_infra_repo_configs()
+        if not configs:
+            return
+        mirror = get_git_mirror_cache()
+        for cfg in configs:
+            repo = cfg.get("repo", "").strip()
+            if repo:
+                try:
+                    mirror.ensure_mirror(repo)
+                    logger.info("Infra mirror warmed: %s", repo)
+                except Exception as e:
+                    logger.warning("Infra mirror warmup failed for %s: %s", repo, e)
+    except Exception as e:
+        logger.warning("Infra mirror warmup failed: %s", e)
+
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     """Log all incoming HTTP requests."""

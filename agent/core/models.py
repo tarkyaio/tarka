@@ -145,12 +145,53 @@ class GitHubEvidence(BaseModelAllowExtra):
     )
 
 
+class InfraChangeSignal(BaseModelAllowExtra):
+    """A typed change signal extracted from an infra repo (Argo CD / Terraform)."""
+
+    signal_type: str  # "argocd_revision_change", "argocd_image_change", "terraform_resource_change"
+    timestamp: Optional[str] = None  # ISO, from the commit that introduced the change
+    # Argo CD fields
+    field: Optional[str] = None  # e.g. "spec.source.targetRevision"
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    repo_url: Optional[str] = None
+    # Terraform fields
+    resource_types: List[str] = Field(default_factory=list)
+    resource_names: List[str] = Field(default_factory=list)
+    categories: List[str] = Field(default_factory=list)
+    files_changed: List[str] = Field(default_factory=list)
+
+
+class InfraFileContext(BaseModelAllowExtra):
+    """Current content + diff for a service-scoped file in an infra repo."""
+
+    path: str
+    content: str  # current file content (capped at 100 lines)
+    size_lines: int
+    truncated: bool = False
+    diff: Optional[str] = None  # what changed in this file (capped at 50 lines)
+
+
+class InfraRepoEvidence(BaseModelAllowExtra):
+    """Evidence collected from one org-wide infra repo for a given investigation."""
+
+    repo: str  # "org/repo"
+    type: str  # "argocd", "flux", "terraform", "terraform_modules", "generic"
+    display_name: str
+    service_name_matched: str
+    files: List[InfraFileContext] = Field(default_factory=list)
+    recent_commits: List[Dict[str, Any]] = Field(default_factory=list)
+    change_signals: List[InfraChangeSignal] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)
+
+
 class Evidence(BaseModelAllowExtra):
     k8s: K8sEvidence = Field(default_factory=K8sEvidence)
     metrics: MetricsEvidence = Field(default_factory=MetricsEvidence)
     logs: LogsEvidence = Field(default_factory=LogsEvidence)
     aws: AwsEvidence = Field(default_factory=AwsEvidence)
     github: GitHubEvidence = Field(default_factory=GitHubEvidence)
+    infra_context: List[InfraRepoEvidence] = Field(default_factory=list)
 
 
 class ChangeCorrelation(BaseModelStrict):
