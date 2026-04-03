@@ -3,11 +3,27 @@
 import threading
 from typing import Any, Dict, List, Optional, Protocol, Tuple, runtime_checkable
 
+import os
+
 _core_v1_api = None
 _apps_v1_api = None
 _batch_v1_api = None
 _config_loaded = False
 _init_lock = threading.Lock()
+
+
+def _apply_ssl_config(client_module) -> None:
+    """Disable SSL verification if K8S_VERIFY_SSL=false.
+
+    Some EKS CA certs are missing the Authority Key Identifier extension,
+    which Python 3.10+ rejects by default.
+    """
+    if os.getenv("K8S_VERIFY_SSL", "true").lower() in ("false", "0", "no"):
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        configuration = client_module.Configuration.get_default_copy()
+        configuration.verify_ssl = False
+        client_module.Configuration.set_default(configuration)
 
 
 @runtime_checkable
@@ -127,6 +143,7 @@ def _get_core_v1():
                 config.load_incluster_config()
             except config.ConfigException:
                 config.load_kube_config()
+            _apply_ssl_config(client)
             _config_loaded = True
 
         _core_v1_api = client.CoreV1Api()
@@ -152,6 +169,7 @@ def _get_apps_v1():
                 config.load_incluster_config()
             except config.ConfigException:
                 config.load_kube_config()
+            _apply_ssl_config(client)
             _config_loaded = True
 
         _apps_v1_api = client.AppsV1Api()
@@ -177,6 +195,7 @@ def _get_batch_v1():
                 config.load_incluster_config()
             except config.ConfigException:
                 config.load_kube_config()
+            _apply_ssl_config(client)
             _config_loaded = True
 
         _batch_v1_api = client.BatchV1Api()

@@ -6,6 +6,11 @@
 
 Core principle: if evidence is missing, don't guess. Be explicit about unknowns.
 
+## Sensitive Files
+
+**Never read, display, or modify these files:**
+- `.env.deploy` — contains live secrets and API keys
+
 ## Safety Rules
 
 **Ask before running any state-modifying command:**

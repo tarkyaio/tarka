@@ -12,6 +12,8 @@ data:
   PROMETHEUS_URL: "REPLACE_ME_PROMETHEUS_URL"
   # Optional: VictoriaLogs base URL. If unset, logs are skipped.
   LOGS_URL: "REPLACE_ME_LOGS_URL"
+  # Set to "false" if EKS CA cert is missing Authority Key Identifier extension.
+  K8S_VERIFY_SSL: "REPLACE_ME_K8S_VERIFY_SSL"
 
   # S3 report destination
   S3_BUCKET: "REPLACE_ME_BUCKET"
