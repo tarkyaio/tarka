@@ -1,9 +1,8 @@
 """Kubernetes API client for fetching pod information and related read-only context."""
 
+import os
 import threading
 from typing import Any, Dict, List, Optional, Protocol, Tuple, runtime_checkable
-
-import os
 
 _core_v1_api = None
 _apps_v1_api = None
@@ -20,6 +19,7 @@ def _apply_ssl_config(client_module) -> None:
     """
     if os.getenv("K8S_VERIFY_SSL", "true").lower() in ("false", "0", "no"):
         import urllib3
+
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         configuration = client_module.Configuration.get_default_copy()
         configuration.verify_ssl = False
