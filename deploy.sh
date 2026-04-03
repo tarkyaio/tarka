@@ -1088,6 +1088,7 @@ log_info "Applying service catalog ConfigMap..."
 kubectl create configmap tarka-service-catalog \
   --from-file=service-catalog.yaml="${ROOT_DIR}/config/service-catalog.yaml" \
   --from-file=third-party-catalog.yaml="${ROOT_DIR}/config/third-party-catalog.yaml" \
+  --from-file=infra-context-repos.yaml="${ROOT_DIR}/config/infra-context-repos.yaml" \
   -n tarka --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 log_success "Service catalog ConfigMap applied"
 

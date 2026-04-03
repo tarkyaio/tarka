@@ -261,6 +261,7 @@ export function CaseScreen() {
   const tgt = analysisJson?.target || null;
   if (tgt?.service) affectedBits.push(String(tgt.service));
   if (tgt?.workload_name) affectedBits.push(String(tgt.workload_name));
+  if (!affectedBits.length && tgt?.pod) affectedBits.push(String(tgt.pod));
   if (!affectedBits.length && caseObj.service) affectedBits.push(String(caseObj.service));
   if (!affectedBits.length && caseObj.namespace) affectedBits.push(String(caseObj.namespace));
   const affected = affectedBits.filter(Boolean).join(", ") || "—";

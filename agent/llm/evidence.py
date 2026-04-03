@@ -206,4 +206,20 @@ def build_evidence_pack(investigation: Investigation) -> Dict[str, Any]:
             "parsed_errors": parsed_errors,
         },
     }
+
+    infra_context = getattr(investigation.evidence, "infra_context", [])
+    if infra_context:
+        pack["infra_changes"] = [
+            {
+                "repo": r.repo,
+                "type": r.type,
+                "display_name": r.display_name,
+                "service_paths": [f.path for f in r.files],
+                "signals": [s.model_dump(exclude_none=True) for s in r.change_signals],
+                "recent_commits": r.recent_commits[:5],
+            }
+            for r in infra_context
+            if r.files or r.change_signals
+        ]
+
     return pack

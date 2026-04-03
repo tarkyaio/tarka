@@ -215,6 +215,61 @@ class GitMirrorCache:
         out = self.run_git(repo_path, ["ls-tree", "--name-only", target])
         return [line.strip() for line in out.splitlines() if line.strip()]
 
+    def list_dir_recursive(
+        self,
+        repo_path: Path,
+        ref: str,
+        root: str,
+        extensions: Optional[Sequence[str]] = None,
+    ) -> List[str]:
+        """Return all file paths under *root* at *ref*, optionally filtered by extension."""
+        self._mark_access(repo_path)
+        normalized = root.strip("/")
+        args = ["ls-tree", "-r", "--name-only", ref]
+        if normalized:
+            args.append(normalized)
+        out = self.run_git(repo_path, args, allow_exit_codes=[128])
+        paths = [line.strip() for line in out.splitlines() if line.strip()]
+        if extensions:
+            ext_set = {e.lower() if e.startswith(".") else f".{e.lower()}" for e in extensions}
+            paths = [p for p in paths if any(p.lower().endswith(e) for e in ext_set)]
+        return paths
+
+    def recent_commits_for_paths(
+        self,
+        repo_path: Path,
+        paths: Sequence[str],
+        since: datetime,
+        until: datetime,
+        branch: str = "HEAD",
+        max_results: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Return recent commits touching *paths* within the given time window."""
+        if not paths:
+            return []
+        self._mark_access(repo_path)
+        fmt = "%H%x1f%an%x1f%ad%x1f%s"
+        args = [
+            "log",
+            branch,
+            f"--since={since.isoformat()}",
+            f"--until={until.isoformat()}",
+            "--date=iso-strict",
+            f"--pretty=format:{fmt}",
+            f"--max-count={max_results}",
+            "--",
+            *[str(p) for p in paths],
+        ]
+        out = self.run_git(repo_path, args)
+        commits: List[Dict[str, Any]] = []
+        for line in out.splitlines():
+            parts = line.split("\x1f")
+            if len(parts) != 4:
+                continue
+            sha, author, ts, msg = parts
+            commits.append({"sha": sha[:7], "author": author, "timestamp": ts, "message": msg[:300]})
+        return commits
+
     def recent_commits(
         self,
         repo_path: Path,
