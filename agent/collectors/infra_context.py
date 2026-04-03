@@ -265,24 +265,27 @@ def _extract_service_name_candidates(investigation: Investigation) -> List[str]:
     except Exception:
         pass
 
-    # 2. Alert labels — "service" excluded (Prometheus scrape-job name, not app)
+    # 2. Alert labels — only unambiguous app-identity keys.
+    #    "service" excluded: Prometheus scrape-job name, not the app.
+    #    "job_name" excluded: in non-batch alerts this is the Prometheus scrape
+    #    job (e.g. "k8s-node-accept-0-compute"), not a Kubernetes Job resource.
+    #    For Job/CronJob alerts the workload name fallback (step 3) covers it.
     try:
         alert_labels = investigation.alert.labels or {}
         for key in ("app", "app_name"):
             _add(alert_labels.get(key) or "")
-        # job_name carries the full workload name for Job/CronJob alerts
-        job_name = (alert_labels.get("job_name") or "").strip()
-        if job_name:
-            _add(_extract_base_service_name(job_name))
     except Exception:
         pass
 
-    # 3. Regex-stripped workload / pod name
-    raw = (investigation.target.workload_name or "").strip()
-    if not raw:
-        raw = (investigation.target.pod or "").strip()
-    if raw:
-        _add(_extract_base_service_name(raw))
+    # 3. Regex-stripped workload / pod name — skip for node/cluster alerts
+    #    where workload_name / pod holds an infrastructure identifier, not a
+    #    service name.
+    if investigation.target.target_type not in ("node", "cluster"):
+        raw = (investigation.target.workload_name or "").strip()
+        if not raw:
+            raw = (investigation.target.pod or "").strip()
+        if raw:
+            _add(_extract_base_service_name(raw))
 
     return candidates
 
