@@ -115,8 +115,8 @@ def collect_infra_context(investigation: Investigation) -> List[InfraRepoEvidenc
     if not configs:
         return []
 
-    service_name = _extract_service_name(investigation)
-    if not service_name:
+    candidates = _extract_service_name_candidates(investigation)
+    if not candidates:
         return []
 
     time_window = investigation.time_window
@@ -137,7 +137,7 @@ def collect_infra_context(investigation: Investigation) -> List[InfraRepoEvidenc
             repo=repo,
             type=repo_type,
             display_name=display_name,
-            service_name_matched=service_name,
+            service_name_matched=candidates[0],
         )
 
         try:
@@ -147,8 +147,14 @@ def collect_infra_context(investigation: Investigation) -> List[InfraRepoEvidenc
             results.append(evidence)
             continue
 
-        # --- Layer 1: path discovery -----------------------------------------
-        matched_paths = _discover_paths(mirror, mirror_path, service_name, search_roots, extensions)
+        # --- Layer 1: path discovery — try each candidate in priority order ---
+        matched_paths: List[str] = []
+        for candidate in candidates:
+            paths = _discover_paths(mirror, mirror_path, candidate, search_roots, extensions)
+            if paths:
+                matched_paths = paths
+                evidence.service_name_matched = candidate
+                break
 
         if not matched_paths:
             results.append(evidence)
@@ -226,18 +232,28 @@ def collect_infra_context(investigation: Investigation) -> List[InfraRepoEvidenc
 # ---------------------------------------------------------------------------
 
 
-def _extract_service_name(investigation: Investigation) -> str:
-    """Return the best available service name for infra repo lookups.
+def _extract_service_name_candidates(investigation: Investigation) -> List[str]:
+    """Return an ordered list of service name candidates for infra repo lookups.
 
-    Priority order (most canonical first):
-    1. K8s workload labels — app.kubernetes.io/name or app — set intentionally
-       by service owners and are what Argo CD / Terraform use as the canonical
-       name.  Not subject to K8s naming conventions at all.
-    2. Alert labels — app, app_name, service — often set by the alert author.
-    3. Regex stripping on workload_name / pod — last resort; fragile because
-       naming conventions vary widely and cannot be controlled.
+    Multiple candidates are returned because naming conventions vary — the K8s
+    app label, the Argo CD app name, and the workload name are often different
+    strings.  Discovery tries them in order and stops at the first hit.
+
+    Sources (highest confidence first):
+    1. K8s workload labels: app.kubernetes.io/name, app
+    2. Alert labels: app, app_name, job_name (stripped of K8s suffixes)
+    3. Regex-stripped workload_name / pod name
     """
-    # 1. K8s workload labels (most canonical)
+    seen: set[str] = set()
+    candidates: List[str] = []
+
+    def _add(val: str) -> None:
+        v = val.strip()
+        if v and v not in seen:
+            seen.add(v)
+            candidates.append(v)
+
+    # 1. K8s workload labels
     try:
         owner_chain = investigation.evidence.k8s.owner_chain or {}
         workload_meta = owner_chain.get("workload") or {}
@@ -245,27 +261,30 @@ def _extract_service_name(investigation: Investigation) -> str:
         for key in ("app.kubernetes.io/name", "app", "app.kubernetes.io/component"):
             val = (labels.get(key) or "").strip()
             if val:
-                return val
+                _add(val)
     except Exception:
         pass
 
-    # 2. Alert labels
+    # 2. Alert labels — "service" excluded (Prometheus scrape-job name, not app)
     try:
         alert_labels = investigation.alert.labels or {}
-        for key in ("app", "app_name", "service"):
-            val = (alert_labels.get(key) or "").strip()
-            if val:
-                return val
+        for key in ("app", "app_name"):
+            _add(alert_labels.get(key) or "")
+        # job_name carries the full workload name for Job/CronJob alerts
+        job_name = (alert_labels.get("job_name") or "").strip()
+        if job_name:
+            _add(_extract_base_service_name(job_name))
     except Exception:
         pass
 
-    # 3. Regex stripping fallback
+    # 3. Regex-stripped workload / pod name
     raw = (investigation.target.workload_name or "").strip()
     if not raw:
         raw = (investigation.target.pod or "").strip()
-    if not raw:
-        return ""
-    return _extract_base_service_name(raw)
+    if raw:
+        _add(_extract_base_service_name(raw))
+
+    return candidates
 
 
 def _discover_paths(
