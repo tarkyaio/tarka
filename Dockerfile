@@ -21,9 +21,10 @@ ARG POETRY_EXTRAS=""
 RUN poetry config virtualenvs.create false \
     && if [ -n "$POETRY_EXTRAS" ]; then \
         echo "Installing with extras: $POETRY_EXTRAS"; \
-        poetry install --only main -E "$POETRY_EXTRAS" --no-interaction --no-ansi; \
+        EXTRA_FLAGS=$(echo "$POETRY_EXTRAS" | tr ',' '\n' | sed 's/^/-E /' | tr '\n' ' '); \
+        eval "poetry install --only main $EXTRA_FLAGS --no-interaction --no-ansi"; \
     else \
-        echo "Installing without LLM extras (deterministic mode only)"; \
+        echo "Installing without extras (deterministic mode only)"; \
         poetry install --only main --no-interaction --no-ansi; \
     fi
 

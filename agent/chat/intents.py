@@ -102,6 +102,14 @@ _STATUS_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
+_GLOBAL_STATUS_CHECK_PATTERNS = re.compile(
+    r"^(any\s+fires?|how'?s?\s+it\s+(look|going)|how\s+does\s+it\s+look|"
+    r"what'?s?\s+(going\s+on\s+(today|now)|up\s+today)|"
+    r"how\s+are\s+we\s+doing|status\s+(check|update)|"
+    r"anything\s+(going\s+on|broken|on\s+fire))[.!?\s]*$",
+    re.IGNORECASE,
+)
+
 
 # ---------------------------------------------------------------------------
 # Helpers: build deterministic replies from analysis_json
@@ -119,10 +127,10 @@ def _build_case_summary(analysis_json: Dict[str, Any]) -> str:
     ns = tgt.get("namespace")
     label = verdict.get("label") or "No verdict available yet."
 
-    parts = [f"**{target_name}**" + (f" (ns: {ns})" if ns else "") + f": {label}"]
+    parts = [f"**{target_name}**" + (f" ({ns})" if ns else "") + f" — {label}"]
 
     if hyps:
-        parts.append("Top hypotheses:")
+        parts.append("Top suspects:")
         for h in hyps[:3]:
             if isinstance(h, dict):
                 title = h.get("title") or h.get("hypothesis_id") or "unknown"
@@ -131,7 +139,7 @@ def _build_case_summary(analysis_json: Dict[str, Any]) -> str:
 
     nexts = verdict.get("next") if isinstance(verdict.get("next"), list) else []
     if nexts:
-        parts.append("Suggested next steps:")
+        parts.append("What to do next:")
         for n in nexts[:3]:
             parts.append(f"- {n}")
 
@@ -157,7 +165,7 @@ def _build_status_reply(analysis_json: Dict[str, Any]) -> str:
         + (f" | Confidence: {confidence}/100" if confidence is not None else ""),
     ]
 
-    parts.append("If you'd like fresh data, ask me to re-check with live tools.")
+    parts.append("Want me to pull fresh data on this?")
 
     return "\n".join(parts)
 
@@ -253,8 +261,61 @@ def try_handle_global_intents(*, policy: ChatPolicy, user_message: str) -> Inten
     if _GREETING_PATTERNS.match(s):
         return IntentResult(
             handled=True,
-            reply="Hey! I'm here to help you explore the incident database. What would you like to know?",
+            reply="Hey. What's up — anything on fire, or just looking around?",
             intent_id="global.greeting",
+        )
+
+    # Intent: global.status_check — "any fires?", "how's it look?", "how are we doing?"
+    # Runs open-case count + top families and gives a quick snapshot.
+    if _GLOBAL_STATUS_CHECK_PATTERNS.match(s):
+        count_args: Dict[str, Any] = {"status": "open"}
+        count_res = run_global_tool(policy=policy, tool="cases.count", args=count_args)
+        count_ev = ChatToolEvent(
+            tool="cases.count",
+            args=count_args,
+            ok=bool(count_res.ok),
+            result=count_res.result,
+            error=count_res.error,
+        )
+        count = (count_res.result or {}).get("count") if isinstance(count_res.result, dict) else None
+
+        if not count_res.ok or count is None:
+            return IntentResult(
+                handled=True,
+                reply="DB isn't responding right now. Give it a moment and try again.",
+                tool_events=[count_ev],
+                intent_id="global.status_check",
+            )
+
+        if count == 0:
+            return IntentResult(
+                handled=True,
+                reply="All clear. Nothing open right now. Enjoy it.",
+                tool_events=[count_ev],
+                intent_id="global.status_check",
+            )
+
+        # Grab top families for context
+        top_args: Dict[str, Any] = {"by": "family", "status": "open", "limit": 5}
+        top_res = run_global_tool(policy=policy, tool="cases.top", args=top_args)
+        top_ev = ChatToolEvent(
+            tool="cases.top",
+            args=top_args,
+            ok=bool(top_res.ok),
+            result=top_res.result,
+            error=top_res.error,
+        )
+        items = (top_res.result or {}).get("items") if isinstance(top_res.result, dict) else []
+        family_parts = [
+            f"{it.get('key')} ({it.get('count')})" for it in (items or [])[:5] if isinstance(it, dict) and it.get("key")
+        ]
+        family_line = ", ".join(family_parts) if family_parts else "mixed"
+        reply = f"{count} open right now. Biggest offenders: {family_line}. Want me to dig into any of these?"
+        return IntentResult(
+            handled=True,
+            reply=reply,
+            tool_events=[count_ev, top_ev],
+            intent_id="global.status_check",
         )
 
     # Intent: cases.count
@@ -278,14 +339,14 @@ def try_handle_global_intents(*, policy: ChatPolicy, user_message: str) -> Inten
         if not res.ok:
             return IntentResult(
                 handled=True,
-                reply="I couldn't query counts right now (db/tool unavailable).",
+                reply="DB isn't responding right now. Give it a moment and try again.",
                 tool_events=[ev],
                 intent_id="global.cases_count",
             )
         count = (res.result or {}).get("count") if isinstance(res.result, dict) else None
         return IntentResult(
             handled=True,
-            reply=f"Count: **{count}** case(s).",
+            reply=f"**{count}** case(s) matching that.",
             tool_events=[ev],
             intent_id="global.cases_count",
         )
@@ -298,7 +359,7 @@ def try_handle_global_intents(*, policy: ChatPolicy, user_message: str) -> Inten
         if not res.ok:
             return IntentResult(
                 handled=True,
-                reply="I couldn't compute top teams right now (db/tool unavailable).",
+                reply="DB isn't responding right now. Give it a moment and try again.",
                 tool_events=[ev],
                 intent_id="global.cases_top_team",
             )
@@ -309,7 +370,7 @@ def try_handle_global_intents(*, policy: ChatPolicy, user_message: str) -> Inten
                 lines.append(f"- {it.get('key')}: {it.get('count')}")
         return IntentResult(
             handled=True,
-            reply="Top teams by case count:\n" + ("\n".join(lines) if lines else "—"),
+            reply="Teams by case count (not a leaderboard you want to top):\n" + ("\n".join(lines) if lines else "—"),
             tool_events=[ev],
             intent_id="global.cases_top_team",
         )
@@ -321,7 +382,7 @@ def try_handle_global_intents(*, policy: ChatPolicy, user_message: str) -> Inten
         if not res.ok:
             return IntentResult(
                 handled=True,
-                reply="I couldn't compute top components right now (db/tool unavailable).",
+                reply="DB isn't responding right now. Give it a moment and try again.",
                 tool_events=[ev],
                 intent_id="global.cases_top_component",
             )
@@ -332,7 +393,7 @@ def try_handle_global_intents(*, policy: ChatPolicy, user_message: str) -> Inten
                 lines.append(f"- {it.get('key')}: {it.get('count')}")
         return IntentResult(
             handled=True,
-            reply="Top components by case count:\n" + ("\n".join(lines) if lines else "—"),
+            reply="Components by case count:\n" + ("\n".join(lines) if lines else "—"),
             tool_events=[ev],
             intent_id="global.cases_top_component",
         )
@@ -348,13 +409,25 @@ def try_handle_case_intents(*, analysis_json: Dict[str, Any], user_message: str)
     if not s:
         return IntentResult(handled=False)
 
-    # Intent: case.greeting — warm reply referencing the target, zero tools
+    # Intent: case.greeting — warm reply with verdict context if available, zero tools
     if _GREETING_PATTERNS.match(s):
         tgt = analysis_json.get("target") if isinstance(analysis_json.get("target"), dict) else {}
         target_name = tgt.get("name") or tgt.get("service") or "this case"
+        a = analysis_json.get("analysis") if isinstance(analysis_json.get("analysis"), dict) else {}
+        verdict = a.get("verdict") if isinstance(a.get("verdict"), dict) else {}
+        hyps = a.get("hypotheses") if isinstance(a.get("hypotheses"), list) else []
+        verdict_label = verdict.get("label", "")
+        top_hyp = hyps[0].get("title") if hyps and isinstance(hyps[0], dict) else None
+        if verdict_label:
+            reply = f"Hey. **{target_name}** — {verdict_label.lower()}."
+            if top_hyp:
+                reply += f" Leading suspect: {top_hyp}."
+            reply += " What do you want to look at?"
+        else:
+            reply = f"Hey. What do you want to know about **{target_name}**?"
         return IntentResult(
             handled=True,
-            reply=f"Hey! I'm here to help with **{target_name}**. What would you like to know?",
+            reply=reply,
             intent_id="case.greeting",
         )
 
@@ -404,7 +477,7 @@ def try_handle_case_intents(*, analysis_json: Dict[str, Any], user_message: str)
         if not dsn:
             return IntentResult(
                 handled=True,
-                reply="I can’t answer that right now because Postgres isn’t configured (it’s required for historical counts).",
+                reply="No Postgres configured — can’t pull historical counts on that.",
                 tool_events=[],
                 intent_id="case.family_db_count",
             )
@@ -459,8 +532,8 @@ def try_handle_case_intents(*, analysis_json: Dict[str, Any], user_message: str)
         return IntentResult(
             handled=True,
             reply=(
-                f"Last {days} days: **{runs_count}** run(s) across **{cases_count}** case(s) for family `{family}` on {svc_label}."
-                " (Count is from the case database, not pod restart counters.)"
+                f"Last {days} days: **{runs_count}** run(s) across **{cases_count}** case(s) of `{family}` on {svc_label}."
+                " (This is from the case DB — not pod restart counters.)"
             ),
             tool_events=[],
             intent_id="case.family_db_count",

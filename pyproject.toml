@@ -26,10 +26,14 @@ langchain-core = "0.3.83"
 langgraph = "0.6.11"
 langchain-google-vertexai = {version = "2.1.2", optional = true}
 langchain-anthropic = {version = "^0.3.0", optional = true}
+slack-bolt = {version = ">=1.18.0", optional = true}
+slack-sdk = {version = ">=3.27.0", optional = true}
+aiohttp = {version = ">=3.9.0", optional = true}
 
 [tool.poetry.extras]
 vertex = ["langchain-google-vertexai"]
 anthropic = ["langchain-anthropic"]
+slack = ["slack-bolt", "slack-sdk", "aiohttp"]
 all-providers = ["langchain-google-vertexai", "langchain-anthropic"]
 
 [tool.poetry.group.dev.dependencies]

@@ -138,7 +138,9 @@ def _build_tool_plan_prompt(
         "- Don't repeat a tool call whose `key` already appears in TOOL_HISTORY.\n"
         "- If the last outcome was `empty` or `unavailable`, don't retry with identical args.\n"
         "- Use your database tools instead of suggesting queries to the user!\n"
-        "- Keep your warm, conversational tone.\n\n"
+        "- Keep your warm, conversational tone.\n"
+        "- When filling `reply` (no tools needed), write as Tarka: direct, calm, experienced.\n"
+        "- For greetings or thanks, a one-liner is enough. Don't over-explain.\n\n"
         f"TOOL_HISTORY:\n{json.dumps(tool_hist, ensure_ascii=False)}\n\n"
         f"CHAT_HISTORY:\n{json.dumps(hist_compact, ensure_ascii=False)}\n\n"
         f"USER:\n{redact_text(user_message) if policy.redact_secrets else (user_message or '')}\n"
@@ -176,22 +178,28 @@ def _build_final_response_prompt(
         hist_compact.append({"role": m.role, "content": txt[:600]})
 
     return (
-        "You are a senior SRE helping a colleague explore the incident database.\n\n"
+        "You are Tarka — a senior SRE who's been running on-call for 15 years. Right now you're\n"
+        "helping someone explore the incident database and understand what's going on across the org.\n\n"
         "Your personality:\n"
-        "- Friendly and conversational - talk like a human\n"
-        "- Practical and focused - surface actionable trends\n"
-        "- Use contractions (I've, here's, let's) for natural flow\n"
-        "- Autonomous and proactive - use your tools before asking user to query\n"
-        '- Quick insights: "Interesting pattern..." not "Analysis shows:"\n\n'
+        "- Direct first: lead with the answer, not the setup\n"
+        "- Chill veteran: you've seen the patterns before, you know what matters\n"
+        "- Light wit when appropriate: only if things aren't on fire\n"
+        "- Proactive: if you see a pattern worth calling out, mention it unprompted\n\n"
+        "Communication style:\n"
+        "- Contractions always (I've, let's, here's, can't)\n"
+        "- Short, direct sentences\n"
+        '- "I found 5 cases" not "The query returned 5 results"\n'
+        '- "Here\'s the interesting bit:" not "Analysis indicates:"\n'
+        '- Casual transitions: "Heads up", "By the way", "Worth noting"\n'
+        "- No jargon beyond what an SRE would say naturally\n\n"
         "Hard constraints (NEVER violate):\n"
-        "- Use ONLY the provided TOOL RESULTS\n"
-        "- Do NOT invent numbers, cases, or trends\n"
-        "- Keep it SHORT (2-3 paragraphs, ~100 words max)\n"
+        "- Use ONLY the provided TOOL RESULTS — don't invent numbers or trends\n"
+        "- Keep it SHORT: 2-3 paragraphs, ~100 words max\n"
         '- Be direct: "I found 5 cases" not "The query returned 5 results"\n\n'
         "Structure:\n"
-        "1. Quick answer to their question\n"
-        "2. Notable pattern or trend (if any)\n"
-        "3. One follow-up suggestion (optional)\n\n"
+        "1. Direct answer to their question\n"
+        "2. Interesting pattern or context (if the data shows one)\n"
+        "3. One optional follow-up offer\n\n"
         f"TOOL_RESULTS:\n{json.dumps(tool_results, ensure_ascii=False)}\n\n"
         f"CHAT_HISTORY:\n{json.dumps(hist_compact, ensure_ascii=False)}\n\n"
         f"USER:\n{redact_text(user_message) if policy.redact_secrets else (user_message or '')}\n\n"
@@ -285,14 +293,14 @@ async def run_global_chat_stream(
             logger.warning("global_chat: generate_json timed out after 120s")
             yield GlobalChatStreamEvent(
                 event_type="error",
-                content="LLM response timed out (120s). The provider may be overloaded — please try again.",
+                content="Taking longer than expected — the model might be busy. Try again?",
             )
             return
 
         if err or not isinstance(obj, dict):
             yield GlobalChatStreamEvent(
                 event_type="error",
-                content=f"LLM unavailable ({err or 'unknown'}). Unable to query case database.",
+                content=f"Can't reach the model right now ({err or 'unknown'}). Try again in a moment?",
             )
             return
 
@@ -307,7 +315,7 @@ async def run_global_chat_stream(
         if remaining_calls <= 0:
             yield GlobalChatStreamEvent(
                 event_type="error",
-                content="Reached tool-call limit. Please narrow your question.",
+                content="Ran out of tool budget on that one. Try asking something more specific?",
             )
             return
 
