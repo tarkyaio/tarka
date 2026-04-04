@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-04-05
+
+### Added
+
+- **Slack integration**: AI assistant with working state feedback delivered via Slack (#14)
+- **Infra context repos**: Collect service-scoped files and diffs from org-wide Terraform/Argo CD repos during investigations (#16)
+- **Token/cost tracking**: Token usage and cost estimation displayed in pipeline reports and UI case screen (#11, #13)
+- **GitHub service layer**: Git mirror cache, regression analysis, and structured service layer for GitHub evidence (#7)
+- **K8S_VERIFY_SSL flag**: Option to skip TLS verification for EKS clusters with CA cert issues (#15)
+
+### Fixed
+
+- **Infra context**: Improved service name resolution for infra context lookups (#17)
+- **UI**: Improved report readability and renamed browser tab title to Tarka (#10)
+- **Chat**: Added component grouping to `cases.top` tool (#8)
+- **Runtime**: Prevented event loop blocking in streaming chat runtimes (#5)
+
+### Changed
+
+- **Deploy**: Removed External Secrets Operator dependency, simplifying deployment (#9)
+- **Infra**: NATS retry improvements, DB query optimization, LLM observability enhancements (#6)
+
 ## [0.1.0] - 2025-06-01
 
 ### Added
