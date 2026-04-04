@@ -213,7 +213,7 @@ class TestCaseSummaryIntent:
 
     def test_summary_includes_next_steps(self, rich_analysis_json):
         result = try_handle_case_intents(analysis_json=rich_analysis_json, user_message="tldr")
-        assert "next steps" in result.reply.lower()
+        assert "what to do next" in result.reply.lower()
 
     def test_summary_empty_analysis(self, empty_analysis_json):
         result = try_handle_case_intents(analysis_json=empty_analysis_json, user_message="what happened")
@@ -268,7 +268,7 @@ class TestCaseStatusIntent:
 
     def test_status_nudges_live_data(self, rich_analysis_json):
         result = try_handle_case_intents(analysis_json=rich_analysis_json, user_message="is it resolved")
-        assert "live" in result.reply.lower() or "re-check" in result.reply.lower()
+        assert "fresh" in result.reply.lower() or "live" in result.reply.lower() or "re-check" in result.reply.lower()
 
     def test_status_empty_analysis(self, empty_analysis_json):
         result = try_handle_case_intents(analysis_json=empty_analysis_json, user_message="what's the status")

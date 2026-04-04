@@ -110,6 +110,7 @@ See the [Local Development Guide](docs/guides/local-development.md) for detailed
 - **Getting Started**: [Quickstart](docs/guides/quickstart.md) • [Local Development](docs/guides/local-development.md) • [Authentication](docs/guides/authentication.md) • [Environment Variables](docs/guides/environment-variables.md)
 - **Operating**: [Deployment](docs/guides/deployment.md) • [Operations](docs/guides/operations.md) • [Testing](docs/guides/testing.md)
 - **Architecture**: [Overview](docs/architecture/README.md) • [Investigation Pipeline](docs/architecture/investigation-pipeline.md) • [Diagnostics](docs/architecture/diagnostic-modules.md) • [Playbooks](docs/architecture/playbook-system.md)
+- **Integrations**: [Slack App Setup](docs/guides/slack-app-setup.md) • [GitHub App Setup](docs/guides/github-app-setup.md)
 - **Extending**: [Adding Playbooks](docs/guides/extending-playbooks.md) • [Triage Methodology](docs/acceptance/triage-methodology.md)
 - **Features**: [Chat](docs/features/chat.md) • [Actions](docs/features/actions.md) • [Memory](docs/features/memory.md) • [Multi-Provider LLM](docs/multi-provider-llm.md)
 - **Roadmap**: [Completed](docs/roadmap/completed.md) • [Planned](docs/roadmap/planned.md)

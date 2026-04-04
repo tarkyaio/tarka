@@ -107,6 +107,11 @@ AWS_CLOUDTRAIL_MAX_EVENTS="${AWS_CLOUDTRAIL_MAX_EVENTS:-50}"
 CHAT_ALLOW_AWS_READ="${CHAT_ALLOW_AWS_READ:-true}"
 CHAT_AWS_REGION_ALLOWLIST="${CHAT_AWS_REGION_ALLOWLIST:-us-east-1}"
 
+# Slack integration (optional; notifications + inbound chat via Socket Mode)
+SLACK_BOT_TOKEN="${SLACK_BOT_TOKEN:-}"
+SLACK_APP_TOKEN="${SLACK_APP_TOKEN:-}"
+SLACK_SIGNING_SECRET="${SLACK_SIGNING_SECRET:-}"
+
 # GitHub Evidence Collection (optional; commits, workflows, docs)
 GITHUB_EVIDENCE_ENABLED="${GITHUB_EVIDENCE_ENABLED:-true}"
 CHAT_ALLOW_GITHUB_READ="${CHAT_ALLOW_GITHUB_READ:-true}"
@@ -150,24 +155,28 @@ log_error() {
 }
 
 determine_poetry_extras() {
-  # Determine which Poetry extras to install based on LLM_PROVIDER
-  if [[ "${LLM_ENABLED}" != "true" ]]; then
-    echo ""
-    return
+  # Determine which Poetry extras to install based on LLM_PROVIDER and optional integrations
+  local extras=""
+
+  if [[ "${LLM_ENABLED}" == "true" ]]; then
+    case "${LLM_PROVIDER}" in
+      vertexai|vertex|gcp_vertexai)
+        extras="vertex"
+        ;;
+      anthropic)
+        extras="anthropic"
+        ;;
+      *)
+        log_warning "Unknown LLM_PROVIDER: ${LLM_PROVIDER}. Skipping LLM SDK installation."
+        ;;
+    esac
   fi
 
-  case "${LLM_PROVIDER}" in
-    vertexai|vertex|gcp_vertexai)
-      echo "vertex"
-      ;;
-    anthropic)
-      echo "anthropic"
-      ;;
-    *)
-      log_warning "Unknown LLM_PROVIDER: ${LLM_PROVIDER}. Skipping LLM SDK installation."
-      echo ""
-      ;;
-  esac
+  if [[ -n "${SLACK_BOT_TOKEN:-}" ]] || [[ -n "${SLACK_APP_TOKEN:-}" ]]; then
+    extras="${extras:+${extras},}slack"
+  fi
+
+  echo "${extras}"
 }
 
 log_section() {
@@ -592,6 +601,9 @@ print(json.dumps(v)[1:-1])
   _github_app_id="$(_escape_json "${GITHUB_APP_ID}")"
   _github_app_key="$(_escape_json "${GITHUB_APP_PRIVATE_KEY}")"
   _github_app_install="$(_escape_json "${GITHUB_APP_INSTALLATION_ID}")"
+  _slack_bot_token="$(_escape_json "${SLACK_BOT_TOKEN}")"
+  _slack_app_token="$(_escape_json "${SLACK_APP_TOKEN}")"
+  _slack_signing_secret="$(_escape_json "${SLACK_SIGNING_SECRET}")"
 
   _new_secret_json="$(cat <<EOF
 {
@@ -612,7 +624,10 @@ print(json.dumps(v)[1:-1])
   "LLM_MAX_OUTPUT_TOKENS": "${_llm_tokens}",
   "GITHUB_APP_ID": "${_github_app_id}",
   "GITHUB_APP_PRIVATE_KEY": "${_github_app_key}",
-  "GITHUB_APP_INSTALLATION_ID": "${_github_app_install}"
+  "GITHUB_APP_INSTALLATION_ID": "${_github_app_install}",
+  "SLACK_BOT_TOKEN": "${_slack_bot_token}",
+  "SLACK_APP_TOKEN": "${_slack_app_token}",
+  "SLACK_SIGNING_SECRET": "${_slack_signing_secret}"
 }
 EOF
 )"

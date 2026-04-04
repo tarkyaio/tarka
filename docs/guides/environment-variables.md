@@ -175,3 +175,23 @@ Auth notes:
 - `ACTIONS_NAMESPACE_ALLOWLIST` (default: empty)
 - `ACTIONS_CLUSTER_ALLOWLIST` (default: empty)
 - `ACTIONS_MAX_ACTIONS_PER_CASE` (default: `25`, capped to 200)
+
+## Slack integration
+
+Notifications auto-enable when `SLACK_BOT_TOKEN` + `SLACK_DEFAULT_CHANNEL` are set.
+Inbound chat (@tarka mentions, DMs) auto-enables when `SLACK_APP_TOKEN` is also set (Socket Mode).
+
+**ConfigMap**
+- `SLACK_DEFAULT_CHANNEL` (default: empty) — channel for notifications (e.g. `#sre-alerts`)
+
+**Secret**
+- `SLACK_BOT_TOKEN` — Bot User OAuth Token (`xoxb-...`); required for all Slack features
+- `SLACK_APP_TOKEN` — App-Level Token (`xapp-...`); required for inbound chat (Socket Mode)
+- `SLACK_SIGNING_SECRET` — Request signing secret (optional, used for HTTP mode verification)
+
+**Alert-level routing** — set `slack_channel` label on an Alertmanager alert to route its notification to a specific channel, overriding `SLACK_DEFAULT_CHANNEL`.
+
+**Slack App setup** — create a Slack App at https://api.slack.com/apps with:
+- Bot Token Scopes: `app_mentions:read`, `chat:write`, `channels:read`, `users:read`, `reactions:write`
+- Event Subscriptions: `app_mention`, `message.im` (for DMs)
+- Socket Mode: enabled (generates `xapp-` app-level token)

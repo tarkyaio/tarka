@@ -155,6 +155,11 @@ data:
   LANGSMITH_TAGS: ""
   LANGSMITH_RUN_NAME_PREFIX: ""
 
+  # ---- Slack integration (optional) ----
+  # Notifications auto-enable when SLACK_BOT_TOKEN (secret) + SLACK_DEFAULT_CHANNEL are set.
+  # Chat auto-enables when SLACK_APP_TOKEN (secret) is also set (Socket Mode).
+  SLACK_DEFAULT_CHANNEL: ""  # e.g. "#sre-alerts"
+
   # ---- Console auth (Google SSO) ----
   # Public base URL of the Console (used to build OAuth redirect URIs).
   # Example: "https://console.example.com"

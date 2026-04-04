@@ -163,6 +163,25 @@ spec:
                   name: tarka
                   key: OIDC_CLIENT_SECRET
                   optional: true
+            # Slack integration (optional)
+            - name: SLACK_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: tarka
+                  key: SLACK_BOT_TOKEN
+                  optional: true
+            - name: SLACK_APP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: tarka
+                  key: SLACK_APP_TOKEN
+                  optional: true
+            - name: SLACK_SIGNING_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: tarka
+                  key: SLACK_SIGNING_SECRET
+                  optional: true
             # Chat/actions policy flags are provided via envFrom `tarka-config`.
             # Console API auth (Basic) - transitional only (CONSOLE_AUTH_MODE=basic|both)
             - name: CONSOLE_AUTH_USERNAME

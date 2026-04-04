@@ -7,6 +7,7 @@ report per (identity + family + 4h bucket) to S3 with HEAD-before-PUT dedupe.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -490,6 +491,20 @@ def process_alerts(
             except Exception as e:
                 # Never fail the webhook on DB indexing.
                 logger.warning("Postgres indexing failed (non-fatal): %s", str(e))
+            # Best-effort: Slack notification
+            try:
+                from agent.slack.notifier import notify_investigation_complete
+
+                _pub_base = os.getenv("AUTH_PUBLIC_BASE_URL", "").strip().rstrip("/")
+                _slack_report_url = f"{_pub_base}/cases/{res.case_id}" if (_pub_base and res) else None
+                notify_investigation_complete(
+                    investigation=investigation,
+                    report_url=_slack_report_url,
+                    case_id=str(res.case_id) if res else None,
+                    run_id=str(res.run_id) if res else None,
+                )
+            except Exception as e:
+                logger.warning("Slack notification failed (non-fatal): %s", str(e))
             logger.info("Successfully stored report for alert %s to S3: %s", alertname, storage.key(rel_key))
 
             stats.stored_new += 1
@@ -627,6 +642,23 @@ async def _startup_jetstream_warmup() -> None:
     client = await get_client_from_env()
     await client.warmup()
     logger.info("JetStream warmup OK (enqueue-only mode)")
+
+
+@app.on_event("startup")
+async def _startup_slack_bolt() -> None:
+    """
+    Start Slack Bolt Socket Mode in the background (non-blocking).
+
+    Only activates when SLACK_BOT_TOKEN and SLACK_APP_TOKEN are both set.
+    Failures are logged but never prevent the webhook server from starting.
+    """
+    try:
+        from agent.slack.bolt_app import start_socket_mode
+
+        asyncio.create_task(start_socket_mode())
+        logger.info("Slack Bolt Socket Mode startup scheduled")
+    except Exception as e:
+        logger.warning("Slack Bolt startup failed (non-fatal): %s", str(e))
 
 
 @app.on_event("startup")
@@ -2206,13 +2238,9 @@ def _format_sse_event(event_type: str, data: Dict[str, Any]) -> str:
 async def _thread_send_stream(*, request: Request, thread_id: str, raw: Dict[str, Any]):
     """
     Streaming chat endpoint using Server-Sent Events.
-    Replaces blocking implementation with progressive UX.
+    Delegates to thread_runner for the core chat logic (shared with Slack).
     """
-    from agent.authz.policy import load_action_policy, load_chat_policy
-    from agent.chat.global_runtime_streaming import run_global_chat_stream
-    from agent.chat.runtime_streaming import run_chat_stream
-    from agent.chat.types import ChatMessage as ChatMsg
-    from agent.memory.chat import append_message, get_thread, insert_tool_events, list_messages
+    from agent.memory.chat import get_thread, list_messages
 
     user_key = _require_user_key(request)
 
@@ -2252,160 +2280,26 @@ async def _thread_send_stream(*, request: Request, thread_id: str, raw: Dict[str
         )
         return
 
-    # Load policies
-    policy = load_chat_policy()
-    action_policy = load_action_policy()
-    if not policy.enabled:
-        yield _format_sse_event("error", {"error": "Chat is disabled by policy"})
-        return
+    run_id = (str(sreq.run_id).strip() if sreq.run_id else None) or None
 
-    # Append user message
-    oku, msgu, user_msg = append_message(user_key=user_key, thread_id=thread_id, role="user", content=msg)
-    if not oku or user_msg is None:
-        yield _format_sse_event("error", {"error": msgu or "Failed to save message"})
-        return
+    from agent.chat.thread_runner import run_thread_message
 
-    # Load chat history
-    okh, _msgh, hist_rows = list_messages(user_key=user_key, thread_id=thread_id, limit=12, before_seq=user_msg.seq)
-    history: List[ChatMsg] = []
-    if okh:
-        history = [ChatMsg(role=("user" if m.role == "user" else "assistant"), content=m.content) for m in hist_rows]
-
-    # Accumulate reply and events for persistence
-    reply_parts = []
-    tool_events_data = []
-
-    try:
-        if thr.kind == "case":
-            # Case chat stream
-            case_id = str(thr.case_id or "").strip()
-            if not case_id:
-                yield _format_sse_event("error", {"error": "Invalid case thread"})
-                return
-
-            # Load analysis JSON
-            conn = _get_db_connection()
-            if not conn:
-                yield _format_sse_event("error", {"error": "Postgres not configured"})
-                return
-
-            try:
-                run_id = (str(sreq.run_id).strip() if sreq.run_id else None) or None
-                if run_id:
-                    row = conn.execute(
-                        """
-                        SELECT case_id::text, analysis_json
-                        FROM investigation_runs
-                        WHERE run_id::text = %s
-                        """,
-                        (run_id,),
-                    ).fetchone()
-                    if not row:
-                        yield _format_sse_event("error", {"error": "Run not found"})
-                        return
-                    if str(row[0] or "") != case_id:
-                        yield _format_sse_event("error", {"error": "Run not found for case"})
-                        return
-                    analysis_json = row[1]
-                else:
-                    row = conn.execute(
-                        """
-                        SELECT analysis_json
-                        FROM investigation_runs
-                        WHERE case_id::text = %s
-                        ORDER BY created_at DESC
-                        LIMIT 1
-                        """,
-                        (case_id,),
-                    ).fetchone()
-                    analysis_json = row[0] if row else None
-
-                if analysis_json is None:
-                    yield _format_sse_event("error", {"error": "Run analysis not available"})
-                    return
-
-                if not isinstance(analysis_json, dict):
-                    try:
-                        analysis_json = json.loads(str(analysis_json))
-                    except Exception:
-                        analysis_json = {}
-
-                # Stream chat events
-                async for event in run_chat_stream(
-                    policy=policy,
-                    action_policy=action_policy,
-                    analysis_json=analysis_json,
-                    user_message=msg,
-                    history=history,
-                    case_id=case_id,
-                    run_id=run_id,
-                ):
-                    # Format and emit SSE
-                    data = {"content": event.content}
-                    if event.event_type == "error":
-                        data["error"] = event.content
-                    if event.tool:
-                        data["tool"] = event.tool
-                    if event.metadata:
-                        data["metadata"] = event.metadata
-
-                    yield _format_sse_event(event.event_type, data)
-
-                    # Accumulate for persistence
-                    if event.event_type == "token":
-                        reply_parts.append(event.content)
-                    elif event.event_type == "done":
-                        tool_events_data = event.metadata.get("tool_events", [])
-
-            finally:
-                conn.close()
-
-        else:
-            # Global chat stream
-            async for event in run_global_chat_stream(
-                policy=policy,
-                user_message=msg,
-                history=history,
-            ):
-                # Format and emit SSE
-                data = {"content": event.content}
-                if event.event_type == "error":
-                    data["error"] = event.content
-                if event.tool:
-                    data["tool"] = event.tool
-                if event.metadata:
-                    data["metadata"] = event.metadata
-
-                yield _format_sse_event(event.event_type, data)
-
-                # Accumulate for persistence
-                if event.event_type == "token":
-                    reply_parts.append(event.content)
-                elif event.event_type == "done":
-                    tool_events_data = event.metadata.get("tool_events", [])
-
-        # Persist complete message
-        reply = "".join(reply_parts) or "—"
-        oka, msga, asst_msg = append_message(user_key=user_key, thread_id=thread_id, role="assistant", content=reply)
-        if not oka or asst_msg is None:
-            logger.error(f"Failed to save assistant message: {msga}")
-            # Don't emit error - stream already completed successfully
-
-        # Persist tool events
-        if asst_msg and tool_events_data:
-            try:
-                insert_tool_events(
-                    user_key=user_key,
-                    thread_id=thread_id,
-                    message_id=asst_msg.message_id,
-                    tool_events=tool_events_data,
-                )
-            except Exception as e:
-                logger.error(f"Failed to save tool events: {e}")
-
-    except Exception as e:
-        logger.exception("Stream error")
-        yield _format_sse_event("error", {"error": str(e)})
+    async for event in run_thread_message(
+        user_key=user_key,
+        thread_id=thread_id,
+        user_message=msg,
+        run_id=run_id,
+    ):
+        if event.event_type == "thread_ready":
+            continue  # web already has the thread_id; nothing to do
+        data: Dict[str, Any] = {"content": event.content}
+        if event.event_type == "error":
+            data["error"] = event.content
+        if event.tool:
+            data["tool"] = event.tool
+        if event.metadata:
+            data["metadata"] = event.metadata
+        yield _format_sse_event(event.event_type, data)
 
 
 @app.post("/api/v1/chat/threads/{thread_id}/send")
