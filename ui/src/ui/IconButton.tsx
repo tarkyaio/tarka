@@ -7,6 +7,7 @@ export function IconButton({
   disabled,
   onClick,
   size = "md",
+  className,
   children,
   type = "button",
 }: {
@@ -15,13 +16,14 @@ export function IconButton({
   disabled?: boolean;
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
   size?: "sm" | "md";
+  className?: string;
   children: React.ReactNode;
   type?: "button" | "submit" | "reset";
 }) {
   return (
     <button
       type={type}
-      className={`${styles.btn} ${size === "sm" ? styles.sm : styles.md}`}
+      className={`${styles.btn} ${size === "sm" ? styles.sm : styles.md}${className ? ` ${className}` : ""}`}
       title={title}
       aria-label={ariaLabel || title}
       disabled={disabled}

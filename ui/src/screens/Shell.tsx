@@ -21,6 +21,68 @@ function MaterialIcon({ name, filled }: { name: string; filled?: boolean }) {
   );
 }
 
+const HELP_ITEMS: { icon: string; label: string; href: string }[] = [
+  {
+    icon: "menu_book",
+    label: "Documentation",
+    href: "https://github.com/tarkyaio/tarka/tree/main/docs",
+  },
+  { icon: "headset_mic", label: "Support", href: "https://github.com/tarkyaio/tarka/issues" },
+  {
+    icon: "contract",
+    label: "Changelog",
+    href: "https://github.com/tarkyaio/tarka/blob/main/CHANGELOG.md",
+  },
+];
+
+function HelpPopover({
+  open,
+  pos,
+  onClose,
+  panelRef,
+}: {
+  open: boolean;
+  pos: { top: number; right: number } | null;
+  onClose: () => void;
+  panelRef: React.RefObject<HTMLDivElement>;
+}) {
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open || !pos) return null;
+
+  return (
+    <div
+      ref={panelRef}
+      className={styles.helpPopover}
+      style={{ top: pos.top, right: pos.right }}
+      role="dialog"
+      aria-label="Support resources"
+    >
+      <div className={styles.helpPopoverHeader}>Support Resources</div>
+      {HELP_ITEMS.map(({ icon, label, href }) => (
+        <a
+          key={label}
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className={styles.helpPopoverItem}
+          onClick={onClose}
+        >
+          <MaterialIcon name={icon} />
+          <span className={styles.helpPopoverLabel}>{label}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
 function ShellInner() {
   const loc = useLocation();
   const [sp, setSp] = useSearchParams();
@@ -35,6 +97,21 @@ function ShellInner() {
   const [inboxCount, setInboxCount] = React.useState<number | null>(null);
   const { mode } = useChatShell();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+  const [helpOpen, setHelpOpen] = React.useState(false);
+  const [helpPos, setHelpPos] = React.useState<{ top: number; right: number } | null>(null);
+  const helpPanelRef = React.useRef<HTMLDivElement>(null);
+  const helpBtnRef = React.useRef<HTMLButtonElement>(null);
+
+  React.useEffect(() => {
+    if (!helpOpen) return;
+    const onPtr = (e: PointerEvent) => {
+      const t = e.target as Node | null;
+      if (!t || helpPanelRef.current?.contains(t) || helpBtnRef.current?.contains(t)) return;
+      setHelpOpen(false);
+    };
+    window.addEventListener("pointerdown", onPtr, true);
+    return () => window.removeEventListener("pointerdown", onPtr, true);
+  }, [helpOpen]);
 
   // Auto-collapse sidebar when chat enters docked mode (maximize mode)
   React.useEffect(() => {
@@ -184,15 +261,25 @@ function ShellInner() {
             )}
 
             <div className={styles.topbarActions}>
-              <IconButton size="md" title="Notifications (coming soon)" disabled>
+              <IconButton size="md" title="Notifications" disabled>
                 <span className={styles.notifyWrap} aria-hidden="true">
                   <MaterialIcon name="notifications" />
-                  <span className={styles.notifyDot} />
+                  {inboxCount !== null && inboxCount > 0 && <span className={styles.notifyDot} />}
                 </span>
               </IconButton>
-              <IconButton size="md" title="Help (coming soon)" disabled>
+              <button
+                ref={helpBtnRef}
+                type="button"
+                title="Help"
+                className={`${styles.helpBtn} ${helpOpen ? styles.helpBtnActive : ""}`}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setHelpPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+                  setHelpOpen((o) => !o);
+                }}
+              >
                 <MaterialIcon name="help" />
-              </IconButton>
+              </button>
             </div>
           </header>
 
@@ -202,6 +289,12 @@ function ShellInner() {
         </main>
       </div>
       <ChatHost />
+      <HelpPopover
+        open={helpOpen}
+        pos={helpPos}
+        onClose={() => setHelpOpen(false)}
+        panelRef={helpPanelRef}
+      />
     </>
   );
 }
