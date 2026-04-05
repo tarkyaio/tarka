@@ -33,6 +33,7 @@ const HELP_ITEMS: { icon: string; label: string; href: string }[] = [
     label: "Changelog",
     href: "https://github.com/tarkyaio/tarka/blob/main/CHANGELOG.md",
   },
+  { icon: "public", label: "Website", href: "https://tarkyaio.github.io/tarka/" },
 ];
 
 function HelpPopover({
