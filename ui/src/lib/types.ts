@@ -23,6 +23,11 @@ export type InboxRow = {
   impact_score?: number | null;
   confidence_score?: number | null;
   noise_score?: number | null;
+
+  effective_status?: "firing" | "resolved" | "stale" | "snoozed" | null;
+  latest_alert_state?: string | null;
+  run_count?: number | null;
+  snoozed_until?: string | null;
 };
 
 export type InboxResponse = {
@@ -55,6 +60,10 @@ export type CaseRecord = {
   resolution_category?: string | null;
   resolution_summary?: string | null;
   postmortem_link?: string | null;
+  effective_status?: "firing" | "resolved" | "stale" | "snoozed" | null;
+  run_count?: number | null;
+  snoozed_until?: string | null;
+  resolution_method?: string | null;
   [k: string]: unknown;
 };
 
@@ -152,6 +161,7 @@ export type RunRecord = {
   report_text?: string | null;
   analysis_json?: AnalysisJson | null;
   case_match_reason?: string | null;
+  normalized_state?: string | null;
   [k: string]: unknown;
 };
 

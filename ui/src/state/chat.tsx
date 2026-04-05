@@ -7,6 +7,8 @@ export type ActiveCaseChatContext = {
   caseId: string;
   runId: string | null;
   analysisJson: AnalysisJson | null;
+  caseStatus: string | null;
+  caseEffectiveStatus: string | null;
 };
 
 type ChatShellState = {

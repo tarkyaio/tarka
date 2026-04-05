@@ -9,6 +9,7 @@ import { IconButton } from "../ui/IconButton";
 import { MetaPill } from "../ui/MetaPill";
 import { ClassificationPill } from "../ui/ClassificationPill";
 import { SeverityPill } from "../ui/SeverityPill";
+import { AlertStatusPill } from "../ui/AlertStatusPill";
 import styles from "./InboxScreen.module.css";
 
 type InboxCacheEntry = { ts: number; data: InboxResponse };
@@ -108,6 +109,7 @@ export function InboxScreen() {
   const [sp, setSp] = useSearchParams();
 
   const q = sp.get("q") || "";
+  const statusTab = sp.get("status") || "";
   const classification = sp.get("classification") || "";
   const family = sp.get("family") || "";
   const team = sp.get("team") || "";
@@ -135,11 +137,11 @@ export function InboxScreen() {
   const dismissedSigRef = React.useRef<string | null>(null);
 
   const inboxUrl = React.useMemo(() => {
-    // Default to `status=all` and do not include `service` filtering.
-    return `/api/v1/cases?status=all&q=${encodeURIComponent(q)}&classification=${encodeURIComponent(
+    const apiStatus = statusTab === "snoozed" ? "snoozed" : "all";
+    return `/api/v1/cases?status=${apiStatus}&q=${encodeURIComponent(q)}&classification=${encodeURIComponent(
       classification
     )}&family=${encodeURIComponent(family)}&team=${encodeURIComponent(team)}&limit=${pageSize}&offset=${page * pageSize}`;
-  }, [q, classification, family, team, page, pageSize]);
+  }, [q, statusTab, classification, family, team, page, pageSize]);
 
   React.useEffect(() => {
     appliedSigRef.current = inboxSignature(data);
@@ -305,10 +307,31 @@ export function InboxScreen() {
 
           <div className={styles.toolbar}>
             <div className={styles.toolbarLeft}>
-              <div className={`${styles.chip} ${styles.chipActive}`}>
-                <span className={`material-symbols-outlined ${styles.listIcon}`}>list</span>
-                List View
-              </div>
+              <button
+                type="button"
+                className={`${styles.chip} ${statusTab !== "snoozed" ? styles.chipActive : ""}`}
+                onClick={() => {
+                  const next = new URLSearchParams(sp);
+                  next.delete("status");
+                  next.set("page", "0");
+                  setSp(next, { replace: true });
+                }}
+              >
+                Active
+              </button>
+              <button
+                type="button"
+                className={`${styles.chip} ${statusTab === "snoozed" ? styles.chipActive : ""}`}
+                onClick={() => {
+                  const next = new URLSearchParams(sp);
+                  next.set("status", "snoozed");
+                  next.set("page", "0");
+                  setSp(next, { replace: true });
+                }}
+              >
+                <span className={`material-symbols-outlined ${styles.listIcon}`}>snooze</span>
+                Snoozed
+              </button>
 
               <div className={styles.toolbarDivider} aria-hidden="true" />
 
@@ -524,6 +547,7 @@ export function InboxScreen() {
                     <th className={`${styles.th} ${styles.colIncident}`}>Case</th>
                     <th className={`${styles.th} ${styles.hideMd} ${styles.colFamily}`}>Family</th>
                     <th className={`${styles.th} ${styles.colTarget}`}>Target</th>
+                    <th className={`${styles.th} ${styles.colStatus}`}>Status</th>
                     <th className={`${styles.th} ${styles.colScores}`}>Scores</th>
                     <th className={`${styles.th} ${styles.colAge}`}>Age</th>
                     <th className={`${styles.th} ${styles.colSeverity}`}>Severity</th>
@@ -532,7 +556,7 @@ export function InboxScreen() {
                 <tbody className={styles.tbody}>
                   {loading && !data ? (
                     <tr>
-                      <td className={styles.td} colSpan={7}>
+                      <td className={styles.td} colSpan={8}>
                         <div className={styles.skeletonRow}>Loading…</div>
                       </td>
                     </tr>
@@ -578,6 +602,9 @@ export function InboxScreen() {
                         </td>
                         <td className={`${styles.td} ${styles.targetCell}`}>
                           {r.service || r.namespace || r.cluster || "—"}
+                        </td>
+                        <td className={`${styles.td} ${styles.statusCell}`}>
+                          <AlertStatusPill status={r.effective_status} />
                         </td>
                         <td className={styles.td}>
                           <div className={styles.scoresStack}>
@@ -646,7 +673,7 @@ export function InboxScreen() {
 
                   {data && data.items.length === 0 && !loading ? (
                     <tr>
-                      <td className={styles.td} colSpan={7}>
+                      <td className={styles.td} colSpan={8}>
                         <div className={styles.empty}>No cases match your filters.</div>
                       </td>
                     </tr>

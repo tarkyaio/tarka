@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
 
@@ -127,6 +127,19 @@ import { CaseScreen } from "./CaseScreen";
 import { Shell } from "./Shell";
 
 describe("CaseScreen chat docking", () => {
+  // openCaseThread / openGlobalThread use raw fetch (SSE streaming), not api.request.
+  // Stub it to return a 503 immediately so the promise rejects synchronously before
+  // the test environment tears down, preventing the "window is not defined" unhandled rejection.
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 503, statusText: "Service Unavailable" }))
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
   it("does not vanish when switching to docked mode", async () => {
     render(
       <MemoryRouter initialEntries={["/cases/case-123"]}>

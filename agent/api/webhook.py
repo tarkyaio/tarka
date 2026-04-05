@@ -16,7 +16,7 @@ import re
 import threading
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -117,6 +117,59 @@ def _get_storage(bucket: str, prefix: str) -> S3Storage:
         storage = S3Storage(bucket=bucket, prefix=norm_prefix)
         _storage_cache[key] = storage
         return storage
+
+
+_STALE_THRESHOLD_HOURS: int = int(os.getenv("STALE_THRESHOLD_HOURS", "6").strip() or "6")
+
+
+def _parse_ts(ts_str: str) -> datetime:
+    """Parse a PostgreSQL timestamptz string to an aware datetime."""
+    ts = ts_str.strip().replace(" ", "T")
+    if re.search(r"[+-]\d{2}$", ts):
+        ts += ":00"
+    dt = datetime.fromisoformat(ts)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _compute_effective_status(
+    case_status: str | None,
+    updated_at_str: str | None,
+    snoozed_until: str | None = None,
+    stale_threshold_hours: int = _STALE_THRESHOLD_HOURS,
+) -> str:
+    """
+    Derive a UI-facing alert status from case fields — no DB column needed.
+
+    - "snoozed"   if snoozed_until is in the future
+    - "resolved"  if case is closed
+    - "stale"     if open but last run was more than stale_threshold_hours ago
+    - "firing"    otherwise
+    """
+    if snoozed_until:
+        try:
+            if _parse_ts(snoozed_until) > datetime.now(timezone.utc):
+                return "snoozed"
+        except (ValueError, TypeError):
+            pass
+    if (case_status or "").lower() == "closed":
+        return "resolved"
+    if updated_at_str:
+        try:
+            # PostgreSQL timestamptz::text format: "2026-04-05 14:23:45.123456+00"
+            ts = updated_at_str.strip().replace(" ", "T")
+            if re.search(r"[+-]\d{2}$", ts):
+                ts += ":00"
+            updated_at = datetime.fromisoformat(ts)
+            if updated_at.tzinfo is None:
+                updated_at = updated_at.replace(tzinfo=timezone.utc)
+            age_hours = (datetime.now(timezone.utc) - updated_at).total_seconds() / 3600
+            if age_hours >= stale_threshold_hours:
+                return "stale"
+        except (ValueError, TypeError):
+            pass
+    return "firing"
 
 
 def _sanitize_path_component(value: str) -> str:
@@ -256,11 +309,15 @@ def process_alerts(
             labels = alert.get("labels", {}) or {}
             alertname = labels.get("alertname") or "Unknown"
 
-            # Ignore resolved alerts (process only firing).
+            # Handle resolved alerts: auto-close matching case, skip pipeline.
             state = (alert.get("status", {}) or {}).get("state") or "unknown"
             if state != "firing":
+                if state == "resolved":
+                    fp = str(alert.get("fingerprint") or "").strip()
+                    if fp:
+                        _auto_close_case_by_fingerprint(fp)
                 logger.info(
-                    "Skipping resolved alert: %s (state=%s, startsAt=%s, endsAt=%s, parent_status=%s)",
+                    "Skipping non-firing alert: %s (state=%s, startsAt=%s, endsAt=%s, parent_status=%s)",
                     alertname,
                     state,
                     alert.get("starts_at"),
@@ -278,6 +335,18 @@ def process_alerts(
                 continue
 
             fingerprint = alert.get("fingerprint") or ""
+
+            # Snoozed guard: skip pipeline entirely if case is currently snoozed.
+            if fingerprint and _check_case_snoozed(fingerprint):
+                logger.info("Skipping snoozed alert: %s (fingerprint=%s)", alertname, fingerprint)
+                stats.skipped_resolved += 1
+                continue
+
+            # Flap guard: if the case was closed < 60 mins ago, reopen it but skip re-investigation.
+            if fingerprint and _check_case_flap(fingerprint):
+                stats.skipped_resolved += 1
+                continue
+
             # Rollout-noisy alerts: derive workload identity (Deployment/StatefulSet) via K8s ownerReferences
             # and apply a freshness gate (1h) before doing any heavy work.
             rollout_key: Optional[str] = None
@@ -1009,6 +1078,147 @@ class CaseReopenRequest(BaseModel):
     reason: Optional[str] = None
 
 
+def _check_case_snoozed(fingerprint: str) -> bool:
+    """Return True if there is an open, currently-snoozed case matching this fingerprint."""
+    conn = _get_db_connection()
+    if not conn:
+        return False
+    try:
+        row = conn.execute(
+            """
+            SELECT c.snoozed_until
+            FROM investigation_runs r
+            JOIN cases c ON c.case_id = r.case_id
+            WHERE r.alert_fingerprint = %s
+              AND c.status = 'open'
+              AND c.snoozed_until > now()
+            ORDER BY r.created_at DESC
+            LIMIT 1
+            """,
+            (fingerprint,),
+        ).fetchone()
+        return bool(row)
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+
+def _check_case_flap(fingerprint: str) -> bool:
+    """
+    If the most recent case for this fingerprint was closed less than 60 minutes ago,
+    reopen it (DB-only) and return True so the caller can skip the expensive pipeline.
+    Returns False if the case is open, not found, or was closed long enough ago to warrant re-investigation.
+    """
+    conn = _get_db_connection()
+    if not conn:
+        return False
+    try:
+        row = conn.execute(
+            """
+            SELECT r.case_id, c.status, c.resolved_at
+            FROM investigation_runs r
+            JOIN cases c ON c.case_id = r.case_id
+            WHERE r.alert_fingerprint = %s
+            ORDER BY r.created_at DESC
+            LIMIT 1
+            """,
+            (fingerprint,),
+        ).fetchone()
+        if not row:
+            return False
+        case_id, status, resolved_at = str(row[0]), str(row[1] or ""), row[2]
+        if status != "closed":
+            return False
+        # Check how long ago it was closed
+        age_mins = 9999.0
+        if resolved_at is not None:
+            try:
+                from datetime import datetime
+                from datetime import timezone as _tz
+
+                ra = (
+                    resolved_at
+                    if isinstance(resolved_at, datetime)
+                    else datetime.fromisoformat(str(resolved_at).strip().replace(" ", "T"))
+                )
+                if ra.tzinfo is None:
+                    ra = ra.replace(tzinfo=_tz.utc)
+                age_mins = (datetime.now(_tz.utc) - ra).total_seconds() / 60
+            except (ValueError, TypeError):
+                pass
+        if age_mins >= 60:
+            return False  # Old enough — let the pipeline run a fresh investigation
+        # Flap: reopen without pipeline
+        conn.execute(
+            """
+            UPDATE cases
+            SET status = 'open',
+                updated_at = now(),
+                resolved_at = NULL,
+                resolution_category = NULL,
+                resolution_summary = NULL,
+                resolution_method = NULL,
+                snoozed_until = NULL
+            WHERE case_id::text = %s
+            """,
+            (case_id,),
+        )
+        conn.commit()
+        logger.info("Flap detected for case %s (age_mins=%.1f) — reopened, skipping pipeline", case_id, age_mins)
+        return True
+    except Exception as e:
+        logger.warning("_check_case_flap failed (non-fatal): %s", e)
+        return False
+    finally:
+        conn.close()
+
+
+def _auto_close_case_by_fingerprint(fingerprint: str) -> None:
+    """
+    Close the open case matching this fingerprint (triggered by Alertmanager resolved webhook).
+    No-op if no matching open, non-snoozed case is found.
+    """
+    conn = _get_db_connection()
+    if not conn:
+        return
+    try:
+        row = conn.execute(
+            """
+            SELECT r.case_id FROM investigation_runs r
+            JOIN cases c ON c.case_id = r.case_id
+            WHERE r.alert_fingerprint = %s
+              AND c.status = 'open'
+              AND (c.snoozed_until IS NULL OR c.snoozed_until <= now())
+            ORDER BY r.created_at DESC
+            LIMIT 1
+            """,
+            (fingerprint,),
+        ).fetchone()
+        if not row:
+            return
+        case_id = str(row[0])
+        conn.execute(
+            """
+            UPDATE cases
+            SET status = 'closed',
+                updated_at = now(),
+                resolved_at = now(),
+                resolution_category = 'auto_resolved',
+                resolution_summary = 'Alert condition cleared in Alertmanager',
+                resolution_method = 'auto'
+            WHERE case_id::text = %s
+            """,
+            (case_id,),
+        )
+        conn.commit()
+        logger.info("Auto-closed case %s via Alertmanager resolved webhook", case_id)
+    except Exception as e:
+        logger.warning("_auto_close_case_by_fingerprint failed (non-fatal): %s", e)
+    finally:
+        conn.close()
+
+
 def _update_case_resolution(
     conn,
     *,
@@ -1045,7 +1255,8 @@ def _update_case_resolution(
                     resolved_at = now(),
                     resolution_category = %s,
                     resolution_summary = %s,
-                    postmortem_link = %s
+                    postmortem_link = %s,
+                    resolution_method = 'manual'
                 WHERE case_id::text = %s
                 """,
                 (
@@ -1094,6 +1305,7 @@ async def resolve_case(case_id: str, req: CaseResolveRequest) -> Dict[str, Any]:
         )
         if not ok:
             raise HTTPException(status_code=400, detail=msg)
+        conn.commit()
         return {"ok": True}
     finally:
         conn.close()
@@ -1118,7 +1330,40 @@ async def reopen_case(case_id: str, _req: CaseReopenRequest) -> Dict[str, Any]:
         )
         if not ok:
             raise HTTPException(status_code=400, detail=msg)
+        conn.commit()
         return {"ok": True}
+    finally:
+        conn.close()
+
+
+@app.post("/api/v1/cases/{case_id}/snooze")
+async def snooze_case(case_id: str) -> Dict[str, Any]:
+    """
+    Snooze a case for 3 hours. Firing webhooks for this case will be silently
+    dropped during the snooze window — no new runs, no LLM cost.
+    """
+    conn = _get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=503, detail="Postgres not configured")
+    try:
+        result = conn.execute(
+            """
+            UPDATE cases
+            SET snoozed_until = now() + interval '3 hours',
+                updated_at = now()
+            WHERE case_id::text = %s
+            RETURNING snoozed_until::text
+            """,
+            (str(case_id),),
+        ).fetchone()
+        if not result:
+            raise HTTPException(status_code=404, detail="Case not found")
+        conn.commit()
+        return {"ok": True, "snoozed_until": str(result[0])}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
@@ -1309,7 +1554,16 @@ async def list_cases(
         cte_conditions = []
         cte_params: List[Any] = []
 
-        if status and status.lower() != "all":
+        if status and status.lower() == "snoozed":
+            cte_conditions.append("c.snoozed_until > now()")
+        elif status and status.lower() == "open":
+            # Open view: hide snoozed cases
+            cte_conditions.append("c.status = 'open'")
+            cte_conditions.append("(c.snoozed_until IS NULL OR c.snoozed_until <= now())")
+        elif status and status.lower() in ("all", ""):
+            # All view: show open+closed but still hide snoozed
+            cte_conditions.append("(c.snoozed_until IS NULL OR c.snoozed_until <= now())")
+        elif status and status.lower() not in ("all", ""):
             cte_conditions.append("c.status = %s")
             cte_params.append(status.lower())
 
@@ -1357,7 +1611,8 @@ async def list_cases(
                     NULLIF(r.analysis_json #>> '{{analysis,scores,confidence_score}}', '')::int as confidence_score,
                     NULLIF(r.analysis_json #>> '{{analysis,scores,noise_score}}', '')::int as noise_score,
                     NULLIF(r.analysis_json #>> '{{target,team}}', '') as team,
-                    NULLIF(r.analysis_json #>> '{{analysis,enrichment,label}}', '') as enrichment_summary
+                    NULLIF(r.analysis_json #>> '{{analysis,enrichment,label}}', '') as enrichment_summary,
+                    r.normalized_state
                 FROM investigation_runs r
                 INNER JOIN cases c ON r.case_id = c.case_id
                 WHERE 1=1 {cte_where}
@@ -1384,7 +1639,10 @@ async def list_cases(
                 lr.confidence_score,
                 lr.noise_score,
                 lr.team,
-                lr.enrichment_summary
+                lr.enrichment_summary,
+                lr.normalized_state AS latest_normalized_state,
+                (SELECT COUNT(*) FROM investigation_runs r2 WHERE r2.case_id = c.case_id) AS run_count,
+                c.snoozed_until::text
             FROM cases c
             INNER JOIN latest_runs lr ON c.case_id = lr.case_id
             ORDER BY c.updated_at DESC
@@ -1443,6 +1701,14 @@ async def list_cases(
                     "noise_score": row[18] if row[18] is not None else None,
                     "team": str(row[19]) if row[19] else None,
                     "enrichment_summary": str(row[20]) if row[20] else None,
+                    "latest_alert_state": str(row[21]) if row[21] else None,
+                    "run_count": int(row[22]) if row[22] is not None else 1,
+                    "snoozed_until": str(row[23]) if row[23] else None,
+                    "effective_status": _compute_effective_status(
+                        case_status=str(row[1]) if row[1] else None,
+                        updated_at_str=str(row[3]) if row[3] else None,
+                        snoozed_until=str(row[23]) if row[23] else None,
+                    ),
                 }
             )
 
@@ -1575,7 +1841,9 @@ async def get_case(
                 resolved_at::text,
                 resolution_summary,
                 resolution_category,
-                postmortem_link
+                postmortem_link,
+                snoozed_until::text,
+                resolution_method
             FROM cases
             WHERE case_id::text = %s
             """,
@@ -1684,6 +1952,14 @@ async def get_case(
             "resolution_summary": str(inc_row[18]) if inc_row[18] else None,
             "resolution_category": str(inc_row[19]) if inc_row[19] else None,
             "postmortem_link": str(inc_row[20]) if inc_row[20] else None,
+            "snoozed_until": str(inc_row[21]) if inc_row[21] else None,
+            "resolution_method": str(inc_row[22]) if inc_row[22] else None,
+            "run_count": len(runs),
+            "effective_status": _compute_effective_status(
+                case_status=str(inc_row[2]) if inc_row[2] else None,
+                updated_at_str=str(inc_row[4]) if inc_row[4] else None,
+                snoozed_until=str(inc_row[21]) if inc_row[21] else None,
+            ),
         }
 
         return {
@@ -2527,9 +2803,18 @@ async def alerts(request: Request) -> JSONResponse:
                 namespace = labels.get("namespace", "")
                 state = (alert_norm.get("status", {}) or {}).get("state") or "unknown"
                 if state != "firing":
+                    if state == "resolved":
+                        fp = str(alert_norm.get("fingerprint") or "").strip()
+                        if fp:
+                            _auto_close_case_by_fingerprint(fp)
                     logger.debug(
                         "Skipping alert=%s namespace=%s reason=not_firing state=%s", alertname, namespace, state
                     )
+                    skipped_resolved += 1
+                    continue
+                fp_enqueue = str(alert_norm.get("fingerprint") or "").strip()
+                if fp_enqueue and _check_case_snoozed(fp_enqueue):
+                    logger.debug("Skipping snoozed alert=%s namespace=%s", alertname, namespace)
                     skipped_resolved += 1
                     continue
                 if allowlist is not None and str(alertname) not in allowlist:

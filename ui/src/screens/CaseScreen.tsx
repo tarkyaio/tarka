@@ -18,6 +18,7 @@ import { useAuth } from "../state/auth";
 import { LoginDialog } from "../ui/LoginDialog";
 import { ClassificationPill } from "../ui/ClassificationPill";
 import { SeverityPill } from "../ui/SeverityPill";
+import { AlertStatusPill } from "../ui/AlertStatusPill";
 import { useChatShell } from "../state/chat";
 import styles from "./CaseScreen.module.css";
 
@@ -135,7 +136,7 @@ export function CaseScreen() {
   const { caseId } = useParams();
   const { user, loading: authLoading } = useAuth();
   const { request } = useApi();
-  const { mode: chatMode, setActiveCase } = useChatShell();
+  const { mode: chatMode, setActiveCase, activeCase } = useChatShell();
 
   const [caseDetail, setCaseDetail] = React.useState<CaseDetailResponse | null>(null);
   const [run, setRun] = React.useState<InvestigationRunDetailResponse | null>(null);
@@ -225,6 +226,9 @@ export function CaseScreen() {
 
   const caseObj = caseDetail?.case || {};
   const runObj = run?.run || {};
+  // Use the context's effective status if it has been updated (e.g. after snooze), otherwise fall back to the fetched value.
+  const effectiveStatus =
+    activeCase?.caseEffectiveStatus || (caseObj.effective_status as string | null) || null;
 
   // Shared fields: single source of truth is the run payload, derived from analysis_json in the backend.
   const classification = runObj.classification || "";
@@ -287,11 +291,17 @@ export function CaseScreen() {
     if (!caseId) return;
     const rid = String(runObj?.run_id || "").trim();
     if (!rid) return;
-    setActiveCase({ caseId: String(caseId), runId: rid, analysisJson });
+    setActiveCase({
+      caseId: String(caseId),
+      runId: rid,
+      analysisJson,
+      caseStatus: caseObj.status ?? null,
+      caseEffectiveStatus: effectiveStatus,
+    });
     return () => {
       setActiveCase(null);
     };
-  }, [user, caseId, runObj?.run_id, analysisJson, setActiveCase]);
+  }, [user, caseId, runObj?.run_id, analysisJson, caseObj.status, effectiveStatus, setActiveCase]);
 
   React.useEffect(() => {
     if (!user) return;
@@ -473,7 +483,7 @@ export function CaseScreen() {
                       <div className={`${styles.skel} ${styles.skelSubtitle}`} />
                     </div>
                     <div className={styles.reportHeaderRight}>
-                      <span className={`${styles.skel} ${styles.skelBtn}`} />
+                      <span className={`${styles.skel} ${styles.skelPill}`} />
                     </div>
                   </div>
 
@@ -528,14 +538,7 @@ export function CaseScreen() {
                     </div>
 
                     <div className={styles.reportHeaderRight}>
-                      <button
-                        className={`uiBtn ${styles.printBtn}`}
-                        type="button"
-                        onClick={() => window.print()}
-                      >
-                        <MaterialIcon name="print" />
-                        <span>Print</span>
-                      </button>
+                      <AlertStatusPill status={effectiveStatus} />
                     </div>
                   </div>
 
@@ -1141,7 +1144,7 @@ export function CaseScreen() {
                       </section>
                     ) : null}
 
-                    <section className={styles.section}>
+                    <section className={styles.section} id="resolution-section">
                       <div className={styles.sectionTitle}>
                         <MaterialIcon name="task_alt" />
                         <span>Resolution</span>
@@ -1153,6 +1156,11 @@ export function CaseScreen() {
                               <span className={styles.resolutionBadge}>
                                 <span className={styles.resolutionDot} aria-hidden="true" />
                                 Resolved
+                              </span>
+                              <span className={styles.resolutionMethodBadge}>
+                                {caseObj.resolution_method === "auto"
+                                  ? "Auto · Alertmanager"
+                                  : "Resolved by SRE"}
                               </span>
                               <span className={styles.resolutionCategoryPill}>
                                 {String(caseObj.resolution_category || "unknown")}
@@ -1246,7 +1254,7 @@ export function CaseScreen() {
                             </div>
                             <div className={styles.resolveActions}>
                               <button
-                                className="uiBtn"
+                                className={styles.resolveBtn}
                                 type="button"
                                 onClick={markResolved}
                                 disabled={resolveSaving || !resolveSummary.trim()}

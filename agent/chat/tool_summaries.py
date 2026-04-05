@@ -293,6 +293,55 @@ def summarize_tool_result(*, tool: str, ok: bool, error: Optional[str], result: 
             if found is True:
                 return "ok", _truncate("cases.summary: ok (found)", 160)
 
+        if t == "cases.search":
+            cases = result.get("cases")
+            n = _count_list(cases)
+            q = str(result.get("q") or "").strip()
+            if n == 0:
+                return "empty", _truncate(f"cases.search: empty (0 results for '{q}')", 160)
+            if n is not None:
+                return "ok", _truncate(f"cases.search: ok ({n} results for '{q}')", 160)
+
+        if t == "cases.status_breakdown":
+            bd = result.get("breakdown") if isinstance(result.get("breakdown"), dict) else {}
+            firing = bd.get("firing", 0)
+            snoozed = bd.get("snoozed", 0)
+            stale = bd.get("stale", 0)
+            resolved = bd.get("resolved", 0)
+            return "ok", _truncate(
+                f"cases.status_breakdown: firing={firing} stale={stale} snoozed={snoozed} resolved={resolved}", 160
+            )
+
+        if t == "cases.recent":
+            cases = result.get("cases")
+            n = _count_list(cases)
+            if n == 0:
+                return "empty", _truncate("cases.recent: empty (0 recent cases)", 160)
+            if n is not None:
+                return "ok", _truncate(f"cases.recent: ok ({n} cases)", 160)
+
+        if t == "cases.by_severity":
+            bd = result.get("breakdown") if isinstance(result.get("breakdown"), dict) else {}
+            critical = bd.get("critical", 0)
+            warning = bd.get("warning", 0)
+            total = result.get("total", 0)
+            if total == 0:
+                return "empty", _truncate("cases.by_severity: empty (0 cases)", 160)
+            return "ok", _truncate(f"cases.by_severity: ok (critical={critical} warning={warning} total={total})", 160)
+
+        if t == "cases.trending":
+            items = result.get("items")
+            n = _count_list(items)
+            by = str(result.get("by") or "family").strip()
+            if n == 0:
+                return "empty", _truncate(f"cases.trending: empty (by={by})", 160)
+            if n is not None:
+                # Find the biggest mover
+                top = None
+                if isinstance(items, list) and items:
+                    top = items[0].get("key")
+                return "ok", _truncate(f"cases.trending: ok ({n} {by}s) top={top}", 160)
+
         # Generic status mapping
         if status in ("empty",):
             return "empty", _truncate(f"{t}: empty", 160)

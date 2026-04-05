@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
@@ -8,6 +9,8 @@ from agent.core.models import Investigation
 from agent.dump import investigation_to_json_dict
 from agent.memory.caseize import CaseizeInput, caseize_run
 from agent.memory.config import build_postgres_dsn, load_memory_config
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -79,9 +82,36 @@ def index_investigation_run(
         instance=_safe_str(investigation.target.instance),
     )
 
+    normalized_state = _safe_str(getattr(investigation.alert, "normalized_state", None)) or "firing"
+
     with _connect(dsn) as conn:
         with conn.transaction():
             case_id, reason, _created_new = caseize_run(conn, inp)
+
+            # If this firing alert matched an existing closed case, reopen it.
+            # Flap guard (closed < 60 min) is handled upstream in webhook.py before the pipeline.
+            if normalized_state == "firing" and not _created_new:
+                status_row = conn.execute(
+                    "SELECT status FROM cases WHERE case_id = %s",
+                    (case_id,),
+                ).fetchone()
+                if status_row and status_row[0] == "closed":
+                    conn.execute(
+                        """
+                        UPDATE cases
+                        SET status = 'open',
+                            updated_at = now(),
+                            resolved_at = NULL,
+                            resolution_category = NULL,
+                            resolution_summary = NULL,
+                            resolution_method = NULL,
+                            snoozed_until = NULL
+                        WHERE case_id = %s
+                        """,
+                        (case_id,),
+                    )
+                    reason = reason + "+reopened"
+                    logger.info("Reopened case %s on re-fire", case_id)
 
             row = conn.execute(
                 """

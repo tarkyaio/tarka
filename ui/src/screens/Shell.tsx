@@ -96,7 +96,7 @@ function ShellInner() {
   const { user } = useAuth();
   const { request } = useApi();
   const [inboxCount, setInboxCount] = React.useState<number | null>(null);
-  const { mode } = useChatShell();
+  const { mode, setMode, activeCase, setActiveCase } = useChatShell();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
   const [helpPos, setHelpPos] = React.useState<{ top: number; right: number } | null>(null);
@@ -122,6 +122,21 @@ function ShellInner() {
       setSidebarCollapsed(false);
     }
   }, [mode]);
+
+  // Cmd+K (Mac) / Ctrl+K (Win/Linux) — toggle chat open/closed
+  React.useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        // Don't intercept when user is typing in an input/textarea
+        const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
+        if (tag === "input" || tag === "textarea") return;
+        e.preventDefault();
+        setMode(mode === "bubble" ? "floating" : "bubble");
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mode, setMode]);
 
   React.useEffect(() => {
     if (!user) {
@@ -262,6 +277,28 @@ function ShellInner() {
             )}
 
             <div className={styles.topbarActions}>
+              {isCase &&
+                activeCase?.caseStatus !== "closed" &&
+                activeCase?.caseEffectiveStatus !== "snoozed" && (
+                  <button
+                    className={styles.resolveBtn}
+                    type="button"
+                    onClick={async () => {
+                      const cid = activeCase?.caseId;
+                      if (!cid) return;
+                      try {
+                        await request(`/api/v1/cases/${encodeURIComponent(cid)}/snooze`, {
+                          method: "POST",
+                        });
+                        setActiveCase({ ...activeCase, caseEffectiveStatus: "snoozed" });
+                      } catch {
+                        // no-op
+                      }
+                    }}
+                  >
+                    Snooze
+                  </button>
+                )}
               <IconButton size="md" title="Notifications" disabled>
                 <span className={styles.notifyWrap} aria-hidden="true">
                   <MaterialIcon name="notifications" />
