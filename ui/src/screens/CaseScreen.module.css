@@ -366,6 +366,30 @@
   flex-shrink: 0;
 }
 
+.resolveBtn {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  border: none;
+  cursor: pointer;
+  transition: background 120ms ease;
+  white-space: nowrap;
+}
+
+.resolveBtn:hover:not(:disabled) {
+  background: #1e293b;
+}
+
+.resolveBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .printBtn {
   display: inline-flex;
   align-items: center;
@@ -821,6 +845,26 @@
   white-space: nowrap;
 }
 
+.resolvePopoverWrap {
+  position: relative;
+}
+
+.resolvePopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  width: 280px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border-dark);
+  background: var(--surface);
+  box-shadow: var(--shadow-md, 0 8px 24px rgba(0, 0, 0, 0.12));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .resolveForm {
   display: flex;
   flex-direction: column;
@@ -911,6 +955,19 @@
   height: 7px;
   border-radius: 999px;
   background: var(--green);
+}
+
+.resolutionMethodBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(109, 40, 217, 0.22);
+  background: rgba(109, 40, 217, 0.08);
+  color: #6d28d9;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .resolutionCategoryPill {

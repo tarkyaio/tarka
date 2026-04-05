@@ -49,6 +49,9 @@ def test_auth_mode_returns_config(monkeypatch) -> None:
     monkeypatch.setenv("AUTH_SESSION_SECRET", "test-secret-key-for-testing-purposes-only")
     monkeypatch.setenv("ADMIN_INITIAL_USERNAME", "admin")
     monkeypatch.setenv("ADMIN_INITIAL_PASSWORD", "password")
+    # Ensure OIDC is not active regardless of local env
+    for var in ("OIDC_DISCOVERY_URL", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET"):
+        monkeypatch.delenv(var, raising=False)
     load_auth_config.cache_clear()
     c = TestClient(ws.app)
     r = c.get("/api/auth/mode")

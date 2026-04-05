@@ -1,0 +1,82 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  font-family: inherit;
+  line-height: 1;
+}
+
+/* --- Dot --- */
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* --- Firing (red, pulsing) --- */
+.firing {
+  color: #be123c;
+}
+
+.firing .dot {
+  background: #f43f5e;
+  animation: pulse-firing 1.6s ease-out infinite;
+}
+
+@keyframes pulse-firing {
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.55);
+  }
+  60% {
+    box-shadow: 0 0 0 5px rgba(244, 63, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+  }
+}
+
+/* --- Resolved (green, static) --- */
+.resolved {
+  color: #15803d;
+}
+
+.resolved .dot {
+  background: #22c55e;
+}
+
+/* --- Stale (amber, static) --- */
+.stale {
+  color: #92400e;
+}
+
+.stale .dot {
+  background: #f59e0b;
+}
+
+/* --- Snoozed (violet, slow pulse) --- */
+.snoozed {
+  color: #6d28d9;
+}
+
+.snoozed .dot {
+  background: #a78bfa;
+  animation: pulse-snoozed 2.4s ease-out infinite;
+}
+
+@keyframes pulse-snoozed {
+  0% {
+    box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.45);
+  }
+  60% {
+    box-shadow: 0 0 0 5px rgba(167, 139, 250, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(167, 139, 250, 0);
+  }
+}

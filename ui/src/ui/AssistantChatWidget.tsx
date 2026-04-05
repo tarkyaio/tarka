@@ -284,16 +284,25 @@ export function AssistantChatWidget({
         ]
       : [
           {
-            icon: "inbox",
-            label: "How many CPU throttling?",
-            text: "How many cases are family=cpu_throttling for team <team>?",
+            icon: "bolt",
+            label: "What's firing?",
+            text: "Give me a status breakdown — how many firing, stale, snoozed, resolved?",
           },
           {
-            icon: "graphic_eq",
-            label: "How many noise?",
-            text: "How many cases are classified as noisy?",
+            icon: "schedule",
+            label: "Recent cases",
+            text: "Show me the most recent open cases.",
           },
-          { icon: "groups", label: "Top teams", text: "Which teams have the most open cases?" },
+          {
+            icon: "trending_up",
+            label: "Trending alerts",
+            text: "What alert families are trending up or down compared to yesterday?",
+          },
+          {
+            icon: "groups",
+            label: "Top teams",
+            text: "Which teams have the most open cases?",
+          },
         ];
 
   function onPickFiles(files: FileList | null) {
@@ -492,9 +501,26 @@ export function AssistantChatWidget({
             <div className={styles.dayPill}>Today</div>
             {!messages.length ? (
               <div className={styles.emptySuggested}>
-                {context.kind === "case"
-                  ? "Ask a question about this case."
-                  : "Ask a question about cases in the inbox."}
+                {context.kind === "case" ? (
+                  <>
+                    <div className={styles.emptyTitle}>Ask about this case</div>
+                    <ul className={styles.emptyHints}>
+                      <li>What&apos;s the root cause?</li>
+                      <li>Compare signals to last week</li>
+                      <li>Find similar past incidents</li>
+                    </ul>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.emptyTitle}>Ask about your inbox</div>
+                    <ul className={styles.emptyHints}>
+                      <li>How many alerts are firing right now?</li>
+                      <li>Show me recent CPU throttling cases</li>
+                      <li>Which team has the most open alerts?</li>
+                      <li>What&apos;s trending compared to yesterday?</li>
+                    </ul>
+                  </>
+                )}
               </div>
             ) : null}
             {messages.map((m, idx) => {

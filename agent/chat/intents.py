@@ -110,6 +110,24 @@ _GLOBAL_STATUS_CHECK_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
+# Effective-status keywords — must be checked before the generic cases.count handler.
+_EFFECTIVE_STATUS_RE = re.compile(r"\b(stale|snoozed?|firing|resolved|closed)\b", re.IGNORECASE)
+
+# Recent-cases patterns — "show me recent cases", "what just came in", "latest alerts"
+_RECENT_CASES_RE = re.compile(
+    r"\b(recent|latest|newest|just\s+came\s+in|last\s+few|new\s+alert|new\s+case)\b", re.IGNORECASE
+)
+
+# Severity patterns — "how many critical", "any severity=critical"
+_SEVERITY_RE = re.compile(r"\b(critical|warning|high\s+severity|severity\s*[=:]\s*critical)\b", re.IGNORECASE)
+
+# Trending patterns — "what's trending", "is it getting worse", "compare to yesterday"
+_TRENDING_RE = re.compile(
+    r"\b(trend|trending|getting\s+worse|getting\s+better|compare\s+to\s+(yesterday|last\s+(week|hour|day))|"
+    r"worse\s+than\s+before|worse\s+than\s+yesterday)\b",
+    re.IGNORECASE,
+)
+
 
 # ---------------------------------------------------------------------------
 # Helpers: build deterministic replies from analysis_json
@@ -318,8 +336,202 @@ def try_handle_global_intents(*, policy: ChatPolicy, user_message: str) -> Inten
             intent_id="global.status_check",
         )
 
-    # Intent: cases.count
-    if ("how many" in s or s.startswith("count ") or " count " in s) and ("case" in s or "cases" in s or True):
+    # Intent: global.status_breakdown — "how many stale/snoozed/firing/resolved?"
+    # Must be checked BEFORE the generic cases.count handler.
+    if ("how many" in s or "count" in s) and _EFFECTIVE_STATUS_RE.search(s):
+        m_eff = _EFFECTIVE_STATUS_RE.search(s)
+        asked_status = m_eff.group(1).lower().rstrip("e") if m_eff else None
+        # Normalise "snooze" → "snoozed", "resolve" → "resolved"
+        if asked_status and not asked_status.endswith("d"):
+            asked_status = asked_status + "d"
+
+        bd_res = run_global_tool(policy=policy, tool="cases.status_breakdown", args={})
+        bd_ev = ChatToolEvent(
+            tool="cases.status_breakdown",
+            args={},
+            ok=bool(bd_res.ok),
+            result=bd_res.result,
+            error=bd_res.error,
+        )
+        if not bd_res.ok:
+            return IntentResult(
+                handled=True,
+                reply="DB isn't responding right now. Give it a moment and try again.",
+                tool_events=[bd_ev],
+                intent_id="global.status_breakdown",
+            )
+
+        breakdown = (bd_res.result or {}).get("breakdown", {}) if isinstance(bd_res.result, dict) else {}
+        if asked_status and asked_status in breakdown:
+            n = breakdown[asked_status]
+            reply = f"**{n}** {asked_status} right now."
+        else:
+            firing = breakdown.get("firing", 0)
+            snoozed = breakdown.get("snoozed", 0)
+            stale = breakdown.get("stale", 0)
+            resolved = breakdown.get("resolved", 0)
+            reply = (
+                f"Current inbox: **{firing}** firing, **{stale}** stale, "
+                f"**{snoozed}** snoozed, **{resolved}** resolved."
+            )
+        return IntentResult(
+            handled=True,
+            reply=reply,
+            tool_events=[bd_ev],
+            intent_id="global.status_breakdown",
+        )
+
+    # Intent: global.recent — "show recent cases", "what just came in", "latest alerts"
+    if _RECENT_CASES_RE.search(s):
+        since_hours = None
+        days = _parse_days_window(s)
+        if days:
+            since_hours = int(days) * 24
+        recent_args: Dict[str, Any] = {"limit": 10, "status": "open"}
+        if since_hours:
+            recent_args["since_hours"] = since_hours
+        recent_res = run_global_tool(policy=policy, tool="cases.recent", args=recent_args)
+        recent_ev = ChatToolEvent(
+            tool="cases.recent",
+            args=recent_args,
+            ok=bool(recent_res.ok),
+            result=recent_res.result,
+            error=recent_res.error,
+        )
+        if not recent_res.ok:
+            return IntentResult(
+                handled=True,
+                reply="DB isn't responding right now. Give it a moment and try again.",
+                tool_events=[recent_ev],
+                intent_id="global.recent",
+            )
+        cases = (recent_res.result or {}).get("cases", []) if isinstance(recent_res.result, dict) else []
+        if not cases:
+            return IntentResult(
+                handled=True,
+                reply="Nothing open right now. Inbox is clear.",
+                tool_events=[recent_ev],
+                intent_id="global.recent",
+            )
+        lines = []
+        for c in cases[:10]:
+            if not isinstance(c, dict):
+                continue
+            label = c.get("alertname") or c.get("service") or c.get("case_id", "")[:8]
+            one_liner = c.get("one_liner")
+            sev = c.get("severity")
+            parts = [f"- **{label}**"]
+            if sev:
+                parts.append(f"({sev})")
+            if one_liner:
+                parts.append(f"— {one_liner}")
+            lines.append(" ".join(parts))
+        reply = f"Here are the {len(cases)} most recent open cases:\n" + "\n".join(lines)
+        return IntentResult(
+            handled=True,
+            reply=reply,
+            tool_events=[recent_ev],
+            intent_id="global.recent",
+        )
+
+    # Intent: global.by_severity — "how many critical", "any high severity?"
+    if _SEVERITY_RE.search(s) and ("how many" in s or "any" in s or "count" in s or "critical" in s):
+        sev_args: Dict[str, Any] = {"status": "open"}
+        days = _parse_days_window(s)
+        if days:
+            sev_args["since_hours"] = int(days) * 24
+        sev_res = run_global_tool(policy=policy, tool="cases.by_severity", args=sev_args)
+        sev_ev = ChatToolEvent(
+            tool="cases.by_severity",
+            args=sev_args,
+            ok=bool(sev_res.ok),
+            result=sev_res.result,
+            error=sev_res.error,
+        )
+        if not sev_res.ok:
+            return IntentResult(
+                handled=True,
+                reply="DB isn't responding right now. Give it a moment and try again.",
+                tool_events=[sev_ev],
+                intent_id="global.by_severity",
+            )
+        bd = (sev_res.result or {}).get("breakdown", {}) if isinstance(sev_res.result, dict) else {}
+        critical = bd.get("critical", 0)
+        warning = bd.get("warning", 0)
+        info = bd.get("info", 0)
+        total = (sev_res.result or {}).get("total", 0)
+        if total == 0:
+            reply = "No open cases right now."
+        else:
+            reply = f"Open cases by severity: **{critical}** critical, **{warning}** warning, **{info}** info."
+        return IntentResult(
+            handled=True,
+            reply=reply,
+            tool_events=[sev_ev],
+            intent_id="global.by_severity",
+        )
+
+    # Intent: global.trending — "what's trending", "is it getting worse?"
+    if _TRENDING_RE.search(s):
+        trend_args: Dict[str, Any] = {"by": "family", "window_hours": 24}
+        trend_res = run_global_tool(policy=policy, tool="cases.trending", args=trend_args)
+        trend_ev = ChatToolEvent(
+            tool="cases.trending",
+            args=trend_args,
+            ok=bool(trend_res.ok),
+            result=trend_res.result,
+            error=trend_res.error,
+        )
+        if not trend_res.ok:
+            return IntentResult(
+                handled=True,
+                reply="DB isn't responding right now. Give it a moment and try again.",
+                tool_events=[trend_ev],
+                intent_id="global.trending",
+            )
+        items = (trend_res.result or {}).get("items", []) if isinstance(trend_res.result, dict) else []
+        if not items:
+            return IntentResult(
+                handled=True,
+                reply="No trend data — looks quiet.",
+                tool_events=[trend_ev],
+                intent_id="global.trending",
+            )
+        rising = [it for it in items if isinstance(it, dict) and it.get("delta", 0) > 0]
+        falling = [it for it in items if isinstance(it, dict) and it.get("delta", 0) < 0]
+        lines = []
+        for it in items[:8]:
+            if not isinstance(it, dict):
+                continue
+            key = it.get("key", "unknown")
+            cur = it.get("current", 0)
+            delta = it.get("delta", 0)
+            arrow = "↑" if delta > 0 else ("↓" if delta < 0 else "→")
+            lines.append(f"- **{key}**: {cur} runs {arrow} ({delta:+d} vs previous 24h)")
+        summary = ""
+        if rising:
+            summary = f" {len(rising)} family(ies) increasing."
+        if falling:
+            summary += f" {len(falling)} decreasing."
+        reply = f"Trends over the last 24h:{summary}\n" + "\n".join(lines)
+        return IntentResult(
+            handled=True,
+            reply=reply,
+            tool_events=[trend_ev],
+            intent_id="global.trending",
+        )
+
+    # Intent: cases.count — only fire when the question is clearly about case counts
+    if ("how many" in s or s.startswith("count ") or " count " in s) and (
+        "case" in s
+        or "alert" in s
+        or "incident" in s
+        or "open" in s
+        or "closed" in s
+        or _infer_family(s) is not None
+        or _infer_team(s) is not None
+        or _infer_classification(s) is not None
+    ):
         fam = _infer_family(s)
         team = _infer_team(s)
         cls = _infer_classification(s)
@@ -344,9 +556,21 @@ def try_handle_global_intents(*, policy: ChatPolicy, user_message: str) -> Inten
                 intent_id="global.cases_count",
             )
         count = (res.result or {}).get("count") if isinstance(res.result, dict) else None
+        # Build a descriptive reply using the applied filters
+        status_val = str(args.get("status", "all"))
+        filter_parts = []
+        if fam:
+            filter_parts.append(f"family={fam}")
+        if team:
+            filter_parts.append(f"team={team}")
+        if cls:
+            filter_parts.append(f"classification={cls}")
+        if days:
+            filter_parts.append(f"last {days}d")
+        filter_str = " · ".join(filter_parts) if filter_parts else status_val
         return IntentResult(
             handled=True,
-            reply=f"**{count}** case(s) matching that.",
+            reply=f"**{count}** case(s) matching — {filter_str}.",
             tool_events=[ev],
             intent_id="global.cases_count",
         )

@@ -39,7 +39,7 @@ test("global chat initializes with Global thread selected", async ({ page }) => 
   await expect(page.getByText("Context: All cases")).toBeVisible();
 
   // Verify the empty state message is correct for global chat
-  await expect(page.getByText("Ask a question about cases in the inbox.")).toBeVisible();
+  await expect(page.getByText("Ask about your inbox")).toBeVisible();
 
   // Verify the input placeholder
   await expect(page.getByPlaceholder("Ask follow-up questions…")).toBeVisible();

@@ -42,7 +42,9 @@ def _disable_real_git_cache_calls():
     """Prevent unit tests from cloning/fetching real remotes."""
     mock_cache = MagicMock()
     mock_cache.ensure_mirror.side_effect = RuntimeError("git cache disabled in unit tests")
-    with patch("agent.providers.git_mirror_provider.get_git_mirror_cache", return_value=mock_cache):
+    with patch("agent.providers.git_mirror_provider.get_git_mirror_cache", return_value=mock_cache), patch(
+        "agent.analysis.git_regression.get_git_mirror_cache", return_value=mock_cache
+    ):
         yield
 
 

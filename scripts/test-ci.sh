@@ -277,14 +277,17 @@ main() {
         exit 1
     fi
 
-    if timeout 60 bash -c 'until docker compose ps | grep -q "healthy"; do sleep 2; done'; then
-        log_success "Docker services are healthy"
-    else
-        log_error "Docker services failed to become healthy"
-        docker compose ps
-        docker compose logs
-        exit 1
-    fi
+    _deadline=$(( $(date +%s) + 60 ))
+    until docker compose ps | grep -q "healthy"; do
+        if [ "$(date +%s)" -ge "$_deadline" ]; then
+            log_error "Docker services failed to become healthy"
+            docker compose ps
+            docker compose logs
+            exit 1
+        fi
+        sleep 2
+    done
+    log_success "Docker services are healthy"
 
     # Phase 5: Setup environment
     log_phase "Phase 5: Setting Up Test Environment"
@@ -343,13 +346,16 @@ EOF
     log_info "Webhook server starting (PID: $WEBHOOK_PID)"
     log_info "Waiting for webhook to be ready (30s timeout)..."
 
-    if timeout 30 bash -c 'until curl -sf http://localhost:8080/healthz 2>/dev/null | grep -q "ok"; do sleep 1; done'; then
-        log_success "Webhook server is ready"
-    else
-        log_error "Webhook server failed to start"
-        tail -50 webhook.log
-        exit 1
-    fi
+    _deadline=$(( $(date +%s) + 30 ))
+    until curl -sf http://localhost:8080/healthz 2>/dev/null | grep -q "ok"; do
+        if [ "$(date +%s)" -ge "$_deadline" ]; then
+            log_error "Webhook server failed to start"
+            tail -50 webhook.log
+            exit 1
+        fi
+        sleep 1
+    done
+    log_success "Webhook server is ready"
 
     # Phase 7: Start worker
     log_phase "Phase 7: Starting Worker"
@@ -359,13 +365,16 @@ EOF
     log_info "Worker starting (PID: $WORKER_PID)"
     log_info "Waiting for worker to be ready (15s timeout)..."
 
-    if timeout 15 bash -c 'until grep -q "Worker started" worker.log 2>/dev/null; do sleep 1; done'; then
-        log_success "Worker is ready"
-    else
-        log_error "Worker failed to start"
-        tail -50 worker.log
-        exit 1
-    fi
+    _deadline=$(( $(date +%s) + 15 ))
+    until grep -q "Worker started" worker.log 2>/dev/null; do
+        if [ "$(date +%s)" -ge "$_deadline" ]; then
+            log_error "Worker failed to start"
+            tail -50 worker.log
+            exit 1
+        fi
+        sleep 1
+    done
+    log_success "Worker is ready"
 
     # Phase 8: Send test alert
     log_phase "Phase 8: Sending Test Alert"
@@ -384,28 +393,27 @@ EOF
     log_phase "Phase 9: Waiting for Investigation to Complete"
     log_info "Waiting for investigation report (60s timeout, strict)..."
 
-    if timeout 60 bash -c '
-        while true; do
-            if ls ./investigations/*.md 2>/dev/null | head -1 >/dev/null; then
-                echo "✓ Investigation report created!"
-                exit 0
-            fi
-            if grep -q "Message ACKed" worker.log 2>/dev/null; then
-                echo "✓ Worker processed alert successfully"
-                exit 0
-            fi
-            sleep 2
-        done
-    '; then
-        log_success "Investigation completed"
-        if ls ./investigations/*.md 2>/dev/null | head -1; then
-            log_info "Report location: $(ls ./investigations/*.md 2>/dev/null | head -1)"
+    _deadline=$(( $(date +%s) + 60 ))
+    while true; do
+        if ls ./investigations/*.md 2>/dev/null | head -1 >/dev/null; then
+            echo "✓ Investigation report created!"
+            break
         fi
-    else
-        log_error "Investigation did not complete within 60 seconds"
-        log_info "Recent worker logs:"
-        tail -30 worker.log
-        exit 1
+        if grep -q "Message ACKed" worker.log 2>/dev/null; then
+            echo "✓ Worker processed alert successfully"
+            break
+        fi
+        if [ "$(date +%s)" -ge "$_deadline" ]; then
+            log_error "Investigation did not complete within 60 seconds"
+            log_info "Recent worker logs:"
+            tail -30 worker.log
+            exit 1
+        fi
+        sleep 2
+    done
+    log_success "Investigation completed"
+    if ls ./investigations/*.md 2>/dev/null | head -1; then
+        log_info "Report location: $(ls ./investigations/*.md 2>/dev/null | head -1)"
     fi
 
     # Phase 10: Backend e2e tests
@@ -430,6 +438,13 @@ EOF
             exit 1
         }
     fi
+
+    log_info "Installing Playwright browsers..."
+    (cd ui && npx playwright install chromium) || {
+        log_error "Failed to install Playwright browsers"
+        exit 1
+    }
+    log_success "Playwright browsers installed"
 
     log_info "Running Playwright tests (chromium)..."
     (cd ui && ${NPM_BIN} run test:e2e -- --project=chromium) || {

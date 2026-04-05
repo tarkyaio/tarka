@@ -28,6 +28,9 @@ export const mockInbox: InboxResponse = {
       severity: "critical",
       cluster: "prod",
       namespace: "payments",
+      effective_status: "firing",
+      latest_alert_state: "firing",
+      run_count: 3,
     },
     {
       case_id: "case_3918_33333333-3333-3333-3333-333333333333",
@@ -49,6 +52,9 @@ export const mockInbox: InboxResponse = {
       severity: "warning",
       cluster: "prod",
       namespace: "auth",
+      effective_status: "firing",
+      latest_alert_state: "firing",
+      run_count: 1,
     },
     {
       case_id: "case_3915_55555555-5555-5555-5555-555555555555",
@@ -69,6 +75,9 @@ export const mockInbox: InboxResponse = {
       severity: "critical",
       cluster: "prod",
       namespace: "users",
+      effective_status: "firing",
+      latest_alert_state: "firing",
+      run_count: 2,
     },
     {
       case_id: "case_3899_77777777-7777-7777-7777-777777777777",
@@ -89,6 +98,9 @@ export const mockInbox: InboxResponse = {
       severity: "info",
       cluster: "prod",
       namespace: "cache",
+      effective_status: "firing",
+      latest_alert_state: "firing",
+      run_count: 1,
     },
     {
       case_id: "case_3880_99999999-9999-9999-9999-999999999999",
@@ -109,6 +121,9 @@ export const mockInbox: InboxResponse = {
       severity: "warning",
       cluster: "prod",
       namespace: "search",
+      effective_status: "firing",
+      latest_alert_state: "firing",
+      run_count: 4,
     },
     {
       case_id: "case_3875_bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
@@ -129,16 +144,39 @@ export const mockInbox: InboxResponse = {
       severity: "info",
       cluster: "prod",
       namespace: "media",
+      effective_status: "stale",
+      latest_alert_state: "unknown",
+      run_count: 1,
     },
   ],
 };
 
 export function mockCaseDetail(caseId: string): CaseDetailResponse {
   const row = mockInbox.items.find((x) => x.case_id === caseId) || mockInbox.items[0];
+  const runCount = (row as any).run_count ?? 1;
+  const effectiveStatus = (row as any).effective_status ?? "firing";
+  const latestAlertState = (row as any).latest_alert_state ?? "firing";
+
+  const extraRuns =
+    runCount > 1
+      ? Array.from({ length: Math.min(runCount - 1, 3) }, (_, i) => ({
+          run_id: `${row.run_id}-prev-${i + 1}`,
+          created_at: new Date(
+            Date.parse(row.run_created_at) - (i + 1) * 3 * 60 * 60 * 1000
+          ).toISOString(),
+          alertname: row.alertname,
+          severity: row.severity,
+          classification: row.classification,
+          primary_driver: row.primary_driver,
+          one_liner: `Previous: ${row.one_liner}`,
+          normalized_state: "firing",
+        }))
+      : [];
+
   return {
     case: {
       case_id: caseId,
-      status: "open",
+      status: effectiveStatus === "resolved" ? "closed" : "open",
       created_at: row.case_created_at,
       updated_at: row.case_updated_at,
       latest_one_liner: row.one_liner,
@@ -147,6 +185,8 @@ export function mockCaseDetail(caseId: string): CaseDetailResponse {
       namespace: row.namespace,
       family: row.family,
       primary_driver: row.primary_driver,
+      effective_status: effectiveStatus,
+      run_count: runCount,
     },
     runs: [
       {
@@ -157,7 +197,9 @@ export function mockCaseDetail(caseId: string): CaseDetailResponse {
         classification: row.classification,
         primary_driver: row.primary_driver,
         one_liner: row.one_liner,
+        normalized_state: latestAlertState,
       },
+      ...extraRuns,
     ],
   };
 }

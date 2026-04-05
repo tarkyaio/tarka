@@ -237,6 +237,25 @@
   gap: 8px;
 }
 
+.resolveBtn {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  border: none;
+  cursor: pointer;
+  transition: background 120ms ease;
+  white-space: nowrap;
+}
+
+.resolveBtn:hover {
+  background: #1e293b;
+}
+
 .helpBtn {
   width: 36px;
   height: 36px;

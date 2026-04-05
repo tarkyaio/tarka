@@ -21,7 +21,17 @@ class GlobalChatRunResult:
 
 
 def _allowed_tools() -> List[str]:
-    return ["cases.count", "cases.top", "cases.lookup", "cases.summary"]
+    return [
+        "cases.count",
+        "cases.top",
+        "cases.search",
+        "cases.status_breakdown",
+        "cases.recent",
+        "cases.by_severity",
+        "cases.trending",
+        "cases.lookup",
+        "cases.summary",
+    ]
 
 
 def _build_prompt(
@@ -81,6 +91,21 @@ def _build_prompt(
         "  classification values: actionable, informational, noisy, artifact.\n"
         "  status values: open, closed, all (default).\n"
         "- cases.top: returns top keys by count (by=team|family|classification|component). component groups by workload name.\n"
+        "- cases.search: keyword search across alert names, services, namespaces, one-liners.\n"
+        "  args: q (required, the search query), limit (default 10, max 20), status (open/closed/all).\n"
+        "  Use this when the user mentions a service name, namespace, alert name, or symptom.\n"
+        "- cases.status_breakdown: returns firing/snoozed/stale/resolved counts across the inbox.\n"
+        "  args: since_hours (optional, restrict to cases updated within N hours), stale_hours (default 24, threshold for stale).\n"
+        "  Use this when user asks for a status overview, health check, or 'what's firing right now'.\n"
+        "- cases.recent: returns the N most recently updated cases (default 10).\n"
+        "  args: limit (default 10, max 20), status (open/all, default open), since_hours (optional).\n"
+        "  Use this when the user asks 'what just came in', 'show me recent cases', 'latest alerts'.\n"
+        "- cases.by_severity: breakdown of cases by severity (critical/warning/info/unknown).\n"
+        "  args: status (open/all, default open), since_hours (optional).\n"
+        "  Use this when user asks 'how many critical', 'severity breakdown', 'any high severity alerts'.\n"
+        "- cases.trending: compare current vs previous window by family/team/classification.\n"
+        "  args: window_hours (default 24), by (family/team/classification), limit (default 10).\n"
+        "  Use this for 'is it getting worse', 'what's trending', 'compare to yesterday'.\n"
         "- cases.lookup: resolves a case_id or prefix.\n"
         "- cases.summary: returns a minimal summary for a case.\n\n"
         "Examples (GOOD vs BAD):\n"
@@ -88,6 +113,10 @@ def _build_prompt(
         "✅ GOOD: 'Let me check open cases' → calls cases.count\n\n"
         "❌ BAD: 'Try cases.top to see top families'\n"
         "✅ GOOD: 'Let me see which families are most common' → calls cases.top\n\n"
+        "❌ BAD: 'Search for payment-service cases yourself'\n"
+        "✅ GOOD: 'Let me find payment-service cases' → calls cases.search with q='payment-service'\n\n"
+        "❌ BAD: 'The inbox status depends on your filters'\n"
+        "✅ GOOD: 'Let me check what's firing right now' → calls cases.status_breakdown\n\n"
         "Output JSON schema (exact keys):\n"
         "{\n"
         '  "schema_version": "tarka.tool_plan.v1",\n'

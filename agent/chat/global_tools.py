@@ -343,4 +343,385 @@ def _run_global_tool_db(*, policy: ChatPolicy, tool: str, args: Dict[str, Any], 
             },
         )
 
+    # --------------------
+    # cases.search
+    # --------------------
+    if tool == "cases.search":
+        q = _norm_key(args.get("q") or args.get("query"))
+        if not q:
+            return ToolResult(ok=False, error="q_required")
+        limit = _norm_int(args.get("limit"), default=10, lo=1, hi=20)
+        status = _norm_status(str(args.get("status") or "all"))
+
+        # Build CTE filter
+        cond: List[str] = []
+        params: List[Any] = []
+
+        if status != "all":
+            cond.append("c.status = %s")
+            params.append(status)
+
+        _apply_scope_filters(policy, cond, params)
+
+        # Tokenize q into words and match each against key fields (ILIKE AND across tokens)
+        tokens = [t.strip().lower() for t in q.split() if t.strip()][:5]
+        for tok in tokens:
+            pattern = f"%{tok}%"
+            cond.append(
+                "(LOWER(r.alertname) LIKE %s"
+                " OR LOWER(COALESCE(c.service, '')) LIKE %s"
+                " OR LOWER(COALESCE(r.namespace, '')) LIKE %s"
+                " OR LOWER(COALESCE(r.cluster, '')) LIKE %s"
+                " OR LOWER(COALESCE(r.analysis_json #>> '{analysis,verdict,one_liner}', '')) LIKE %s)"
+            )
+            params.extend([pattern, pattern, pattern, pattern, pattern])
+
+        where = " AND " + " AND ".join(cond) if cond else ""
+
+        with _connect(dsn) as conn:
+            rows = conn.execute(
+                f"""
+                WITH latest_runs AS (
+                  SELECT DISTINCT ON (r.case_id)
+                    r.case_id,
+                    r.alertname,
+                    r.namespace,
+                    r.cluster,
+                    r.family,
+                    r.classification,
+                    NULLIF(r.analysis_json #>> '{{analysis,verdict,one_liner}}', '') as one_liner,
+                    NULLIF(r.analysis_json #>> '{{target,team}}', '') as team
+                  FROM investigation_runs r
+                  INNER JOIN cases c ON r.case_id = c.case_id
+                  WHERE 1=1 {where}
+                  ORDER BY r.case_id, r.created_at DESC
+                )
+                SELECT
+                  c.case_id::text,
+                  c.status,
+                  c.updated_at::text,
+                  c.service,
+                  c.snoozed_until::text,
+                  lr.alertname,
+                  lr.namespace,
+                  lr.cluster,
+                  lr.family,
+                  lr.classification,
+                  lr.one_liner,
+                  lr.team
+                FROM cases c
+                INNER JOIN latest_runs lr ON c.case_id = lr.case_id
+                ORDER BY c.updated_at DESC
+                LIMIT %s;
+                """,
+                tuple(params) + (limit,),
+            ).fetchall()
+
+        items = []
+        for r in rows or []:
+            items.append(
+                {
+                    "case_id": str(r[0]),
+                    "status": str(r[1] or ""),
+                    "updated_at": str(r[2] or ""),
+                    "service": (str(r[3]) if r[3] else None),
+                    "snoozed_until": (str(r[4]) if r[4] else None),
+                    "alertname": (str(r[5]) if r[5] else None),
+                    "namespace": (str(r[6]) if r[6] else None),
+                    "cluster": (str(r[7]) if r[7] else None),
+                    "family": (str(r[8]) if r[8] else None),
+                    "classification": (str(r[9]) if r[9] else None),
+                    "one_liner": (str(r[10]) if r[10] else None),
+                    "team": (str(r[11]) if r[11] else None),
+                }
+            )
+
+        return ToolResult(ok=True, result={"q": q, "status": status, "count": len(items), "cases": items})
+
+    # --------------------
+    # cases.status_breakdown
+    # --------------------
+    if tool == "cases.status_breakdown":
+        since_hours_raw = args.get("since_hours")
+        since_hours = _norm_int(since_hours_raw, default=24, lo=1, hi=24 * 30) if since_hours_raw is not None else None
+        stale_hours = _norm_int(args.get("stale_hours"), default=24, lo=1, hi=24 * 7)
+
+        cond: List[str] = []
+        params: List[Any] = []
+
+        if since_hours is not None:
+            cond.append("c.updated_at >= (now() - (%s::int * interval '1 hour'))")
+            params.append(since_hours)
+
+        _apply_scope_filters(policy, cond, params)
+        where = " AND " + " AND ".join(cond) if cond else ""
+
+        with _connect(dsn) as conn:
+            row = conn.execute(
+                f"""
+                SELECT
+                  COUNT(*) FILTER (
+                    WHERE c.status = 'open'
+                      AND (c.snoozed_until IS NULL OR c.snoozed_until <= now())
+                      AND c.updated_at >= now() - (%s::int * interval '1 hour')
+                  )::int AS firing,
+                  COUNT(*) FILTER (
+                    WHERE c.snoozed_until > now()
+                  )::int AS snoozed,
+                  COUNT(*) FILTER (
+                    WHERE c.status = 'open'
+                      AND (c.snoozed_until IS NULL OR c.snoozed_until <= now())
+                      AND c.updated_at < now() - (%s::int * interval '1 hour')
+                  )::int AS stale,
+                  COUNT(*) FILTER (
+                    WHERE c.status = 'closed'
+                      AND (c.snoozed_until IS NULL OR c.snoozed_until <= now())
+                  )::int AS resolved
+                FROM cases c
+                WHERE 1=1 {where};
+                """,
+                (stale_hours, stale_hours) + tuple(params),
+            ).fetchone()
+
+        firing = int(row[0] or 0) if row else 0
+        snoozed = int(row[1] or 0) if row else 0
+        stale = int(row[2] or 0) if row else 0
+        resolved = int(row[3] or 0) if row else 0
+
+        return ToolResult(
+            ok=True,
+            result={
+                "breakdown": {
+                    "firing": firing,
+                    "snoozed": snoozed,
+                    "stale": stale,
+                    "resolved": resolved,
+                    "total": firing + snoozed + stale + resolved,
+                },
+                "filters": {
+                    "since_hours": since_hours,
+                    "stale_hours": stale_hours,
+                },
+            },
+        )
+
+    # --------------------
+    # cases.recent
+    # --------------------
+    if tool == "cases.recent":
+        limit = _norm_int(args.get("limit"), default=10, lo=1, hi=20)
+        status = _norm_status(str(args.get("status") or "open"))
+        since_hours_raw = args.get("since_hours")
+        since_hours = _norm_int(since_hours_raw, default=24, lo=1, hi=24 * 30) if since_hours_raw is not None else None
+
+        cond: List[str] = []
+        params: List[Any] = []
+
+        if status != "all":
+            cond.append("c.status = %s")
+            params.append(status)
+
+        if since_hours is not None:
+            cond.append("c.updated_at >= (now() - (%s::int * interval '1 hour'))")
+            params.append(since_hours)
+
+        _apply_scope_filters(policy, cond, params)
+        where = " AND " + " AND ".join(cond) if cond else ""
+
+        with _connect(dsn) as conn:
+            rows = conn.execute(
+                f"""
+                WITH latest_runs AS (
+                  SELECT DISTINCT ON (r.case_id)
+                    r.case_id,
+                    r.alertname,
+                    r.family,
+                    r.classification,
+                    r.severity,
+                    NULLIF(r.analysis_json #>> '{{analysis,verdict,one_liner}}', '') as one_liner,
+                    NULLIF(r.analysis_json #>> '{{target,team}}', '') as team
+                  FROM investigation_runs r
+                  INNER JOIN cases c ON r.case_id = c.case_id
+                  WHERE 1=1 {where}
+                  ORDER BY r.case_id, r.created_at DESC
+                )
+                SELECT
+                  c.case_id::text,
+                  c.status,
+                  c.updated_at::text,
+                  c.service,
+                  c.namespace,
+                  c.snoozed_until::text,
+                  lr.alertname,
+                  lr.family,
+                  lr.classification,
+                  lr.severity,
+                  lr.one_liner,
+                  lr.team
+                FROM cases c
+                INNER JOIN latest_runs lr ON c.case_id = lr.case_id
+                ORDER BY c.updated_at DESC
+                LIMIT %s;
+                """,
+                tuple(params) + (limit,),
+            ).fetchall()
+
+        items = []
+        for r in rows or []:
+            snoozed_until = str(r[5]) if r[5] else None
+            status_val = str(r[1] or "")
+            if snoozed_until:
+                effective = "snoozed"
+            elif status_val == "closed":
+                effective = "resolved"
+            else:
+                effective = "firing"
+            items.append(
+                {
+                    "case_id": str(r[0]),
+                    "effective_status": effective,
+                    "updated_at": str(r[2] or ""),
+                    "service": (str(r[3]) if r[3] else None),
+                    "namespace": (str(r[4]) if r[4] else None),
+                    "alertname": (str(r[6]) if r[6] else None),
+                    "family": (str(r[7]) if r[7] else None),
+                    "classification": (str(r[8]) if r[8] else None),
+                    "severity": (str(r[9]) if r[9] else None),
+                    "one_liner": (str(r[10]) if r[10] else None),
+                    "team": (str(r[11]) if r[11] else None),
+                }
+            )
+
+        return ToolResult(ok=True, result={"status": status, "count": len(items), "cases": items})
+
+    # --------------------
+    # cases.by_severity
+    # --------------------
+    if tool == "cases.by_severity":
+        status = _norm_status(str(args.get("status") or "open"))
+        since_hours_raw = args.get("since_hours")
+        since_hours = _norm_int(since_hours_raw, default=24, lo=1, hi=24 * 30) if since_hours_raw is not None else None
+
+        cond: List[str] = []
+        params: List[Any] = []
+
+        if status != "all":
+            cond.append("c.status = %s")
+            params.append(status)
+
+        if since_hours is not None:
+            cond.append("c.updated_at >= (now() - (%s::int * interval '1 hour'))")
+            params.append(since_hours)
+
+        _apply_scope_filters(policy, cond, params)
+        where = " AND " + " AND ".join(cond) if cond else ""
+
+        with _connect(dsn) as conn:
+            rows = conn.execute(
+                f"""
+                WITH latest_runs AS (
+                  SELECT DISTINCT ON (r.case_id)
+                    r.case_id,
+                    LOWER(COALESCE(r.severity, 'unknown')) as severity
+                  FROM investigation_runs r
+                  INNER JOIN cases c ON r.case_id = c.case_id
+                  WHERE 1=1 {where}
+                  ORDER BY r.case_id, r.created_at DESC
+                )
+                SELECT severity, COUNT(*)::int as count
+                FROM latest_runs
+                GROUP BY severity
+                ORDER BY count DESC;
+                """,
+                tuple(params),
+            ).fetchall()
+
+        known = {"critical": 0, "warning": 0, "info": 0, "unknown": 0}
+        for sev, cnt in rows or []:
+            key = str(sev or "unknown").strip().lower()
+            if key in known:
+                known[key] = int(cnt or 0)
+            else:
+                known["unknown"] = known.get("unknown", 0) + int(cnt or 0)
+
+        return ToolResult(
+            ok=True,
+            result={
+                "status": status,
+                "since_hours": since_hours,
+                "breakdown": known,
+                "total": sum(known.values()),
+            },
+        )
+
+    # --------------------
+    # cases.trending
+    # --------------------
+    if tool == "cases.trending":
+        window_hours = _norm_int(args.get("window_hours"), default=24, lo=1, hi=24 * 7)
+        by = str(args.get("by") or "family").strip().lower()
+        if by not in ("family", "team", "classification"):
+            return ToolResult(ok=False, error="by_invalid: must be family, team, or classification")
+        limit = _norm_int(args.get("limit"), default=10, lo=1, hi=20)
+
+        if by == "team":
+            field = "NULLIF(r.analysis_json #>> '{target,team}', '')"
+        elif by == "classification":
+            field = "r.classification"
+        else:
+            field = "r.family"
+
+        cond: List[str] = []
+        params: List[Any] = []
+        _apply_scope_filters(policy, cond, params)
+        where = " AND " + " AND ".join(cond) if cond else ""
+
+        with _connect(dsn) as conn:
+            rows = conn.execute(
+                f"""
+                WITH bucketed AS (
+                  SELECT
+                    LOWER(COALESCE({field}, 'unknown')) as key,
+                    COUNT(*) FILTER (
+                      WHERE r.created_at >= now() - (%s::int * interval '1 hour')
+                    )::int AS current_count,
+                    COUNT(*) FILTER (
+                      WHERE r.created_at >= now() - (%s::int * interval '1 hour') * 2
+                        AND r.created_at < now() - (%s::int * interval '1 hour')
+                    )::int AS previous_count
+                  FROM investigation_runs r
+                  INNER JOIN cases c ON r.case_id = c.case_id
+                  WHERE r.created_at >= now() - (%s::int * interval '1 hour') * 2
+                    {where}
+                  GROUP BY key
+                )
+                SELECT key, current_count, previous_count,
+                       (current_count - previous_count) as delta
+                FROM bucketed
+                WHERE current_count > 0 OR previous_count > 0
+                ORDER BY current_count DESC, delta DESC
+                LIMIT %s;
+                """,
+                (window_hours, window_hours, window_hours, window_hours) + tuple(params) + (limit,),
+            ).fetchall()
+
+        items = [
+            {
+                "key": str(r[0] or "unknown"),
+                "current": int(r[1] or 0),
+                "previous": int(r[2] or 0),
+                "delta": int(r[3] or 0),
+            }
+            for r in rows or []
+        ]
+
+        return ToolResult(
+            ok=True,
+            result={
+                "by": by,
+                "window_hours": window_hours,
+                "items": items,
+            },
+        )
+
     return ToolResult(ok=False, error="unknown_tool")
