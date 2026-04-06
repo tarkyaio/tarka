@@ -97,6 +97,7 @@ def investigation_to_json_dict(investigation: Investigation, *, mode: DumpMode =
     return {
         "alert": {
             "fingerprint": investigation.alert.fingerprint,
+            "source": investigation.alert.source,
             "labels": labels_compact,
             "core_labels": core_labels,
             "source_labels": source_labels,

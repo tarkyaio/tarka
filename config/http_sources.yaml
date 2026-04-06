@@ -1,0 +1,100 @@
+# http_sources.yaml — Generic HTTP source configuration for Tarka
+#
+# Set HTTP_SOURCE_CONFIG_FILE=/path/to/this/file to enable HTTP sources.
+#
+# Each source defines:
+#   - A unique id used in the webhook URL: POST /sources/{id}/ingest
+#   - Optional HMAC-SHA256 signature verification
+#   - A Jinja2 field_map that extracts values from the incoming JSON payload
+#
+# The template context exposes a single variable: `payload` — the parsed JSON body.
+# All standard Jinja2 filters are available (truncate, default, upper, select, etc.).
+#
+# Required fields:  fingerprint, alertname, status
+# Optional fields:  severity, summary, description, source_url, starts_at, ends_at
+#
+# `status` must render to "firing" or "resolved" (case-insensitive).
+
+sources:
+  # ---------------------------------------------------------------------------
+  # Example 1: Zendesk
+  #
+  # Webhook URL: POST https://your-tarka-host/sources/zendesk/ingest
+  #
+  # In Zendesk, create a Webhook under Admin → Apps & Integrations → Webhooks.
+  # Set the endpoint URL above, method POST, format JSON.
+  # Optionally set a signing secret and copy it to `secret` below.
+  # ---------------------------------------------------------------------------
+  - id: zendesk
+    name: "Zendesk Support"
+
+    # Optional: HMAC-SHA256 signature verification.
+    # If omitted, requests are accepted without verification (only use on private networks).
+    secret: "your-zendesk-signing-secret"
+    signature_header: "X-Zendesk-Webhook-Secret"
+    signature_prefix: ""  # Zendesk sends the raw hex digest with no prefix
+
+    field_map:
+      # Unique, stable identifier for this event — used for deduplication.
+      # Must not change across repeated webhook deliveries for the same ticket.
+      fingerprint: "{{ payload.ticket.id }}"
+
+      # Alert name shown in Tarka's case list.
+      alertname: "{{ payload.ticket.subject }}"
+
+      # Severity mapped from Zendesk priority → Tarka conventions.
+      severity: >-
+        {{ 'critical' if payload.ticket.priority == 'urgent'
+           else 'warning' if payload.ticket.priority == 'high'
+           else 'info' }}
+
+      # Short human-readable description (shown in the case summary).
+      summary: "{{ payload.ticket.subject }} [{{ payload.ticket.id }}]"
+
+      # Longer description (shown in case details).
+      description: "{{ payload.ticket.description | default('') | truncate(500) }}"
+
+      # Link back to the original ticket.
+      source_url: "{{ payload.ticket.url }}"
+
+      # When the event started (RFC3339). Tarka uses this to anchor evidence collection.
+      starts_at: "{{ payload.ticket.created_at }}"
+
+      # Firing vs resolved — Zendesk ticket statuses mapped to Tarka states.
+      status: >-
+        {{ 'resolved' if payload.ticket.status in ['solved', 'closed']
+           else 'firing' }}
+
+    # Static (or templated) labels added to every event from this source.
+    # These appear alongside Prometheus labels in the case view.
+    extra_labels:
+      source: "zendesk"
+      # Dynamically extract team from a Zendesk tag like "team-platform".
+      team: "{{ payload.ticket.tags | select('startswith', 'team-') | first | default('unknown') }}"
+
+  # ---------------------------------------------------------------------------
+  # Example 2: Generic JSON webhook (minimal config)
+  #
+  # Webhook URL: POST https://your-tarka-host/sources/generic/ingest
+  #
+  # Use this as a starting point for any system that sends JSON webhooks.
+  # No signature verification — suitable for internal networks only.
+  # ---------------------------------------------------------------------------
+  - id: generic
+    name: "Generic Webhook"
+
+    field_map:
+      fingerprint: "{{ payload.id }}"
+      alertname: "{{ payload.title }}"
+
+      # Simple string equality for status.
+      status: "{{ 'resolved' if payload.status == 'resolved' else 'firing' }}"
+
+      summary: "{{ payload.title }}"
+      description: "{{ payload.message | default('') }}"
+      source_url: "{{ payload.url | default('') }}"
+      starts_at: "{{ payload.created_at | default('') }}"
+      severity: "{{ payload.severity | default('warning') }}"
+
+    extra_labels:
+      source: "generic"

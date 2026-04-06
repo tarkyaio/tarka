@@ -223,6 +223,7 @@ def run_investigation(
         ends_at=alert.get("ends_at"),
         generator_url=alert.get("generator_url"),
         state=(alert.get("status") or {}).get("state") if isinstance(alert.get("status"), dict) else None,
+        source=alert.get("source"),
     )
     norm_state, ends_kind = _normalize_alert_state(alert_model.state)
     alert_model.normalized_state = norm_state
