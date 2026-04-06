@@ -15,16 +15,6 @@
   justify-content: center;
 }
 
-.avatar {
-  width: 40px; /* size-10 */
-  height: 40px;
-  border-radius: 999px; /* rounded-full */
-  background-color: #e2e8f0; /* slate-200 */
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
-}
-
 .userText {
   display: flex;
   flex-direction: column;

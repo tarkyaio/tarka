@@ -40,3 +40,15 @@ export function fingerprint7(s: string): string {
   if (alnum.length >= 7) return alnum.slice(0, 7);
   return alnum || "—";
 }
+
+export function fmtTokens(n?: number | null): string {
+  if (n == null) return "—";
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
+export function fmtCost(usd?: number | null): string {
+  if (usd == null) return "—";
+  if (usd < 0.001) return "<$0.001";
+  return `$${usd.toFixed(3)}`;
+}

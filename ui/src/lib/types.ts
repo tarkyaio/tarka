@@ -24,6 +24,9 @@ export type InboxRow = {
   confidence_score?: number | null;
   noise_score?: number | null;
 
+  llm_total_tokens?: number | null;
+  llm_cost_usd?: number | null;
+
   effective_status?: "firing" | "resolved" | "stale" | "snoozed" | null;
   latest_alert_state?: string | null;
   run_count?: number | null;

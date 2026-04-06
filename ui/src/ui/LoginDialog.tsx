@@ -79,7 +79,7 @@ export function LoginDialog({
           {showOIDC && authModeConfig.oidcProvider ? (
             <>
               <button
-                className={`uiBtn uiBtnPrimary ${styles.primaryBtn} ${styles.oidcBtn}`}
+                className={`${styles.primaryBtn} ${styles.oidcBtn}`}
                 type="button"
                 disabled={loading}
                 onClick={handleOIDCLogin}
@@ -156,7 +156,7 @@ export function LoginDialog({
               ) : null}
 
               <button
-                className={`uiBtn uiBtnPrimary ${styles.primaryBtn}`}
+                className={`${styles.primaryBtn}`}
                 type="button"
                 disabled={loginPending || loading || !username.trim() || !password}
                 onClick={handleLocalLogin}

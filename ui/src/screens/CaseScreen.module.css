@@ -5,7 +5,7 @@
 }
 
 .caseHeader {
-  padding: 10px 0;
+  padding: 8px 0;
 }
 
 .crumbs {
@@ -13,24 +13,27 @@
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .crumbLink:hover {
   text-decoration: underline;
+  color: var(--text);
 }
 
 .crumbSep {
-  color: rgba(100, 116, 139, 0.55);
+  color: var(--muted-2);
 }
 
 .crumbCurrent {
   color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: 11px;
 }
 
 .caseTitle {
-  margin-top: 10px;
-  font-size: 28px;
+  margin-top: 8px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.3px;
 }
@@ -53,33 +56,354 @@
   align-items: start;
 }
 
-.markdown {
+/* ── Report layout ── */
+.reportWrap {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.reportWrapDocked {
+  grid-column: 1 / 2;
+  max-width: min(920px, calc(100vw - 588px));
+  margin: 0;
+}
+
+.chatDockCol {
+  grid-column: 2 / 3;
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+
+/* ── Report card ── */
+.reportCard {
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-dark);
+  background: var(--surface-dark);
+  box-shadow: var(--shadow-xs);
+}
+
+.reportCardReady {
+  animation: reportFadeIn 200ms ease-out;
+}
+
+@keyframes reportFadeIn {
+  from {
+    opacity: 0.6;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reportCardLoading {
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-dark);
+  background: var(--surface-dark);
+}
+
+/* ── Skeleton ── */
+.skel {
+  display: inline-block;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--surface-dark-2),
+    var(--hover-dark),
+    var(--surface-dark-2)
+  );
+  background-size: 220% 100%;
+  animation: skelShimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skelShimmer {
+  0% {
+    background-position: 180% 0;
+  }
+  100% {
+    background-position: -40% 0;
+  }
+}
+
+.skelPill {
+  width: 110px;
+  height: 24px;
+  border-radius: 999px;
+}
+.skelChip {
+  width: 88px;
+  height: 14px;
+  border-radius: 6px;
+}
+.skelTitle {
+  width: min(700px, 92%);
+  height: 32px;
+  border-radius: 10px;
+}
+.skelSubtitle {
+  margin-top: 10px;
+  width: min(540px, 88%);
+  height: 16px;
+  border-radius: 8px;
+}
+.skelBtn {
+  width: 90px;
+  height: 34px;
+  border-radius: 8px;
+}
+.skelIcon {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+}
+.skelSectionTitle {
+  width: 130px;
+  height: 16px;
+  border-radius: 8px;
+}
+.skelBlock {
+  width: 100%;
+  height: 68px;
+  border-radius: 12px;
+}
+
+/* ── Report header ── */
+.reportHeader {
+  padding: 28px 32px 24px;
+  border-bottom: 1px solid var(--border-dark);
+  background: var(--surface-dark);
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.reportHeaderLeft {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.reportMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.metaText {
+  color: var(--muted);
+  font-size: 13px;
+  font-family: var(--mono);
+}
+
+.costBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  background: rgba(22, 163, 74, 0.08);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #16a34a;
+  white-space: nowrap;
+}
+
+.costBadge span[class*="material"] {
+  font-size: 13px;
+  color: #16a34a;
+}
+
+.costUsd {
+  margin-left: 3px;
+}
+
+/* ── Report title — editorial centrepiece ── */
+.reportTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-strong);
+}
+
+.reportTitleRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.reportTitleLine {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.teamBadge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--primary-border);
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  font-weight: 600;
+  font-size: 10px;
+  font-family: var(--font);
+  white-space: nowrap;
+  position: relative;
+  top: -4px;
+}
+
+.reportSubtitle {
+  margin-top: 10px;
+  font-size: 15px;
   line-height: 1.6;
+  color: var(--muted);
+}
+
+.subtitleText {
+  color: var(--muted);
+}
+
+.subtitleMuted {
+  color: var(--muted-2);
+}
+
+.reportHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.resolveBtn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  background: var(--text);
+  color: var(--surface-dark);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: none;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+  white-space: nowrap;
+}
+
+.resolveBtn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.resolveBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.printBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-dark);
+  box-shadow: var(--shadow-xs);
+}
+
+.printBtn:hover {
+  background: var(--hover-dark);
+}
+
+/* ── Report body ── */
+.reportBody {
+  padding: 32px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+.section {
+  min-width: 0;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border-dark);
+  padding-bottom: 8px;
+  margin-bottom: 20px;
+}
+
+/* ── Markdown ── */
+.markdown {
+  line-height: 1.8;
+  font-size: 15px;
 }
 
 .markdown :where(h1, h2, h3) {
-  margin: 14px 0 8px;
+  font-family: var(--font);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+  margin: 20px 0 10px;
+}
+
+.markdown h1 {
+  font-size: 24px;
+}
+.markdown h2 {
+  font-size: 20px;
+}
+.markdown h3 {
+  font-size: 17px;
 }
 
 .markdown :where(p) {
-  margin: 8px 0;
+  margin: 10px 0;
+  color: var(--text-body);
 }
 
 .markdown code {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 12px;
   background: var(--surface-dark-2);
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--text-default);
+  border: 1px solid var(--border-subtle);
 }
 
 .markdown pre {
   background: var(--surface-dark-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 14px;
-  margin: 10px 0;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin: 12px 0;
   overflow: auto;
   line-height: 1.6;
 }
@@ -88,7 +412,7 @@
   background: transparent;
   border: none;
   padding: 0;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-default);
   display: block;
   white-space: pre;
@@ -118,320 +442,12 @@
   margin: 0 !important;
 }
 
-/* Report layout (reference: stitch_incident_inbox 2) */
-.reportWrap {
-  grid-column: 1 / -1;
-  width: 100%;
-  max-width: 920px;
-  margin: 0 auto;
-}
-
-/*
- * Docked mode layout constraints:
- * - Report max-width ensures comfortable reading experience
- * - Single-column grid allows chat (positioned fixed) to use remaining space
- * - Chat width calculation in AssistantChatWidget.module.css accounts for this
- *
- * Responsive width calculation:
- * Available space = 100vw - sidebar(72) - padding-left(24) - padding-right(24)
- *                   - chat-min-width(420) - gaps(48)
- *                 = 100vw - 588px
- *
- * At 1280px: 692px available (< 920px target)
- * At 1484px: 896px available (~ 920px target)
- * At 1600px+: 920px max (comfortable reading width)
- */
-.reportWrapDocked {
-  grid-column: 1 / 2;
-  /* Dynamically shrink to avoid chat overlap on smaller viewports */
-  max-width: min(920px, calc(100vw - 588px));
-  margin: 0;
-}
-
-.chatDockCol {
-  grid-column: 2 / 3;
-  position: sticky;
-  top: 0;
-  align-self: start;
-}
-
-.reportCard {
-  overflow: hidden;
-}
-
-.reportCardReady {
-  animation: reportFadeIn 180ms ease-out;
-}
-
-@keyframes reportFadeIn {
-  from {
-    opacity: 0.65;
-    transform: translateY(2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.reportCardLoading {
-  overflow: hidden;
-}
-
-.skel {
-  display: inline-block;
-  border-radius: 10px;
-  background: linear-gradient(
-    90deg,
-    rgba(148, 163, 184, 0.18),
-    rgba(148, 163, 184, 0.32),
-    rgba(148, 163, 184, 0.18)
-  );
-  background-size: 220% 100%;
-  animation: skelShimmer 1.2s ease-in-out infinite;
-}
-
-@keyframes skelShimmer {
-  0% {
-    background-position: 180% 0;
-  }
-  100% {
-    background-position: -40% 0;
-  }
-}
-
-.skelPill {
-  width: 118px;
-  height: 26px;
-  border-radius: 999px;
-}
-
-.skelChip {
-  width: 90px;
-  height: 16px;
-  border-radius: 8px;
-}
-
-.skelTitle {
-  width: min(720px, 92%);
-  height: 34px;
-  border-radius: 12px;
-}
-
-.skelSubtitle {
-  margin-top: 10px;
-  width: min(560px, 88%);
-  height: 18px;
-  border-radius: 10px;
-}
-
-.skelBtn {
-  width: 96px;
-  height: 38px;
-  border-radius: 12px;
-}
-
-.skelIcon {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-}
-
-.skelSectionTitle {
-  width: 140px;
-  height: 18px;
-  border-radius: 10px;
-}
-
-.skelBlock {
-  width: 100%;
-  height: 72px;
-  border-radius: 14px;
-}
-
-.reportHeader {
-  padding: 28px 28px;
-  border-bottom: 1px solid var(--border-dark);
-  background: var(--surface-dark);
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: flex-start;
-}
-
-.reportHeaderLeft {
-  flex: 1 1 auto;
-  min-width: 0; /* allow children to shrink/wrap instead of clipping (flexbox gotcha) */
-}
-
-.reportMetaRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
-
-.metaText {
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.costBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(34, 197, 94, 0.22);
-  background: rgba(34, 197, 94, 0.1);
-  font-size: 12px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: #16a34a;
-  white-space: nowrap;
-}
-
-.costBadge span[class*="material"] {
-  font-size: 14px;
-  color: #16a34a;
-}
-
-.costUsd {
-  margin-left: 4px;
-}
-
-.reportTitle {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  font-size: 28px;
-  line-height: 1.15;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text);
-}
-
-.reportTitleRow {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-}
-
-.reportTitleLine {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.teamBadge {
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  border: 1px solid var(--primary-border);
-  background: var(--primary-bg);
-  color: var(--primary-text);
-  font-weight: 600;
-  font-size: 11px;
-  white-space: nowrap;
-  position: relative;
-  top: -6px; /* float slightly above title baseline */
-}
-
-.reportSubtitle {
-  margin-top: 8px;
-  font-size: 16px;
-  color: var(--muted);
-}
-
-.subtitleText {
-  color: var(--muted);
-}
-
-.subtitleMuted {
-  color: var(--muted-2);
-}
-
-.reportHeaderRight {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.resolveBtn {
-  height: 34px;
-  padding: 0 16px;
-  border-radius: 10px;
-  background: #0f172a;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 650;
-  letter-spacing: 0.01em;
-  border: none;
-  cursor: pointer;
-  transition: background 120ms ease;
-  white-space: nowrap;
-}
-
-.resolveBtn:hover:not(:disabled) {
-  background: #1e293b;
-}
-
-.resolveBtn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.printBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 14px;
-  border-radius: 12px;
-  background: var(--surface-dark);
-  box-shadow: var(--shadow-xs);
-}
-
-.printBtn:hover {
-  background: var(--hover-dark);
-}
-
-.reportBody {
-  padding: 28px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-.section {
-  min-width: 0;
-}
-
-.sectionTitle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 16px;
-  font-weight: 650;
-  color: var(--text);
-  border-bottom: 1px solid var(--border-dark);
-  padding-bottom: 10px;
-  margin-bottom: 18px;
-}
-
+/* ── Callout ── */
 .callout {
   display: flex;
   gap: 12px;
   padding: 16px 18px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--primary-border-soft);
   background: var(--primary-bg-soft);
   margin-bottom: 14px;
@@ -450,9 +466,9 @@
 }
 
 .calloutText {
-  margin-top: 6px;
+  margin-top: 5px;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
   color: var(--text-body);
 }
 
@@ -460,40 +476,45 @@
   color: var(--muted);
 }
 
+/* ── Meta grid ── */
 .metaGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  gap: 16px;
 }
 
 .metaLabel {
   color: var(--muted);
-  font-size: 12px;
-  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
 }
 
 .metaValue {
   color: var(--text-strong);
-  font-weight: 650;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: 13px;
 }
 
+/* ── Evidence ── */
 .evidenceStack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .codeBox {
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--surface-dark);
 }
 
 .codeBoxHead {
-  background: var(--hover-dark);
-  padding: 10px 12px;
+  background: var(--surface-dark-2);
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -503,35 +524,36 @@
 
 .codeBoxName {
   font-family: var(--mono);
-  font-size: 12px;
-  color: var(--text-faint);
-  font-weight: 650;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .codeBoxSource {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted-2);
 }
 
 .codeBoxBody {
   margin: 0;
-  padding: 16px 18px;
+  padding: 14px 16px;
   font-family: var(--mono);
   font-size: 12px;
   color: var(--text-default);
   overflow: auto;
   background: var(--surface-dark);
+  line-height: 1.6;
 }
 
 .evidenceList {
   margin: 0;
-  padding-left: 22px;
+  padding-left: 20px;
   color: var(--text-body);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.8;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .evidenceMuted {
@@ -540,7 +562,8 @@
 
 .verdictText {
   color: var(--text-body);
-  line-height: 1.65;
+  line-height: 1.8;
+  font-size: 14px;
 }
 
 .mutedBlock {
@@ -548,56 +571,63 @@
   margin: 0;
 }
 
+/* ── Next steps ── */
 .nextSteps {
   margin-top: 12px;
   border: 1px solid var(--border-dark);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--surface-dark-2);
-  padding: 16px 18px;
+  padding: 14px 16px;
 }
 
 .nextStepsTitle {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-strong);
-  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
 }
 
 .nextStepsList {
   margin: 0;
-  padding-left: 22px;
+  padding-left: 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   color: var(--text-body);
+  font-size: 14px;
+  line-height: 1.7;
 }
 
+/* ── Scores ── */
 .scoresGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 10px;
 }
 
 .scoreCard {
-  padding: 14px 14px;
-  border-radius: 12px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
   background: var(--surface-dark-2);
   border: 1px solid var(--border-dark);
 }
 
 .scoreLabel {
-  color: var(--muted-2);
-  letter-spacing: 0.14em;
+  color: var(--muted);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10px;
   margin-bottom: 8px;
 }
 
 .scoreValue {
-  font-size: 24px;
+  font-family: var(--mono);
+  font-size: 22px;
   line-height: 1.1;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-strong);
 }
 
@@ -609,7 +639,6 @@
   overflow: hidden;
 }
 
-/* Confidence: high=green, mid=amber, low=red */
 .scoreValue_confidence_high {
   color: var(--green);
 }
@@ -623,7 +652,6 @@
   color: var(--text-tertiary);
 }
 
-/* Impact: high=red, mid=amber, low=green */
 .scoreValue_impact_high {
   color: var(--red);
 }
@@ -637,7 +665,6 @@
   color: var(--text-tertiary);
 }
 
-/* Noise: high=red, mid=amber, low=green (high noise is bad) */
 .scoreValue_noise_high {
   color: var(--red);
 }
@@ -652,18 +679,19 @@
 }
 
 .scoreHint {
-  margin-top: 6px;
+  margin-top: 5px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
+/* ── Timeline ── */
 .timeline {
   position: relative;
   border-left: 2px solid var(--border-dark);
   padding-left: 16px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 .timelineItem {
@@ -674,8 +702,8 @@
   position: absolute;
   left: -22px;
   top: 5px;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   background: var(--primary);
   border: 2px solid var(--surface-dark);
@@ -687,42 +715,45 @@
 
 .timelineRow {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: baseline;
   flex-wrap: wrap;
 }
 
 .timelineTime {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-strong);
+  font-family: var(--mono);
 }
 
 .timelineText {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
 }
 
+/* ── Enrichment ── */
 .enrichment {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .enrichmentSummary {
   color: var(--text-default);
-  line-height: 1.6;
+  line-height: 1.8;
+  font-size: 14px;
 }
 
 .enrichmentBlock {
   border: 1px solid var(--border-dark);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--surface-dark-2);
-  padding: 16px 18px;
+  padding: 14px 16px;
 }
 
 .enrichmentTitle {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-strong);
   margin-bottom: 8px;
@@ -730,16 +761,19 @@
 
 .enrichmentList {
   margin: 0;
-  padding-left: 22px;
+  padding-left: 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   color: var(--text-body);
+  font-size: 14px;
+  line-height: 1.7;
 }
 
+/* ── Raw details ── */
 .rawDetails {
   border: 1px solid var(--border-dark);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--surface-dark);
   overflow: hidden;
 }
@@ -747,9 +781,10 @@
 .rawSummary {
   cursor: pointer;
   user-select: none;
-  padding: 16px 18px;
+  padding: 12px 16px;
   color: var(--primary-text);
   font-weight: 600;
+  font-size: 13px;
   background: var(--surface-dark-2);
   border-bottom: 1px solid var(--border-dark);
 }
@@ -762,9 +797,10 @@
   padding: 16px 18px;
 }
 
+/* ── Memory ── */
 .memoryMarkdown {
   border: 1px solid var(--border-dark);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--surface-dark);
   padding: 16px 18px;
 }
@@ -775,9 +811,10 @@
 
 .memoryMarkdown :where(ul) {
   margin: 8px 0;
-  padding-left: 22px;
+  padding-left: 20px;
 }
 
+/* ── Chat (legacy, pre-widget) ── */
 .chatWrap {
   display: flex;
   flex-direction: column;
@@ -786,7 +823,7 @@
 
 .chatTranscript {
   border: 1px solid var(--border-dark);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   padding: 10px;
   background: var(--surface-dark-2);
   min-height: 120px;
@@ -800,17 +837,17 @@
 }
 
 .chatRole {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
   margin-bottom: 4px;
 }
 
 .chatBubble {
   white-space: pre-wrap;
-  font-size: 14px;
-  line-height: 1.4;
+  font-size: 13px;
+  line-height: 1.5;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--surface-dark);
   border: 1px solid var(--border-dark);
 }
@@ -829,7 +866,7 @@
 .chatInput {
   flex: 1;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-dark);
   background: var(--surface-dark);
   color: var(--text);
@@ -845,6 +882,7 @@
   white-space: nowrap;
 }
 
+/* ── Resolve popover ── */
 .resolvePopoverWrap {
   position: relative;
 }
@@ -856,10 +894,10 @@
   z-index: 50;
   width: 280px;
   padding: 16px;
-  border-radius: 14px;
+  border-radius: var(--radius);
   border: 1px solid var(--border-dark);
-  background: var(--surface);
-  box-shadow: var(--shadow-md, 0 8px 24px rgba(0, 0, 0, 0.12));
+  background: var(--surface-dark);
+  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -874,23 +912,26 @@
 .resolveField {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .resolveLabel {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .resolveInput,
 .resolveSelect {
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-dark);
   background: var(--surface-dark);
   color: var(--text);
   outline: none;
+  font-size: 13px;
 }
 
 .resolveInput:focus,
@@ -904,12 +945,12 @@
   justify-content: flex-end;
 }
 
-/* Resolution (learning loop) */
+/* ── Resolution / learning loop ── */
 .resolutionCard {
   border: 1px solid var(--border-dark);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--surface-dark-2);
-  padding: 16px 18px;
+  padding: 14px 16px;
 }
 
 .resolutionHeaderRow {
@@ -938,21 +979,21 @@
 .resolutionBadge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 22px;
-  padding: 0 10px;
+  gap: 5px;
+  height: 20px;
+  padding: 0 8px;
   border-radius: 999px;
-  border: 1px solid rgba(34, 197, 94, 0.22);
-  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  background: rgba(22, 163, 74, 0.08);
   color: rgba(22, 101, 52, 0.98);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 
 .resolutionDot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 999px;
   background: var(--green);
 }
@@ -960,40 +1001,40 @@
 .resolutionMethodBadge {
   display: inline-flex;
   align-items: center;
-  height: 22px;
-  padding: 0 10px;
+  height: 20px;
+  padding: 0 8px;
   border-radius: 999px;
-  border: 1px solid rgba(109, 40, 217, 0.22);
-  background: rgba(109, 40, 217, 0.08);
+  border: 1px solid rgba(109, 40, 217, 0.2);
+  background: rgba(109, 40, 217, 0.07);
   color: #6d28d9;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
 }
 
 .resolutionCategoryPill {
   display: inline-flex;
   align-items: center;
-  height: 22px;
-  padding: 0 10px;
+  height: 20px;
+  padding: 0 8px;
   border-radius: 999px;
   border: 1px solid var(--border-dark);
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--surface-dark);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: lowercase;
 }
 
 .resolutionMeta {
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .resolutionLink {
   color: var(--primary-text);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .resolutionLink:hover {
@@ -1002,7 +1043,7 @@
 
 .resolutionSummary {
   color: var(--text-body);
-  line-height: 1.6;
+  line-height: 1.7;
   font-size: 13px;
 }
 
@@ -1020,9 +1061,10 @@
   margin-top: 4px;
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
+/* ── Actions ── */
 .actionsBlock {
   display: flex;
   flex-direction: column;
@@ -1032,7 +1074,7 @@
 .actionsHint {
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .actionsSubsection {
@@ -1042,9 +1084,9 @@
 }
 
 .actionsSubTitle {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.08em;
   color: var(--muted);
   text-transform: uppercase;
 }
@@ -1052,7 +1094,7 @@
 .actionsList {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .actionRow {
@@ -1060,8 +1102,8 @@
   grid-template-columns: 1fr auto;
   gap: 12px;
   align-items: start;
-  padding: 16px 18px;
-  border-radius: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-dark);
   background: var(--surface-dark);
 }
@@ -1069,7 +1111,7 @@
 .actionMain {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .actionTitle {
@@ -1077,17 +1119,18 @@
   flex-wrap: wrap;
   gap: 8px;
   font-weight: 600;
+  font-size: 13px;
   color: var(--text);
 }
 
 .actionStatus {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 999px;
   border: 1px solid var(--border-dark);
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.02);
+  background: transparent;
 }
 
 .actionRisk {
@@ -1097,82 +1140,79 @@
 }
 
 .actionMeta {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
 }
 
 .actionBtns {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   justify-content: flex-end;
 }
 
-/* RCA (Root Cause Analysis) section styling */
+/* ── RCA ── */
 .rcaStatusBadge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 3px 9px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   margin-bottom: 12px;
 }
 
 .rcaStatusOk {
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.22);
+  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.2);
   color: rgba(22, 101, 52, 0.98);
 }
 
 .rcaStatusBlocked {
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.22);
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.2);
   color: rgba(120, 53, 15, 0.98);
 }
 
-/* Root cause callout - prominent display */
 .rcaRootCause {
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(239, 68, 68, 0.22);
-  background: rgba(239, 68, 68, 0.08);
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  background: rgba(220, 38, 38, 0.06);
   margin-bottom: 16px;
 }
 
 .rcaRootCauseTitle {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-strong);
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 
 .rcaRootCauseText {
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
   color: var(--text-default);
 }
 
-/* Confidence indicator */
 .rcaConfidence {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: 5px;
+  font-size: 12px;
   color: var(--muted);
   margin-bottom: 12px;
 }
 
-/* Evidence, remediation, unknowns lists */
 .rcaList {
   margin: 0;
-  padding-left: 22px;
+  padding-left: 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   color: var(--text-body);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .rcaSubsection {
@@ -1180,15 +1220,15 @@
 }
 
 .rcaSubsectionTitle {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-strong);
   margin-bottom: 8px;
 }
 
-/* Material symbols styling (scoped) */
+/* ── Icons ── */
 .materialIcon {
-  font-size: 20px;
+  font-size: 18px;
   color: var(--primary);
   font-variation-settings:
     "FILL" 0,
@@ -1205,29 +1245,33 @@
     "opsz" 24;
 }
 
+/* ── Error / empty ── */
 .errorCard {
-  padding: 14px 16px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 77, 94, 0.2);
-  background: rgba(255, 77, 94, 0.08);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  background: rgba(220, 38, 38, 0.06);
 }
 
 .errorTitle {
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 13px;
 }
 
 .errorDetail {
-  margin-top: 6px;
+  margin-top: 4px;
   color: var(--text-tertiary);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .empty {
-  padding: 14px 16px;
+  padding: 12px 16px;
   color: var(--muted);
+  font-size: 13px;
 }
 
+/* ── Responsive ── */
 @media (max-width: 1100px) {
   .caseGrid {
     grid-template-columns: 1fr;
@@ -1241,6 +1285,10 @@
   .reportHeader {
     flex-direction: column;
     align-items: stretch;
+    padding: 20px 20px;
+  }
+  .reportBody {
+    padding: 24px 20px;
   }
   .reportHeaderRight {
     justify-content: flex-start;

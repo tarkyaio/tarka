@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   display: grid;
-  grid-template-columns: 256px 1fr;
+  grid-template-columns: 200px 1fr;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
@@ -52,17 +52,17 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: rgba(19, 91, 236, 0.1);
+  background: var(--primary-bg);
   color: var(--primary);
   display: grid;
   place-items: center;
 }
 
 .brandTitle {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.1;
-  letter-spacing: 0.2px;
+  letter-spacing: -0.01em;
 }
 
 .brandSub {
@@ -106,9 +106,9 @@
 }
 
 .navItemActive {
-  background: rgba(19, 91, 236, 0.1);
+  background: var(--primary-bg);
   color: var(--primary);
-  border: 1px solid rgba(19, 91, 236, 0.2);
+  border: 1px solid var(--primary-border);
 }
 
 .navItemDisabled {
@@ -210,8 +210,14 @@
   padding: 8px 12px;
   border-radius: 8px;
   background: var(--hover-dark);
-  border: none;
+  border: 1px solid transparent;
   height: 40px;
+  transition: border-color 120ms ease;
+}
+
+.topSearch:focus-within {
+  border-color: var(--primary-border);
+  background: var(--surface-dark);
 }
 
 .topSearchIcon {
@@ -222,9 +228,15 @@
   background: transparent;
   border: none;
   outline: none;
+  box-shadow: none;
   color: var(--text);
   flex: 1;
   font-size: 14px;
+}
+
+.topSearchInput:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .topSearchInput::placeholder {
@@ -274,64 +286,66 @@
 }
 
 .helpBtnActive {
-  background: var(--primary) !important;
-  color: #ffffff !important;
+  background: var(--primary-bg) !important;
+  color: var(--primary) !important;
 }
 
 .helpBtnActive:hover:not(:disabled) {
-  background: #0f4fd4 !important;
-  color: #ffffff !important;
+  background: var(--hover-dark) !important;
+  color: var(--primary) !important;
 }
 
 .helpPopover {
   position: fixed;
   z-index: 60;
-  width: 320px;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.14);
+  width: 240px;
+  background: var(--surface-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
   overflow: hidden;
 }
 
 .helpPopoverHeader {
-  padding: 14px 20px 10px;
+  padding: 10px 14px 8px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--muted-2);
-  letter-spacing: 0.14em;
+  color: var(--text-faint);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  border-bottom: none;
-  background: transparent;
+  border-bottom: 1px solid var(--border-dark);
 }
 
 .helpPopoverItem {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   width: 100%;
-  padding: 14px 20px;
+  padding: 9px 14px;
   border: none;
   background: transparent;
-  color: var(--text);
+  color: var(--text-secondary);
   cursor: pointer;
   text-align: left;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
+  transition:
+    background 80ms ease,
+    color 80ms ease;
 }
 
 .helpPopoverItem:hover {
-  background: rgba(15, 23, 42, 0.04);
-}
-
-.helpPopoverItem:last-child {
-  border-radius: 0 0 20px 20px;
+  background: var(--hover-dark);
+  color: var(--text);
 }
 
 .helpPopoverLabel {
   flex: 1;
+}
+
+.helpPopover .materialIcon {
+  font-size: 16px;
+  color: var(--muted-2);
 }
 
 .notifyWrap {
