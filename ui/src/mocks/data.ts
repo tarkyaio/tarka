@@ -1,5 +1,6 @@
 import type {
   CaseDetailResponse,
+  ExecOverviewResponse,
   InboxResponse,
   InvestigationRunDetailResponse,
 } from "../lib/types";
@@ -213,6 +214,169 @@ export function mockCaseDetail(caseId: string): CaseDetailResponse {
       },
       ...extraRuns,
     ],
+  };
+}
+
+export function mockExecOverview(): ExecOverviewResponse {
+  // Build daily trend for last 30 days
+  const daily = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000);
+    const day = d.toISOString().slice(0, 10);
+    const base = 3 + Math.floor(Math.sin(i / 3) * 2 + Math.random() * 3);
+    return { day, incidents_created: base, impact_median: 45 + Math.floor(Math.random() * 40) };
+  });
+
+  const mttrWeekly = Array.from({ length: 4 }, (_, i) => {
+    const d = new Date(Date.now() - (3 - i) * 7 * 24 * 60 * 60 * 1000);
+    const week = d.toISOString().slice(0, 10);
+    return { week, mttr_hours_median: 1.2 + i * 0.3, resolved_count: 8 + i * 3 };
+  });
+
+  const costDaily = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000);
+    return { day: d.toISOString().slice(0, 10), cost_usd: 0.08 + Math.random() * 0.12 };
+  });
+
+  return {
+    risk: {
+      active_count: 14,
+      active_high_impact_count: 4,
+      stale_investigation_count: 2,
+      oldest_active_created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      top_active: [
+        {
+          incident_id: "case_3920_11111111-1111-1111-1111-111111111111",
+          created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+          one_liner: "High Latency on Payment Gateway",
+          alertname: "HttpLatencyHigh",
+          team: "Payments",
+          service: "Payments-Svc",
+          family: "http_latency",
+          impact_score: 98,
+          confidence_score: 85,
+        },
+        {
+          incident_id: "case_3915_55555555-5555-5555-5555-555555555555",
+          created_at: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
+          one_liner: "Database Connection Timeout",
+          alertname: "DBConnectionTimeout",
+          team: "Platform",
+          service: "User-DB",
+          family: "database",
+          impact_score: 92,
+          confidence_score: 90,
+        },
+        {
+          incident_id: "case_3918_33333333-3333-3333-3333-333333333333",
+          created_at: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
+          one_liner: "Error Rate Spike in Auth Service",
+          alertname: "Http5xxRateHigh",
+          team: "Identity",
+          service: "Auth-Service",
+          family: "http_5xx",
+          impact_score: 75,
+          confidence_score: 60,
+        },
+      ],
+    },
+    trends: {
+      daily,
+      mttr_weekly: mttrWeekly,
+    },
+    focus: {
+      top_teams: [
+        { team: "Payments", active_count: 4, high_impact_count: 2, total_impact: 320 },
+        { team: "Platform", active_count: 3, high_impact_count: 2, total_impact: 280 },
+        { team: "Identity", active_count: 3, high_impact_count: 1, total_impact: 195 },
+        { team: "Search", active_count: 2, high_impact_count: 0, total_impact: 110 },
+        { team: "Media", active_count: 2, high_impact_count: 0, total_impact: 80 },
+      ],
+      top_drivers: [
+        { driver: "high_error_rate", active_count: 5, high_impact_count: 3, total_impact: 415 },
+        { driver: "latency_spike", active_count: 4, high_impact_count: 2, total_impact: 310 },
+        { driver: "memory_pressure", active_count: 3, high_impact_count: 1, total_impact: 185 },
+        { driver: "image_pull_backoff", active_count: 2, high_impact_count: 1, total_impact: 140 },
+        { driver: "queue_backlog", active_count: 2, high_impact_count: 0, total_impact: 70 },
+      ],
+      top_services: [
+        {
+          service: "Payments-Svc",
+          incident_count: 4,
+          unique_alert_types: 3,
+          median_impact: 88,
+          change_correlated_count: 2,
+        },
+        {
+          service: "User-DB",
+          incident_count: 3,
+          unique_alert_types: 2,
+          median_impact: 82,
+          change_correlated_count: 1,
+        },
+        {
+          service: "Auth-Service",
+          incident_count: 3,
+          unique_alert_types: 2,
+          median_impact: 71,
+          change_correlated_count: 0,
+        },
+        {
+          service: "Search-API",
+          incident_count: 2,
+          unique_alert_types: 2,
+          median_impact: 60,
+          change_correlated_count: 1,
+        },
+        {
+          service: "Media-Worker",
+          incident_count: 2,
+          unique_alert_types: 1,
+          median_impact: 38,
+          change_correlated_count: 0,
+        },
+      ],
+    },
+    recurrence: {
+      rate: 0.22,
+      top: [
+        { incident_key: "HttpLatencyHigh/payments", count: 6 },
+        { incident_key: "DBConnectionTimeout/users", count: 4 },
+        { incident_key: "Http5xxRateHigh/auth", count: 3 },
+      ],
+    },
+    ai: {
+      ttfa_median_seconds: 47,
+      ttfa_p90_seconds: 112,
+      confidence_ge_70_pct: 74,
+      gaps_pct: { missing_one_liner: 4, missing_team: 11, missing_family: 7 },
+    },
+    signal: {
+      total_runs: 143,
+      actionable: 68,
+      noisy: 42,
+      informational: 22,
+      unclassified: 11,
+      actionable_pct: 48,
+      change_correlated_count: 19,
+      change_correlated_pct: 13,
+    },
+    savings: {
+      total_runs: 143,
+      high_conf_runs: 98,
+      low_conf_runs: 45,
+      actionable_runs: 68,
+      deflected_runs: 98,
+      hours_saved: 32.7,
+      cost_saved_usd: 4905,
+      triage_minutes_assumed: 20,
+      hourly_rate_usd_assumed: 150,
+    },
+    cost: {
+      total_usd: costDaily.reduce((s, d) => s + d.cost_usd, 0),
+      avg_per_run_usd: 0.0215,
+      total_runs: 143,
+      daily: costDaily,
+    },
   };
 }
 
