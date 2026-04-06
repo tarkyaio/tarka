@@ -13,7 +13,7 @@
  * - error: Error occurred during streaming
  */
 
-import type { ChatToolEvent } from "./types";
+import type { ChatToolEvent, ChatUsage } from "./types";
 
 export interface StreamingChatCallbacks {
   onThinking?: (content: string) => void;
@@ -21,7 +21,7 @@ export interface StreamingChatCallbacks {
   onToolStart?: (tool: string, content: string) => void;
   onToolEnd?: (tool: string, outcome: string, content: string) => void;
   onToken?: (token: string) => void;
-  onDone?: (reply: string, toolEvents: ChatToolEvent[]) => void;
+  onDone?: (reply: string, toolEvents: ChatToolEvent[], usage?: ChatUsage | null) => void;
   onError?: (error: string) => void;
 }
 
@@ -125,7 +125,8 @@ export function useStreamingChat() {
                   case "done":
                     callbacks.onDone?.(
                       replyBuffer,
-                      (data.metadata?.tool_events as ChatToolEvent[]) || []
+                      (data.metadata?.tool_events as ChatToolEvent[]) || [],
+                      (data.metadata?.usage as ChatUsage | null | undefined) ?? null
                     );
                     break;
 

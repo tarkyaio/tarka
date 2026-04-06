@@ -588,6 +588,10 @@ def process_alerts(
 
 app = FastAPI(title="Tarka Alertmanager webhook")
 
+# ---- Executive / leadership dashboard endpoints ----
+from agent.console_api import router as _console_router  # noqa: E402
+
+app.include_router(_console_router)
 
 # ---- Console authentication (public UI hardening) ----
 _OAUTH_COOKIE_PATH = "/api/auth"

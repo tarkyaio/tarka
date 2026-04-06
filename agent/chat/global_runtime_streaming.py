@@ -25,7 +25,7 @@ from agent.chat.intents import try_handle_global_intents
 from agent.chat.tool_summaries import compact_args_for_prompt, summarize_tool_result, tool_call_key
 from agent.chat.types import ChatMessage, ChatToolEvent
 from agent.graphs.tracing import trace_tool_call
-from agent.llm.client import generate_json
+from agent.llm.client import estimate_cost_usd, generate_json
 from agent.llm.client_streaming import stream_text_response
 from agent.llm.schemas import ToolPlanResponse
 
@@ -44,7 +44,7 @@ class GlobalChatStreamEvent:
 
 def _allowed_tools() -> List[str]:
     """Get list of available global tools."""
-    return ["cases.count", "cases.top", "cases.lookup", "cases.summary"]
+    return ["cases.count", "cases.top", "cases.lookup", "cases.summary", "exec.overview"]
 
 
 def _get_global_tool_start_message(tool: str) -> str:
@@ -54,6 +54,7 @@ def _get_global_tool_start_message(tool: str) -> str:
         "cases.top": "Looking at the distribution...",
         "cases.lookup": "Looking up that case...",
         "cases.summary": "Grabbing case summary...",
+        "exec.overview": "Checking org-wide metrics...",
     }
     return messages.get(tool, f"Executing {tool}...")
 
@@ -114,7 +115,12 @@ def _build_tool_plan_prompt(
         "  status values: open, closed, all (default).\n"
         "- cases.top: returns top keys by count (by=team|family|classification|component). component groups by workload name.\n"
         "- cases.lookup: resolves a case_id or prefix.\n"
-        "- cases.summary: returns a minimal summary for a case.\n\n"
+        "- cases.summary: returns a minimal summary for a case.\n"
+        "- exec.overview: returns org-wide metrics for a given time window (days param, default 30).\n"
+        "  Includes: AI spend (total_usd, avg_per_run_usd), engineer hours saved, signal quality score,\n"
+        "  noise reduction rate, TTFA median, top noisy services and teams, recurrence rate.\n"
+        "  Use this for questions about cost, spend, dollar amounts, ROI, time saved, signal quality,\n"
+        "  or any leadership/exec-level summary.\n\n"
         "Examples (GOOD vs BAD):\n"
         "❌ BAD: 'You can query cases.count with status=\"open\"'\n"
         "✅ GOOD: 'Let me check open cases' → calls cases.count\n\n"
@@ -265,6 +271,9 @@ async def run_global_chat_stream(
     # Track state
     tool_events: List[ChatToolEvent] = []
     remaining_calls = int(policy.max_tool_calls)
+    _usage_input = 0
+    _usage_output = 0
+    _usage_model = ""
 
     # Multi-turn loop
     for step in range(int(policy.max_steps)):
@@ -284,10 +293,15 @@ async def run_global_chat_stream(
         # Offload to thread so we don't block the uvicorn event loop
         try:
             logger.debug("global_chat: calling generate_json (step=%d)", step)
-            obj, err, _ = await asyncio.wait_for(
+            obj, err, _plan_usage = await asyncio.wait_for(
                 asyncio.to_thread(generate_json, prompt, schema=ToolPlanResponse, call_site="global_chat"),
                 timeout=120.0,
             )
+            if isinstance(_plan_usage, dict):
+                _usage_input += int(_plan_usage.get("input_tokens") or 0)
+                _usage_output += int(_plan_usage.get("output_tokens") or 0)
+                if not _usage_model:
+                    _usage_model = str(_plan_usage.get("model") or "")
             logger.debug("global_chat: generate_json returned err=%s", err)
         except asyncio.TimeoutError:
             logger.warning("global_chat: generate_json timed out after 120s")
@@ -425,10 +439,24 @@ async def run_global_chat_stream(
                     event_type="token",
                     content=first_reply[i : i + chunk_size],
                 )
+            _total_tokens = _usage_input + _usage_output
+            _cost_usd = estimate_cost_usd(_usage_input, _usage_output, _usage_model)
             yield GlobalChatStreamEvent(
                 event_type="done",
                 content=first_reply,
-                metadata={"tool_events": []},
+                metadata={
+                    "tool_events": [],
+                    "usage": (
+                        {
+                            "input_tokens": _usage_input,
+                            "output_tokens": _usage_output,
+                            "total_tokens": _total_tokens,
+                            "cost_usd": round(_cost_usd, 6),
+                        }
+                        if _total_tokens
+                        else None
+                    ),
+                },
             )
             return
 
@@ -447,6 +475,13 @@ async def run_global_chat_stream(
                 event_type="thinking",
                 content=chunk.content,
             )
+        elif chunk.metadata.get("usage"):
+            # Usage metadata chunk (no content) — accumulate
+            _u = chunk.metadata["usage"]
+            _usage_input += int(_u.get("input_tokens") or 0)
+            _usage_output += int(_u.get("output_tokens") or 0)
+            if not _usage_model:
+                _usage_model = str(_u.get("model") or "")
         else:
             full_reply_parts.append(chunk.content)
             yield GlobalChatStreamEvent(
@@ -456,6 +491,8 @@ async def run_global_chat_stream(
 
     # Step 5: Emit done
     full_reply = "".join(full_reply_parts)
+    _total_tokens = _usage_input + _usage_output
+    _cost_usd = estimate_cost_usd(_usage_input, _usage_output, _usage_model)
     yield GlobalChatStreamEvent(
         event_type="done",
         content=full_reply,
@@ -471,5 +508,15 @@ async def run_global_chat_stream(
                 }
                 for e in tool_events
             ],
+            "usage": (
+                {
+                    "input_tokens": _usage_input,
+                    "output_tokens": _usage_output,
+                    "total_tokens": _total_tokens,
+                    "cost_usd": round(_cost_usd, 6),
+                }
+                if _total_tokens
+                else None
+            ),
         },
     )

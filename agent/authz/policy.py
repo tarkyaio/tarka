@@ -42,6 +42,7 @@ class ChatPolicy:
     allow_memory_read: bool = True
     allow_aws_read: bool = False  # AWS infrastructure health checks (EC2, EBS, ELB, RDS, etc.)
     allow_github_read: bool = False  # GitHub commits, workflows, docs
+    allow_exec_read: bool = True  # Org-wide leadership dashboard metrics (signal quality, ROI, MTTR)
 
     # Scope limits
     namespace_allowlist: Optional[Set[str]] = None
@@ -100,6 +101,7 @@ def load_chat_policy() -> ChatPolicy:
     - CHAT_ALLOW_MEMORY_READ=1
     - CHAT_ALLOW_AWS_READ=1
     - CHAT_ALLOW_GITHUB_READ=1
+    - CHAT_ALLOW_EXEC_READ=1
     - CHAT_NAMESPACE_ALLOWLIST=prod,staging
     - CHAT_AWS_REGION_ALLOWLIST=us-east-1,us-west-2
     - CHAT_GITHUB_REPO_ALLOWLIST=myorg/repo1,myorg/repo2
@@ -124,6 +126,7 @@ def load_chat_policy() -> ChatPolicy:
         allow_memory_read=_env_bool("CHAT_ALLOW_MEMORY_READ", True),
         allow_aws_read=_env_bool("CHAT_ALLOW_AWS_READ", False),
         allow_github_read=_env_bool("CHAT_ALLOW_GITHUB_READ", False),
+        allow_exec_read=_env_bool("CHAT_ALLOW_EXEC_READ", True),
         namespace_allowlist=set(ns_allow) if ns_allow else None,
         cluster_allowlist=set(cluster_allow) if cluster_allow else None,
         aws_region_allowlist=set(aws_region_allow) if aws_region_allow else None,

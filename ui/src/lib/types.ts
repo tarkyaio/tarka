@@ -255,9 +255,17 @@ export type ChatConfigResponse = {
   max_tool_calls: number;
 };
 
+export type ChatUsage = {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  cost_usd: number;
+};
+
 export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
+  usage?: ChatUsage | null;
 };
 
 export type ChatToolEvent = {

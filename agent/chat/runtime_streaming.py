@@ -29,7 +29,7 @@ from agent.chat.tool_summaries import compact_args_for_prompt, summarize_tool_re
 from agent.chat.tools import run_tool
 from agent.chat.types import ChatMessage, ChatToolEvent
 from agent.graphs.tracing import trace_tool_call
-from agent.llm.client import generate_json
+from agent.llm.client import estimate_cost_usd, generate_json
 from agent.llm.client_streaming import stream_text_response
 from agent.llm.schemas import ToolPlanResponse
 
@@ -86,6 +86,8 @@ def _allowed_tools(policy: ChatPolicy, action_policy: Optional[ActionPolicy]) ->
                 "github.read_file",
             ]
         )
+    if policy.allow_exec_read:
+        tools.extend(["exec.overview"])
     if action_policy is not None and action_policy.enabled:
         tools.extend(["actions.list", "actions.propose"])
     return tools
@@ -118,6 +120,7 @@ def _get_tool_start_message(tool: str) -> str:
         "github.workflow_runs": "Checking workflow runs...",
         "github.workflow_logs": "Checking workflow logs...",
         "github.read_file": "Reading file from GitHub...",
+        "exec.overview": "Checking org-wide metrics...",
     }
     return messages.get(tool, f"Executing {tool}...")
 
@@ -383,6 +386,9 @@ async def run_chat_stream(
     updated_analysis: Optional[Dict[str, Any]] = None
     remaining_calls = int(policy.max_tool_calls)
     current_analysis = dict(analysis_json)
+    _usage_input = 0
+    _usage_output = 0
+    _usage_model = ""
 
     # Multi-turn loop (like original runtime)
     for step in range(int(policy.max_steps)):
@@ -404,11 +410,16 @@ async def run_chat_stream(
         # Offload to thread so we don't block the uvicorn event loop
         try:
             logger.debug("case_chat: calling generate_json (step=%d)", step)
-            obj, err, _ = await asyncio.wait_for(
+            obj, err, _plan_usage = await asyncio.wait_for(
                 asyncio.to_thread(generate_json, prompt, schema=ToolPlanResponse, call_site="case_chat"),
                 timeout=120.0,
             )
             logger.debug("case_chat: generate_json returned err=%s", err)
+            if isinstance(_plan_usage, dict):
+                _usage_input += int(_plan_usage.get("input_tokens") or 0)
+                _usage_output += int(_plan_usage.get("output_tokens") or 0)
+                if not _usage_model:
+                    _usage_model = str(_plan_usage.get("model") or "")
         except asyncio.TimeoutError:
             logger.warning("case_chat: generate_json timed out after 120s")
             yield ChatStreamEvent(
@@ -572,12 +583,24 @@ async def run_chat_stream(
                     event_type="token",
                     content=first_reply[i : i + chunk_size],
                 )
+            _total_tokens = _usage_input + _usage_output
+            _cost_usd = estimate_cost_usd(_usage_input, _usage_output, _usage_model)
             yield ChatStreamEvent(
                 event_type="done",
                 content=first_reply,
                 metadata={
                     "tool_events": [],
                     "updated_analysis": updated_analysis,
+                    "usage": (
+                        {
+                            "input_tokens": _usage_input,
+                            "output_tokens": _usage_output,
+                            "total_tokens": _total_tokens,
+                            "cost_usd": round(_cost_usd, 6),
+                        }
+                        if _total_tokens
+                        else None
+                    ),
                 },
             )
             return
@@ -599,6 +622,13 @@ async def run_chat_stream(
                 event_type="thinking",
                 content=chunk.content,
             )
+        elif chunk.metadata.get("usage"):
+            # Usage metadata chunk — accumulate
+            _u = chunk.metadata["usage"]
+            _usage_input += int(_u.get("input_tokens") or 0)
+            _usage_output += int(_u.get("output_tokens") or 0)
+            if not _usage_model:
+                _usage_model = str(_u.get("model") or "")
         else:
             # Emit token
             full_reply_parts.append(chunk.content)
@@ -609,6 +639,8 @@ async def run_chat_stream(
 
     # Step 5: Emit done
     full_reply = "".join(full_reply_parts)
+    _total_tokens = _usage_input + _usage_output
+    _cost_usd = estimate_cost_usd(_usage_input, _usage_output, _usage_model)
     yield ChatStreamEvent(
         event_type="done",
         content=full_reply,
@@ -625,5 +657,15 @@ async def run_chat_stream(
                 for e in tool_events
             ],
             "updated_analysis": updated_analysis,
+            "usage": (
+                {
+                    "input_tokens": _usage_input,
+                    "output_tokens": _usage_output,
+                    "total_tokens": _total_tokens,
+                    "cost_usd": round(_cost_usd, 6),
+                }
+                if _total_tokens
+                else None
+            ),
         },
     )

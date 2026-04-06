@@ -1,5 +1,6 @@
 .card {
-  overflow: hidden;
+  /* overflow: visible lets tooltip bubbles escape card bounds */
+  overflow: visible;
   min-width: 0;
 }
 
@@ -12,6 +13,12 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-weight: 600;
+  /* Round top corners so header bg clips correctly without parent overflow:hidden */
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow: visible;
+  /* Flex so InfoTip icon sits inline with the title text */
+  display: flex;
+  align-items: center;
 }
 
 .body {

@@ -479,13 +479,14 @@ export function ChatHost() {
           });
         },
 
-        onDone: (reply, toolEvents) => {
+        onDone: (reply, toolEvents, usage) => {
           // Ensure final message is correct
           setMessages((prev) => {
             const updated = [...prev];
             updated[assistantMsgIndex] = {
               role: "assistant",
               content: reply,
+              usage: usage ?? null,
             };
             return updated;
           });
