@@ -26,7 +26,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, AsyncGenerator, Dict
 
-from agent.llm.client import _env_bool, _get_llm_instance, _load_config, _provider, _resolve_model
+from agent.llm.client import _env_bool, _extract_usage, _get_llm_instance, _load_config, _provider, _resolve_model
 
 
 @dataclass
@@ -103,8 +103,11 @@ async def stream_text_response(
         buffer = []
         last_flush_time = time.time()
         batch_timeout_sec = batch_timeout_ms / 1000.0
+        last_chunk = None
 
         async for chunk in llm.astream(prompt):  # type: ignore[attr-defined]
+            last_chunk = chunk
+
             # Check if this is thinking content (Anthropic only)
             if hasattr(chunk, "type") and chunk.type == "thinking":
                 # Emit thinking block immediately (don't batch)
@@ -149,6 +152,16 @@ async def stream_text_response(
                 content="".join(buffer),
                 thinking=False,
             )
+
+        # Emit usage metadata from final chunk (best-effort)
+        if last_chunk is not None:
+            usage = _extract_usage(last_chunk)
+            if usage:
+                yield LLMStreamChunk(
+                    content="",
+                    thinking=False,
+                    metadata={"usage": {**usage, "model": resolved_model, "call_site": call_site}},
+                )
 
     except asyncio.CancelledError:
         # Client cancelled the stream - this is expected behavior

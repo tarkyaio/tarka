@@ -688,6 +688,94 @@
   color: var(--primary);
 }
 
+/* ── Info tooltip ─────────────────────────────────────────────────────────── */
+.infoTip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  color: var(--muted-2);
+  font-size: 8px;
+  font-weight: 700;
+  font-family: var(--font);
+  line-height: 1;
+  cursor: default;
+  flex-shrink: 0;
+  user-select: none;
+  margin-left: 6px;
+  vertical-align: middle;
+  /* Preserve geometry across text-transform: uppercase on parent */
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.infoTip:hover {
+  color: var(--muted);
+}
+
+.infoTipBubble {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-40%);
+  width: 230px;
+  padding: 9px 12px;
+  background: var(--surface-dark, #f8fafc);
+  background-color: var(--surface-dark, #f8fafc);
+  /* Force fully opaque — no bleed-through from card content below */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.1);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  z-index: 99;
+  white-space: normal;
+}
+
+/* Caret pointing up toward the icon */
+.infoTipBubble::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 38%;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 5px solid var(--border-dark);
+}
+
+.infoTipBubble::after {
+  content: "";
+  position: absolute;
+  bottom: calc(100% - 1px);
+  left: 38%;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 4px solid var(--surface-dark, #f8fafc);
+}
+
+.infoTip:hover .infoTipBubble {
+  opacity: 1;
+}
+
 /* ── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 1100px) {
   .col4,

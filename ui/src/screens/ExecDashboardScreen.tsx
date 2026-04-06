@@ -98,6 +98,15 @@ function ellipsizeMiddle(value: string, maxLen: number): string {
   return `${s.slice(0, keep)}…${s.slice(-keep)}`;
 }
 
+// ── Info tooltip ──────────────────────────────────────────────────────────
+function InfoTip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className={styles.infoTip} role="img" aria-label="More info">
+      i<span className={styles.infoTipBubble}>{children}</span>
+    </span>
+  );
+}
+
 // ── Sparkline components ───────────────────────────────────────────────────
 type BarVariant = "blue" | "amber" | "green";
 
@@ -430,7 +439,16 @@ export function ExecDashboardScreen() {
       <div className={styles.grid} aria-busy={loading ? "true" : "false"}>
         {/* ── Row 1: Hero — engineer hours saved ────────────────────────── */}
         <Card
-          title="Engineer hours saved by automated triage"
+          title={
+            <>
+              Engineer hours saved by automated triage
+              <InfoTip>
+                Every alert Tarka investigated saved an engineer from manually triaging it. Hours =
+                deflected alerts × assumed triage time per alert. Adjust rate assumptions in
+                settings.
+              </InfoTip>
+            </>
+          }
           className={`${styles.col12} ${styles.heroCard}`}
         >
           <div className={styles.heroBody}>
@@ -490,7 +508,18 @@ export function ExecDashboardScreen() {
         </Card>
 
         {/* ── Row 2: Risk snapshot ───────────────────────────────────────── */}
-        <Card title="Active incidents" className={styles.col4}>
+        <Card
+          title={
+            <>
+              Active incidents
+              <InfoTip>
+                Open cases right now, excluding snoozed ones. High impact = AI score ≥ 85/100. Stale
+                = no new activity in the last 60 minutes.
+              </InfoTip>
+            </>
+          }
+          className={styles.col4}
+        >
           <div className={styles.kpi}>
             <div className={styles.kpiValue}>{risk ? fmtInt(risk.active_count) : "—"}</div>
             <div className={styles.kpiLabel}>Open, not snoozed</div>
@@ -506,7 +535,18 @@ export function ExecDashboardScreen() {
           </div>
         </Card>
 
-        <Card title="Critical incidents this month" className={styles.col4}>
+        <Card
+          title={
+            <>
+              Critical incidents this month
+              <InfoTip>
+                Cases created this calendar month where the AI assigned an impact score ≥ 85. Total
+                = all cases regardless of severity.
+              </InfoTip>
+            </>
+          }
+          className={styles.col4}
+        >
           <div className={styles.kpi}>
             <div className={styles.criticalNumber}>
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -519,7 +559,18 @@ export function ExecDashboardScreen() {
           </div>
         </Card>
 
-        <Card title="MTTR trend" className={styles.col4}>
+        <Card
+          title={
+            <>
+              MTTR trend
+              <InfoTip>
+                Median Time To Resolve: the midpoint time from when a case was opened to when it was
+                marked resolved, measured weekly. Lower is better.
+              </InfoTip>
+            </>
+          }
+          className={styles.col4}
+        >
           <div className={styles.kpi}>
             {totalResolved === 0 ? (
               <div className={styles.muted}>No resolved cases in this period.</div>
@@ -558,7 +609,19 @@ export function ExecDashboardScreen() {
         </Card>
 
         {/* ── Row 3: Signal quality ──────────────────────────────────────── */}
-        <Card title="Alert signal quality" className={styles.col12}>
+        <Card
+          title={
+            <>
+              Alert signal quality
+              <InfoTip>
+                How Tarka classified each alert in the selected window. Actionable = engineer must
+                act. Noisy = safe to discard. Informational = useful context, no action needed. High
+                actionable % = your alerting is well-tuned.
+              </InfoTip>
+            </>
+          }
+          className={styles.col12}
+        >
           <div className={styles.signalGrid}>
             <div className={styles.signalTile}>
               <div className={`${styles.signalVal} ${styles.signalValGreen}`}>
@@ -610,7 +673,18 @@ export function ExecDashboardScreen() {
         </Card>
 
         {/* ── Row 4: Top active + top teams ─────────────────────────────── */}
-        <Card title="Top active (by impact)" className={styles.col6}>
+        <Card
+          title={
+            <>
+              Top active (by impact)
+              <InfoTip>
+                Open cases ranked by AI-assigned impact score (0–100). Impact reflects estimated
+                blast radius and severity. Click any row to open the full investigation.
+              </InfoTip>
+            </>
+          }
+          className={styles.col6}
+        >
           <div className={styles.list}>
             {!topActive.length ? (
               <div className={styles.muted}>No active incidents in the current window.</div>
@@ -670,7 +744,18 @@ export function ExecDashboardScreen() {
           )}
         </Card>
 
-        <Card title="Focus: top teams (active)" className={styles.col6}>
+        <Card
+          title={
+            <>
+              Focus: top teams (active)
+              <InfoTip>
+                Teams with the most open incidents right now. Impact = average AI severity score
+                across their active cases (0–100). Click a row to filter the Inbox by that team.
+              </InfoTip>
+            </>
+          }
+          className={styles.col6}
+        >
           <div className={styles.list}>
             {!focusTeams.length ? (
               <div className={styles.muted}>No team data on latest runs.</div>
@@ -701,7 +786,18 @@ export function ExecDashboardScreen() {
         </Card>
 
         {/* ── Row 5: Drivers + unstable services ────────────────────────── */}
-        <Card title="Focus: top drivers (active)" className={styles.col6}>
+        <Card
+          title={
+            <>
+              Focus: top drivers (active)
+              <InfoTip>
+                Root causes appearing most often in open cases. Impact = average severity score of
+                cases with that driver (0–100). Click a row to search the Inbox.
+              </InfoTip>
+            </>
+          }
+          className={styles.col6}
+        >
           <div className={styles.list}>
             {!focusDrivers.length ? (
               <div className={styles.muted}>No driver/family data on latest runs.</div>
@@ -731,7 +827,19 @@ export function ExecDashboardScreen() {
           </div>
         </Card>
 
-        <Card title="Top unstable services" className={styles.col6}>
+        <Card
+          title={
+            <>
+              Top unstable services
+              <InfoTip>
+                Services with the most distinct incidents in the selected window. Change-correlated
+                = incidents where a recent deployment was detected as a likely trigger. Click a row
+                to search the Inbox.
+              </InfoTip>
+            </>
+          }
+          className={styles.col6}
+        >
           {!topServices.length ? (
             <div className={styles.muted}>No service data in this period.</div>
           ) : (
@@ -799,7 +907,18 @@ export function ExecDashboardScreen() {
         </Card>
 
         {/* ── Row 6: Trends + recurrence ────────────────────────────────── */}
-        <Card title="Trend: incidents created (14d)" className={styles.col4}>
+        <Card
+          title={
+            <>
+              Trend: incidents created (14d)
+              <InfoTip>
+                New cases opened per day over the last 14 days. Bar height = relative daily volume.
+                The delta compares the latest 7 days to the prior 7 days.
+              </InfoTip>
+            </>
+          }
+          className={styles.col4}
+        >
           {(() => {
             const slice = trends.slice(-14);
             const prev7 = slice.slice(0, 7).reduce((s, d) => s + (d.incidents_created ?? 0), 0);
@@ -829,7 +948,18 @@ export function ExecDashboardScreen() {
           })()}
         </Card>
 
-        <Card title="Trend: median impact (14d)" className={styles.col4}>
+        <Card
+          title={
+            <>
+              Trend: median impact (14d)
+              <InfoTip>
+                Daily median impact score (0–100) across cases created each day. Rising = recent
+                alerts are more severe on average. Driven by service health, not alert volume.
+              </InfoTip>
+            </>
+          }
+          className={styles.col4}
+        >
           {(() => {
             const slice = trends.slice(-14);
             const latest = slice.length ? slice[slice.length - 1]?.impact_median : null;
@@ -868,7 +998,18 @@ export function ExecDashboardScreen() {
           })()}
         </Card>
 
-        <Card title="Recurrence" className={styles.col4}>
+        <Card
+          title={
+            <>
+              Recurrence
+              <InfoTip>
+                Share of alert + service combinations that fired more than once in the window. High
+                recurrence means alerts are being acknowledged but not fixed at the root cause.
+              </InfoTip>
+            </>
+          }
+          className={styles.col4}
+        >
           <div className={styles.kpi}>
             <div className={styles.kpiValue}>
               {data ? fmtPct((data.recurrence?.rate || 0) * 100) : "—"}
@@ -880,7 +1021,15 @@ export function ExecDashboardScreen() {
                   <div
                     key={r.incident_key}
                     className={styles.listItem}
-                    onClick={() => nav(`/inbox?q=${encodeURIComponent(r.incident_key)}`)}
+                    onClick={() => {
+                      const colonIdx = r.incident_key.indexOf(":");
+                      const alertname =
+                        colonIdx >= 0 ? r.incident_key.slice(0, colonIdx) : r.incident_key;
+                      const service = colonIdx >= 0 ? r.incident_key.slice(colonIdx + 1) : "";
+                      const parts = [`alertname:${alertname}`];
+                      if (service && service !== "unknown") parts.push(service);
+                      nav(`/inbox?q=${encodeURIComponent(parts.join(" "))}`);
+                    }}
                   >
                     <div className={styles.liLeft}>
                       <div className={styles.liTitle} title={r.incident_key}>
@@ -903,7 +1052,20 @@ export function ExecDashboardScreen() {
         </Card>
 
         {/* ── Row 7: AI effectiveness + cost ────────────────────────────── */}
-        <Card title="AI effectiveness" className={styles.col6}>
+        <Card
+          title={
+            <>
+              AI effectiveness
+              <InfoTip>
+                TTFA (Time To First Analysis) = how fast Tarka completed its analysis after a fresh
+                alert arrived. Only alerts received within 30 min of firing are counted, so this
+                reflects pipeline speed, not how long alerts had been firing. Confidence = share of
+                analyses scored ≥ 70% certain.
+              </InfoTip>
+            </>
+          }
+          className={styles.col6}
+        >
           <div className={styles.rowSplit}>
             <div>
               <div
@@ -945,7 +1107,19 @@ export function ExecDashboardScreen() {
           </div>
         </Card>
 
-        <Card title="AI / LLM cost" className={styles.col6}>
+        <Card
+          title={
+            <>
+              AI / LLM cost
+              <InfoTip>
+                Total AI inference cost to power Tarka&apos;s investigations. This is the compute
+                spend, not engineer time. Compare against the savings card to see the return on
+                every dollar of AI spend.
+              </InfoTip>
+            </>
+          }
+          className={styles.col6}
+        >
           <div className={styles.rowSplit}>
             <div>
               <div className={styles.kpiValue}>{fmtCostUsd(cost.total_usd)}</div>

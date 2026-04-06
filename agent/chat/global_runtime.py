@@ -31,6 +31,7 @@ def _allowed_tools() -> List[str]:
         "cases.trending",
         "cases.lookup",
         "cases.summary",
+        "exec.overview",
     ]
 
 

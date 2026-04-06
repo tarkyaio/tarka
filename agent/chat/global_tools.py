@@ -724,4 +724,50 @@ def _run_global_tool_db(*, policy: ChatPolicy, tool: str, args: Dict[str, Any], 
             },
         )
 
+    # --------------------
+    # exec.overview
+    # --------------------
+    if tool == "exec.overview":
+        if not policy.allow_exec_read:
+            return ToolResult(ok=False, error="tool_not_allowed")
+        days = max(1, min(int(args.get("days") or 30), 90))
+        from agent.memory.console_queries import get_exec_overview
+
+        with _connect(dsn) as conn:
+            data = get_exec_overview(conn, days=days)
+
+        signal = data.get("signal", {})
+        savings = data.get("savings", {})
+        risk = data.get("risk", {})
+        ai = data.get("ai", {})
+        return ToolResult(
+            ok=True,
+            result={
+                "window_days": days,
+                "signal": {
+                    "total_runs": signal.get("total_runs"),
+                    "actionable_pct": signal.get("actionable_pct"),
+                    "noisy": signal.get("noisy"),
+                    "change_correlated_count": signal.get("change_correlated_count"),
+                },
+                "savings": {
+                    "deflected_runs": savings.get("deflected_runs"),
+                    "hours_saved": savings.get("hours_saved"),
+                    "cost_saved_usd": savings.get("cost_saved_usd"),
+                },
+                "risk": {
+                    "active_count": risk.get("active_count"),
+                    "active_high_impact_count": risk.get("active_high_impact_count"),
+                    "stale_investigation_count": risk.get("stale_investigation_count"),
+                    "critical_this_month": risk.get("critical_this_month"),
+                    "total_this_month": risk.get("total_this_month"),
+                    "top_active": risk.get("top_active", [])[:3],
+                },
+                "ai": ai,
+                "recurrence_rate": data.get("recurrence", {}).get("rate"),
+                "top_services": data.get("focus", {}).get("top_services", [])[:3],
+                "top_teams": data.get("focus", {}).get("top_teams", [])[:3],
+            },
+        )
+
     return ToolResult(ok=False, error="unknown_tool")

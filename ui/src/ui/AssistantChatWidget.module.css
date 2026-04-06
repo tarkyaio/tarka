@@ -1121,3 +1121,12 @@
   border-radius: var(--radius-sm);
   margin: 6px 0;
 }
+
+.usagePill {
+  font-size: 10px;
+  color: var(--muted-2);
+  margin-top: 4px;
+  padding-left: 2px;
+  letter-spacing: 0.02em;
+  user-select: none;
+}

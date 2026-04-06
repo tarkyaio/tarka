@@ -405,3 +405,24 @@ def generate_json(
             str(e)[:300],
         )
         return None, err_code, None
+
+
+# Approximate pricing per million tokens: (input_usd_per_m, output_usd_per_m)
+_PRICING_USD_PER_M: Dict[str, tuple] = {
+    "claude-opus": (15.0, 75.0),
+    "claude-sonnet": (3.0, 15.0),
+    "claude-haiku": (0.80, 4.0),
+}
+
+
+def estimate_cost_usd(input_tokens: int, output_tokens: int, model: str = "") -> float:
+    """Return estimated USD cost for a given token count and model name (best-effort)."""
+    m = (model or "").lower()
+    rates = _PRICING_USD_PER_M.get("claude-sonnet")  # default
+    for key, val in _PRICING_USD_PER_M.items():
+        if key in m:
+            rates = val
+            break
+    if not rates:
+        return 0.0
+    return (input_tokens * rates[0] + output_tokens * rates[1]) / 1_000_000

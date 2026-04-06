@@ -95,6 +95,8 @@ def _allowed_tools(policy: ChatPolicy, action_policy: Optional[ActionPolicy]) ->
                 "github.commit_diff",
             ]
         )
+    if policy.allow_exec_read:
+        tools.extend(["exec.overview"])
     if action_policy is not None and action_policy.enabled:
         tools.extend(["actions.list", "actions.propose"])
     return tools

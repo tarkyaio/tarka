@@ -8,6 +8,7 @@ import type {
   ChatMessage,
   ChatThreadItem,
   ChatToolEvent,
+  ChatUsage,
 } from "../lib/types";
 
 function MaterialIcon({ name, filled }: { name: string; filled?: boolean }) {
@@ -28,6 +29,27 @@ function MaterialIcon({ name, filled }: { name: string; filled?: boolean }) {
 }
 
 type SuggestedAction = { hypothesis_id: string; action: AnalysisActionProposal };
+
+function UsagePill({ usage }: { usage: ChatUsage }) {
+  const costStr =
+    usage.cost_usd < 0.001
+      ? `<$0.001`
+      : usage.cost_usd < 0.01
+        ? `$${usage.cost_usd.toFixed(4)}`
+        : `$${usage.cost_usd.toFixed(3)}`;
+  const tokStr =
+    usage.total_tokens >= 1000
+      ? `${(usage.total_tokens / 1000).toFixed(1)}k`
+      : `${usage.total_tokens}`;
+  return (
+    <div
+      className={styles.usagePill}
+      title={`${usage.input_tokens} in + ${usage.output_tokens} out tokens`}
+    >
+      {tokStr} tokens · {costStr}
+    </div>
+  );
+}
 
 export function AssistantChatWidget({
   enabled,
@@ -562,6 +584,7 @@ export function AssistantChatWidget({
                         <ReactMarkdown className={styles.markdown}>{content}</ReactMarkdown>
                       )}
                     </div>
+                    {!isUser && !isThinking && m.usage ? <UsagePill usage={m.usage} /> : null}
                   </div>
                 </div>
               );

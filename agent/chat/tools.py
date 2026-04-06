@@ -1446,5 +1446,64 @@ def run_tool(
         log.warning(f"Tool {tool} not implemented")
         return ToolResult(ok=False, error="argocd_not_implemented")
 
+    # --------------------
+    # exec.*
+    # --------------------
+    if tool == "exec.overview":
+        if not policy.allow_exec_read:
+            return ToolResult(ok=False, error="tool_not_allowed")
+        days = max(1, min(int(args.get("days") or 30), 90))
+        try:
+            from agent.api.webhook import _get_db_connection
+            from agent.memory.console_queries import get_exec_overview
+
+            conn = _get_db_connection()
+            if not conn:
+                return ToolResult(ok=False, error="postgres_not_configured")
+            try:
+                data = get_exec_overview(conn, days=days)
+            finally:
+                conn.close()
+
+            # Return a token-efficient summary instead of the full payload.
+            signal = data.get("signal", {})
+            savings = data.get("savings", {})
+            risk = data.get("risk", {})
+            ai = data.get("ai", {})
+            return ToolResult(
+                ok=True,
+                result=_compact(
+                    {
+                        "window_days": days,
+                        "signal": {
+                            "total_runs": signal.get("total_runs"),
+                            "actionable_pct": signal.get("actionable_pct"),
+                            "noisy": signal.get("noisy"),
+                            "change_correlated_count": signal.get("change_correlated_count"),
+                        },
+                        "savings": {
+                            "deflected_runs": savings.get("deflected_runs"),
+                            "hours_saved": savings.get("hours_saved"),
+                            "cost_saved_usd": savings.get("cost_saved_usd"),
+                        },
+                        "risk": {
+                            "active_count": risk.get("active_count"),
+                            "active_high_impact_count": risk.get("active_high_impact_count"),
+                            "stale_investigation_count": risk.get("stale_investigation_count"),
+                            "critical_this_month": risk.get("critical_this_month"),
+                            "total_this_month": risk.get("total_this_month"),
+                            "top_active": risk.get("top_active", [])[:3],
+                        },
+                        "ai": ai,
+                        "recurrence_rate": data.get("recurrence", {}).get("rate"),
+                        "top_services": data.get("focus", {}).get("top_services", [])[:3],
+                        "top_teams": data.get("focus", {}).get("top_teams", [])[:3],
+                    }
+                ),
+            )
+        except Exception as e:
+            log.warning(f"exec.overview failed: days={days} error={str(e)[:200]}")
+            return ToolResult(ok=False, error=f"exec_overview_error:{type(e).__name__}")
+
     log.warning(f"Unknown tool: {tool}")
     return ToolResult(ok=False, error="unknown_tool")
