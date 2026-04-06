@@ -1,5 +1,5 @@
 import { useAuth } from "../state/auth";
-import { mockCaseDetail, mockInbox, mockRunDetail } from "../mocks/data";
+import { mockCaseDetail, mockExecOverview, mockInbox, mockRunDetail } from "../mocks/data";
 import type { InboxRow } from "./types";
 import React from "react";
 
@@ -468,6 +468,12 @@ export function useApi() {
         const runMatch = p.match(/^\/api\/v1\/investigation-runs\/(.+)$/);
         if (runMatch) {
           return mockRunDetail(decodeURIComponent(runMatch[1])) as unknown as T;
+        }
+        if (p.startsWith("/api/v1/exec/overview")) {
+          return mockExecOverview() as unknown as T;
+        }
+        if (p.startsWith("/api/v1/exec/export")) {
+          return { ok: true } as unknown as T;
         }
         throw new ApiError("Mock route not implemented", 501, { path });
       }

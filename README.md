@@ -31,13 +31,17 @@ See [Triage Methodology](docs/acceptance/triage-methodology.md) for the philosop
 
 ![Case Inbox](docs/screenshots/inbox.png)
 
+**Leadership Dashboard** -- ROI metrics, signal quality, incident trends, and engineer hours saved.
+
+![Leadership Dashboard](docs/screenshots/dashboard.png)
+
 **Triage Report** -- Structured evidence, verdict, and copy-paste-ready next steps for every alert.
 
-![Triage Report](docs/screenshots/kubejobfailed-report.png)
+![Triage Report](docs/screenshots/report.png)
 
 **Case Chat** -- Ask follow-up questions about a specific case. The agent has full context of the investigation.
 
-![Case Chat](docs/screenshots/kubejobfailed-case-chat-expanded-mode.png)
+![Case Chat](docs/screenshots/case-chat.png)
 
 **Global Chat** -- Query across all cases with tool-using AI (PromQL, kubectl, log search, and more).
 
