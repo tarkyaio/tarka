@@ -313,7 +313,7 @@ export function InboxScreen() {
         <>
           <div className={styles.inboxHeader}>
             <div>
-              <div className={styles.inboxTitle}>Case Inbox</div>
+              <h1 className={styles.inboxTitle}>Case Inbox</h1>
               <div className={styles.inboxSubtitle}>
                 Triage alerts with evidence and next steps.
               </div>

@@ -1,7 +1,21 @@
+/* ── Shared keyframes ─────────────────────────────────────────────────────── */
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────────────── */
 .wrap {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  animation: cardIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .headerRow {
@@ -47,10 +61,58 @@
   margin-left: 2px;
 }
 
+/* ── Grid ─────────────────────────────────────────────────────────────────── */
 .grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   gap: 12px;
+}
+
+/* Staggered card entrance — each direct child fades + slides up */
+.grid > * {
+  animation: cardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.grid > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.grid > *:nth-child(2) {
+  animation-delay: 50ms;
+}
+.grid > *:nth-child(3) {
+  animation-delay: 80ms;
+}
+.grid > *:nth-child(4) {
+  animation-delay: 110ms;
+}
+.grid > *:nth-child(5) {
+  animation-delay: 150ms;
+}
+.grid > *:nth-child(6) {
+  animation-delay: 190ms;
+}
+.grid > *:nth-child(7) {
+  animation-delay: 220ms;
+}
+.grid > *:nth-child(8) {
+  animation-delay: 250ms;
+}
+.grid > *:nth-child(9) {
+  animation-delay: 280ms;
+}
+.grid > *:nth-child(10) {
+  animation-delay: 310ms;
+}
+.grid > *:nth-child(11) {
+  animation-delay: 340ms;
+}
+.grid > *:nth-child(12) {
+  animation-delay: 370ms;
+}
+.grid > *:nth-child(13) {
+  animation-delay: 400ms;
+}
+.grid > *:nth-child(14) {
+  animation-delay: 430ms;
 }
 
 .col4 {
@@ -65,6 +127,7 @@
   grid-column: span 12;
 }
 
+/* ── KPI primitives ───────────────────────────────────────────────────────── */
 .kpi {
   display: flex;
   flex-direction: column;
@@ -99,6 +162,7 @@
   font-size: 12px;
 }
 
+/* ── List (clickable rows) ────────────────────────────────────────────────── */
 .list {
   display: flex;
   flex-direction: column;
@@ -106,6 +170,7 @@
 }
 
 .listItem {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -119,6 +184,24 @@
 
 .listItem:hover {
   background: var(--hover-dark);
+}
+
+/* Absolutely positioned so it never shifts the flex columns */
+.listItem::after {
+  content: "›";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted-2);
+  font-size: 16px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.listItem:hover::after {
+  opacity: 1;
 }
 
 .liLeft {
@@ -149,50 +232,488 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
+  gap: 2px;
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .score {
   font-weight: 800;
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.scoreHigh {
+  color: var(--red);
+}
+.scoreMid {
+  color: var(--amber);
+}
+.scoreLow {
+  color: var(--muted);
+}
+
+/* Inline bar behind a table cell value */
+.inlineBar {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.inlineBarTrack {
+  width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-dark);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.inlineBarFill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--amber);
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Sparklines ───────────────────────────────────────────────────────────── */
+@keyframes barGrow {
+  from {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
 }
 
 .miniBars {
   display: flex;
   align-items: flex-end;
-  gap: 4px;
-  height: 52px;
-  margin-top: 8px;
+  gap: 3px;
+  height: 60px;
+  margin-top: 10px;
+}
+
+/* Inside a trendCard, bars stretch to fill remaining vertical space */
+.trendCard .miniBars {
+  flex: 1;
+  min-height: 60px;
 }
 
 .bar {
   width: 100%;
   max-width: 14px;
   flex: 1;
-  border-radius: 8px;
-  background: rgba(19, 91, 236, 0.2);
-  border: 1px solid rgba(19, 91, 236, 0.2);
+  border-radius: 3px 3px 2px 2px;
+  background: linear-gradient(to top, rgba(19, 91, 236, 0.08) 0%, rgba(19, 91, 236, 0.35) 100%);
+  border: 1px solid rgba(19, 91, 236, 0.22);
+  transform-origin: bottom;
+  animation: barGrow 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--bar-delay, 0ms);
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
+
+.bar:hover {
+  background: linear-gradient(to top, rgba(19, 91, 236, 0.14) 0%, rgba(19, 91, 236, 0.55) 100%);
+  box-shadow: 0 0 8px rgba(19, 91, 236, 0.2);
+}
+
+.barAmber {
+  background: linear-gradient(to top, rgba(217, 119, 6, 0.08) 0%, rgba(217, 119, 6, 0.35) 100%);
+  border-color: rgba(217, 119, 6, 0.22);
+}
+
+.barAmber:hover {
+  background: linear-gradient(to top, rgba(217, 119, 6, 0.14) 0%, rgba(217, 119, 6, 0.55) 100%);
+  box-shadow: 0 0 8px rgba(217, 119, 6, 0.18);
+}
+
+.barGreen {
+  background: linear-gradient(to top, rgba(22, 163, 74, 0.08) 0%, rgba(22, 163, 74, 0.32) 100%);
+  border-color: rgba(22, 163, 74, 0.2);
+}
+
+.barGreen:hover {
+  background: linear-gradient(to top, rgba(22, 163, 74, 0.14) 0%, rgba(22, 163, 74, 0.5) 100%);
+  box-shadow: 0 0 8px rgba(22, 163, 74, 0.16);
 }
 
 .barMuted {
-  background: rgba(100, 116, 139, 0.16);
-  border: 1px solid rgba(100, 116, 139, 0.18);
+  background: rgba(100, 116, 139, 0.1);
+  border-color: rgba(100, 116, 139, 0.14);
 }
 
+/* ── Row split (side-by-side KPIs) ───────────────────────────────────────── */
 .rowSplit {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
 }
 
+/* ── Misc ─────────────────────────────────────────────────────────────────── */
 .muted {
   color: var(--muted);
 }
 
+/* ── Hero: Engineer hours saved ───────────────────────────────────────────── */
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.heroCard {
+  border-left: 3px solid var(--green);
+  background: var(--surface-dark-2);
+  /* subtle dot-grid texture */
+  background-image:
+    radial-gradient(circle, rgba(22, 163, 74, 0.07) 1px, transparent 1px),
+    linear-gradient(var(--surface-dark-2), var(--surface-dark-2));
+  background-size:
+    20px 20px,
+    100% 100%;
+}
+
+.heroNumber {
+  animation: fadeSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.heroBody {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 4px;
+}
+
+.heroLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.heroNumber {
+  font-family: var(--font-serif);
+  font-size: 52px;
+  line-height: 1;
+  color: var(--text-strong);
+  letter-spacing: -0.03em;
+  /* animation declared above in heroCard section */
+}
+
+.heroUnit {
+  font-family: var(--font);
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  letter-spacing: -0.01em;
+}
+
+.heroSub {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.heroGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.heroTile {
+  background: var(--surface-dark);
+  padding: 14px 16px;
+}
+
+.heroTileVal {
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+
+.heroTileLabel {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.heroFootnote {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 10px;
+  font-style: italic;
+}
+
+/* ── Critical incidents number ────────────────────────────────────────────── */
+.criticalNumber {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--red);
+}
+
+/* ── Signal quality card ──────────────────────────────────────────────────── */
+.signalGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.signalTile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.signalVal {
+  font-size: 24px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.signalValGreen {
+  color: var(--green);
+}
+.signalValAmber {
+  color: var(--amber);
+}
+.signalValMuted {
+  color: var(--muted);
+}
+
+.signalLabel {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.signalDivider {
+  border: none;
+  border-top: 1px solid var(--border-dark);
+  margin: 12px 0;
+}
+
+.signalBottom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.signalNote {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* ── Unstable services table ──────────────────────────────────────────────── */
+.svcTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.svcTable th {
+  text-align: left;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0 8px 8px 0;
+  border-bottom: 1px solid var(--border-dark);
+}
+
+.svcTable td {
+  padding: 8px 8px 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.svcTable tr:last-child td {
+  border-bottom: none;
+}
+
+.svcRow {
+  cursor: pointer;
+}
+
+.svcRow:hover td {
+  background: var(--hover-dark);
+}
+
+.svcName {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+/* ── Trend cards ──────────────────────────────────────────────────────────── */
+.trendCard {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.trendStat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.trendDelta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.trendDeltaUp {
+  color: var(--red);
+}
+.trendDeltaDown {
+  color: var(--green);
+}
+.trendDeltaFlat {
+  color: var(--muted);
+}
+
+/* ── Hero ROI line ────────────────────────────────────────────────────────── */
+.heroRoi {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--green);
+}
+
+.heroRoiMuted {
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+/* ── List card footer ─────────────────────────────────────────────────────── */
+.listFooter {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.listFooterLink {
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  transition: color 0.15s;
+}
+
+.listFooterLink:hover {
+  color: var(--text);
+}
+
+/* ── AI gap row ───────────────────────────────────────────────────────────── */
+.aiGapRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* ── Dropdown panels ──────────────────────────────────────────────────────── */
+.dropWrap {
+  position: relative;
+}
+
+.dropPanel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 100;
+  background: var(--surface-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  min-width: 160px;
+  overflow: hidden;
+}
+
+.dropItem {
+  display: block;
+  width: 100%;
+  padding: 9px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.dropItem:hover {
+  background: var(--hover-dark);
+}
+
+.dropItemActive {
+  font-weight: 650;
+  color: var(--primary);
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 1100px) {
   .col4,
   .col6 {
     grid-column: span 12;
+  }
+
+  .heroGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .signalGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .heroNumber {
+    font-size: 38px;
+  }
+
+  .heroGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .signalGrid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
