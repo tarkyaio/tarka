@@ -9,6 +9,7 @@ import styles from "./Shell.module.css";
 import { IconButton } from "../ui/IconButton";
 import { fingerprint7 } from "../lib/format";
 import { ChatHost } from "../ui/ChatHost";
+import { ENABLE_LEARNING_LOOP } from "../lib/api";
 
 function MaterialIcon({ name, filled }: { name: string; filled?: boolean }) {
   return (
@@ -102,6 +103,12 @@ function ShellInner() {
   const [helpPos, setHelpPos] = React.useState<{ top: number; right: number } | null>(null);
   const helpPanelRef = React.useRef<HTMLDivElement>(null);
   const helpBtnRef = React.useRef<HTMLButtonElement>(null);
+
+  // Scroll content area to top on every route change
+  React.useEffect(() => {
+    document.querySelector(".appContent")?.scrollTo({ top: 0, behavior: "instant" });
+  }, [loc.pathname]);
+
   React.useEffect(() => {
     if (!helpOpen) return;
     const onPtr = (e: PointerEvent) => {
@@ -205,6 +212,19 @@ function ShellInner() {
                   {inboxCount ?? "—"}
                 </span>
               )}
+            </NavLink>
+
+            <NavLink
+              to="/exec"
+              className={({ isActive }) =>
+                `${styles.navItem} ${isActive ? styles.navItemActive : ""}`
+              }
+              title={sidebarCollapsed ? "Dashboard" : undefined}
+            >
+              <span className={styles.navIcon} aria-hidden="true">
+                <MaterialIcon name="bar_chart" filled />
+              </span>
+              {!sidebarCollapsed && <span className={styles.navLabel}>Dashboard</span>}
             </NavLink>
 
             {isCase ? (

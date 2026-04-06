@@ -13,11 +13,7 @@
 }
 
 .inboxTitle {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
   margin-bottom: 3px;
-  line-height: 1.15;
   color: var(--text-strong);
 }
 
@@ -230,6 +226,7 @@
 }
 
 .colCase {
+  width: 28%;
   min-width: 200px;
 }
 .colFamily {
