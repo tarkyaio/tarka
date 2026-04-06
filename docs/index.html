@@ -26,9 +26,9 @@
     }
   </script>
 
-  <!-- Fonts -->
+  <!-- Fonts: Manrope (body/headings) + JetBrains Mono (code) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="site.css" />
 </head>
@@ -41,10 +41,21 @@
 <nav class="fixed top-0 left-0 right-0 z-50 border-b border-slate-800" style="background: rgba(10,14,26,0.9); backdrop-filter: blur(12px);">
   <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
     <!-- Logo -->
-    <a href="#" class="flex items-center gap-3 no-underline">
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M14 3C14 3 8 9 8 16C8 19.314 10.686 22 14 22C17.314 22 20 19.314 20 16C20 9 14 3 14 3Z" fill="#f59e0b" opacity="0.9"/>
-        <path d="M14 11C14 11 11 14.5 11 17C11 18.657 12.343 20 14 20C15.657 20 17 18.657 17 17C17 14.5 14 11 14 11Z" fill="#fde68a"/>
+    <a href="#" class="flex items-center gap-3 no-underline logo-link">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" class="flame-icon" aria-hidden="true">
+        <defs>
+          <linearGradient id="fg-outer" x1="14" y1="22" x2="14" y2="3" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stop-color="#c2410c"/>
+            <stop offset="45%"  stop-color="#f59e0b"/>
+            <stop offset="100%" stop-color="#fde68a"/>
+          </linearGradient>
+          <linearGradient id="fg-inner" x1="14" y1="20" x2="14" y2="11" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stop-color="#fde68a"/>
+            <stop offset="100%" stop-color="#fffbeb" stop-opacity="0.95"/>
+          </linearGradient>
+        </defs>
+        <path d="M14 3C14 3 8 9 8 16C8 19.314 10.686 22 14 22C17.314 22 20 19.314 20 16C20 9 14 3 14 3Z" fill="url(#fg-outer)"/>
+        <path d="M14 11C14 11 11 14.5 11 17C11 18.657 12.343 20 14 20C15.657 20 17 18.657 17 17C17 14.5 14 11 14 11Z" fill="url(#fg-inner)"/>
       </svg>
       <span class="text-white font-bold text-lg tracking-tight">Tarka</span>
       <span class="text-xs font-mono bg-green-950 text-green-400 border border-green-800 px-2 py-0.5 rounded-full">v0.2.0</span>
@@ -84,7 +95,10 @@
 <section class="relative min-h-screen flex flex-col items-center justify-center text-center px-6 pt-24 pb-16 hero-glow">
   <!-- Pre-headline pill -->
   <div class="inline-flex items-center gap-2 bg-blue-950 border border-blue-800 text-blue-300 text-xs font-mono uppercase tracking-widest px-4 py-1.5 rounded-full mb-8 fade-in-up">
-    <span class="w-1.5 h-1.5 bg-green-400 rounded-full inline-block"></span>
+    <span class="relative inline-flex items-center justify-center w-2.5 h-2.5">
+      <span class="animate-ping absolute inline-flex w-full h-full rounded-full bg-green-400 opacity-50"></span>
+      <span class="relative w-1.5 h-1.5 bg-green-400 rounded-full inline-flex"></span>
+    </span>
     Open Source &middot; Apache 2.0 &middot; 419/419 Tests Passing
   </div>
 
@@ -521,19 +535,19 @@
 <section class="border-y border-slate-800 bg-surface py-14 px-6">
   <div class="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-8 text-center fade-in-up">
     <div>
-      <div class="text-3xl font-bold text-blue-400 stat-num">419/419</div>
+      <div class="text-3xl font-bold text-blue-400 stat-num" data-count="419" data-prefix="" data-suffix="/419">419/419</div>
       <div class="text-xs text-slate-500 mt-1 uppercase tracking-wide">Tests passing</div>
     </div>
     <div>
-      <div class="text-3xl font-bold text-blue-400 stat-num">27+</div>
+      <div class="text-3xl font-bold text-blue-400 stat-num" data-count="27" data-suffix="+">27+</div>
       <div class="text-xs text-slate-500 mt-1 uppercase tracking-wide">Diagnostic modules</div>
     </div>
     <div>
-      <div class="text-3xl font-bold text-blue-400 stat-num">10+</div>
+      <div class="text-3xl font-bold text-blue-400 stat-num" data-count="10" data-suffix="+">10+</div>
       <div class="text-xs text-slate-500 mt-1 uppercase tracking-wide">Alert families</div>
     </div>
     <div>
-      <div class="text-3xl font-bold text-blue-400 stat-num">50+</div>
+      <div class="text-3xl font-bold text-blue-400 stat-num" data-count="50" data-suffix="+">50+</div>
       <div class="text-xs text-slate-500 mt-1 uppercase tracking-wide">Built-in PromQL queries</div>
     </div>
     <div class="col-span-2 md:col-span-1">
@@ -595,9 +609,20 @@
     <div class="flex flex-col md:flex-row justify-between items-center gap-6">
       <!-- Left: brand -->
       <div class="flex items-center gap-3">
-        <svg width="20" height="20" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-          <path d="M14 3C14 3 8 9 8 16C8 19.314 10.686 22 14 22C17.314 22 20 19.314 20 16C20 9 14 3 14 3Z" fill="#f59e0b" opacity="0.9"/>
-          <path d="M14 11C14 11 11 14.5 11 17C11 18.657 12.343 20 14 20C15.657 20 17 18.657 17 17C17 14.5 14 11 14 11Z" fill="#fde68a"/>
+        <svg width="20" height="20" viewBox="0 0 28 28" fill="none" class="flame-icon" aria-hidden="true">
+          <defs>
+            <linearGradient id="fg-outer-ft" x1="14" y1="22" x2="14" y2="3" gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stop-color="#c2410c"/>
+              <stop offset="45%"  stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#fde68a"/>
+            </linearGradient>
+            <linearGradient id="fg-inner-ft" x1="14" y1="20" x2="14" y2="11" gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stop-color="#fde68a"/>
+              <stop offset="100%" stop-color="#fffbeb" stop-opacity="0.95"/>
+            </linearGradient>
+          </defs>
+          <path d="M14 3C14 3 8 9 8 16C8 19.314 10.686 22 14 22C17.314 22 20 19.314 20 16C20 9 14 3 14 3Z" fill="url(#fg-outer-ft)"/>
+          <path d="M14 11C14 11 11 14.5 11 17C11 18.657 12.343 20 14 20C15.657 20 17 18.657 17 17C17 14.5 14 11 14 11Z" fill="url(#fg-inner-ft)"/>
         </svg>
         <span class="text-sm text-slate-400">© 2026 Dinesh Auti and the Tarka contributors. Apache 2.0.</span>
       </div>
@@ -657,6 +682,28 @@
   document.getElementById('nav-toggle').addEventListener('click', () => {
     document.getElementById('mobile-menu').classList.toggle('hidden');
   });
+
+  // 4. Stats count-up
+  const statsObserver = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (!e.isIntersecting || !e.target.dataset.count) return;
+      const el = e.target;
+      const target = parseInt(el.dataset.count, 10);
+      const suffix = el.dataset.suffix || '';
+      const prefix = el.dataset.prefix || '';
+      const duration = 800;
+      const steps = 40;
+      const increment = target / steps;
+      let current = 0;
+      const timer = setInterval(() => {
+        current = Math.min(current + increment, target);
+        el.textContent = prefix + Math.floor(current) + suffix;
+        if (current >= target) clearInterval(timer);
+      }, duration / steps);
+      statsObserver.unobserve(el);
+    });
+  }, { threshold: 0.6 });
+  document.querySelectorAll('.stat-num[data-count]').forEach(el => statsObserver.observe(el));
 </script>
 
 </body>

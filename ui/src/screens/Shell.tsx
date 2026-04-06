@@ -102,7 +102,6 @@ function ShellInner() {
   const [helpPos, setHelpPos] = React.useState<{ top: number; right: number } | null>(null);
   const helpPanelRef = React.useRef<HTMLDivElement>(null);
   const helpBtnRef = React.useRef<HTMLButtonElement>(null);
-
   React.useEffect(() => {
     if (!helpOpen) return;
     const onPtr = (e: PointerEvent) => {

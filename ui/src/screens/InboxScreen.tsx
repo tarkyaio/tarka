@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useApi, ApiError } from "../lib/api";
 import { CaseFacetsResponse, InboxResponse, InboxRow } from "../lib/types";
-import { classificationLabel, fingerprint7, formatAge } from "../lib/format";
+import { classificationLabel, fingerprint7, formatAge, fmtTokens, fmtCost } from "../lib/format";
 import { useAuth } from "../state/auth";
 import { LoginDialog } from "../ui/LoginDialog";
 import { IconButton } from "../ui/IconButton";
@@ -11,6 +11,29 @@ import { ClassificationPill } from "../ui/ClassificationPill";
 import { SeverityPill } from "../ui/SeverityPill";
 import { AlertStatusPill } from "../ui/AlertStatusPill";
 import styles from "./InboxScreen.module.css";
+
+const ROW_HEIGHT_PX = 62;
+// Fixed chrome: topbar(64) + content padding(44) + inbox header(55) + gaps(28) + toolbar(36) + thead(40) + table footer(52) + borders/buffer(14)
+const CHROME_PX = 333;
+
+function usePageSize(min = 5, max = 25): number {
+  const compute = () =>
+    Math.min(max, Math.max(min, Math.floor((window.innerHeight - CHROME_PX) / ROW_HEIGHT_PX)));
+
+  const [pageSize, setPageSize] = React.useState(compute);
+
+  React.useEffect(() => {
+    const onResize = () =>
+      setPageSize((prev) => {
+        const next = compute();
+        return next === prev ? prev : next;
+      });
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return pageSize;
+}
 
 type InboxCacheEntry = { ts: number; data: InboxResponse };
 const INBOX_CACHE_TTL_MS = 30_000;
@@ -74,27 +97,13 @@ const FAMILY_OPTIONS = [
   { value: "generic", label: "Generic" },
 ];
 
-function scoreColor(score?: number | null): "green" | "amber" | "red" | "muted" {
-  if (score == null) return "muted";
-  // Match sample: high-impact bars are red
-  if (score >= 85) return "green";
-  if (score >= 60) return "amber";
-  return "red";
-}
-
-function impactTone(
-  score?: number | null
-): "impactHigh" | "impactMed" | "impactLow" | "impactMuted" {
-  if (score == null) return "impactMuted";
-  if (score >= 85) return "impactHigh";
-  if (score >= 60) return "impactMed";
-  return "impactLow";
-}
-
-function noiseTone(score?: number | null): "noiseHigh" | "noiseMuted" {
-  if (score == null) return "noiseMuted";
-  return score >= 70 ? "noiseHigh" : "noiseMuted";
-}
+const STATUS_OPTIONS = [
+  { value: "", label: "All" },
+  { value: "firing", label: "Firing" },
+  { value: "stale", label: "Stale" },
+  { value: "resolved", label: "Resolved" },
+  { value: "snoozed", label: "Snoozed" },
+];
 
 function inboxSignature(d: InboxResponse | null): string {
   const items = d?.items || [];
@@ -109,12 +118,12 @@ export function InboxScreen() {
   const [sp, setSp] = useSearchParams();
 
   const q = sp.get("q") || "";
-  const statusTab = sp.get("status") || "";
+  const effectiveStatus = sp.get("effective_status") || "";
   const classification = sp.get("classification") || "";
   const family = sp.get("family") || "";
   const team = sp.get("team") || "";
   const page = Math.max(0, parseInt(sp.get("page") || "0", 10) || 0);
-  const pageSize = 6;
+  const pageSize = usePageSize();
 
   const [data, setData] = React.useState<InboxResponse | null>(null);
   const [facets, setFacets] = React.useState<CaseFacetsResponse | null>(null);
@@ -123,12 +132,15 @@ export function InboxScreen() {
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState<ApiError | null>(null);
 
-  const [menuOpen, setMenuOpen] = React.useState<null | "classification" | "family" | "team">(null);
+  const [menuOpen, setMenuOpen] = React.useState<
+    null | "status" | "classification" | "family" | "team"
+  >(null);
   const [menuPos, setMenuPos] = React.useState<{ top: number; left: number; width: number } | null>(
     null
   );
   const menuRef = React.useRef<HTMLDivElement | null>(null);
 
+  const statusButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const classificationButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const familyButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const teamButtonRef = React.useRef<HTMLButtonElement | null>(null);
@@ -137,11 +149,10 @@ export function InboxScreen() {
   const dismissedSigRef = React.useRef<string | null>(null);
 
   const inboxUrl = React.useMemo(() => {
-    const apiStatus = statusTab === "snoozed" ? "snoozed" : "all";
-    return `/api/v1/cases?status=${apiStatus}&q=${encodeURIComponent(q)}&classification=${encodeURIComponent(
+    return `/api/v1/cases?effective_status=${encodeURIComponent(effectiveStatus)}&q=${encodeURIComponent(q)}&classification=${encodeURIComponent(
       classification
     )}&family=${encodeURIComponent(family)}&team=${encodeURIComponent(team)}&limit=${pageSize}&offset=${page * pageSize}`;
-  }, [q, statusTab, classification, family, team, page, pageSize]);
+  }, [q, effectiveStatus, classification, family, team, page, pageSize]);
 
   React.useEffect(() => {
     appliedSigRef.current = inboxSignature(data);
@@ -247,6 +258,7 @@ export function InboxScreen() {
       const t = e.target as Node | null;
       if (!t) return;
       if (menuRef.current && menuRef.current.contains(t)) return;
+      if (statusButtonRef.current && statusButtonRef.current.contains(t)) return;
       if (classificationButtonRef.current && classificationButtonRef.current.contains(t)) return;
       if (familyButtonRef.current && familyButtonRef.current.contains(t)) return;
       if (teamButtonRef.current && teamButtonRef.current.contains(t)) return;
@@ -260,7 +272,10 @@ export function InboxScreen() {
     };
   }, [menuOpen]);
 
-  function openMenu(kind: "classification" | "family" | "team", el: HTMLButtonElement | null) {
+  function openMenu(
+    kind: "status" | "classification" | "family" | "team",
+    el: HTMLButtonElement | null
+  ) {
     if (!el) return;
     if (menuOpen === kind) {
       setMenuOpen(null);
@@ -308,29 +323,21 @@ export function InboxScreen() {
           <div className={styles.toolbar}>
             <div className={styles.toolbarLeft}>
               <button
+                ref={statusButtonRef}
+                className={styles.filterBtn}
                 type="button"
-                className={`${styles.chip} ${statusTab !== "snoozed" ? styles.chipActive : ""}`}
-                onClick={() => {
-                  const next = new URLSearchParams(sp);
-                  next.delete("status");
-                  next.set("page", "0");
-                  setSp(next, { replace: true });
-                }}
+                onClick={() => openMenu("status", statusButtonRef.current)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen === "status" ? "true" : "false"}
               >
-                Active
-              </button>
-              <button
-                type="button"
-                className={`${styles.chip} ${statusTab === "snoozed" ? styles.chipActive : ""}`}
-                onClick={() => {
-                  const next = new URLSearchParams(sp);
-                  next.set("status", "snoozed");
-                  next.set("page", "0");
-                  setSp(next, { replace: true });
-                }}
-              >
-                <span className={`material-symbols-outlined ${styles.listIcon}`}>snooze</span>
-                Snoozed
+                <span className={styles.filterBtnLabel}>Status</span>
+                <span className={styles.filterBtnValue}>
+                  {effectiveStatus
+                    ? STATUS_OPTIONS.find((opt) => opt.value === effectiveStatus)?.label ||
+                      effectiveStatus
+                    : "All"}
+                </span>
+                <span className={`material-symbols-outlined ${styles.dropIcon}`}>expand_more</span>
               </button>
 
               <div className={styles.toolbarDivider} aria-hidden="true" />
@@ -389,6 +396,7 @@ export function InboxScreen() {
                   const next = new URLSearchParams(sp);
                   next.set("page", "0");
                   next.delete("q");
+                  next.delete("effective_status");
                   next.delete("classification");
                   next.delete("family");
                   next.delete("team");
@@ -430,6 +438,28 @@ export function InboxScreen() {
                 width: menuPos.width,
               }}
             >
+              {menuOpen === "status" ? (
+                <div className={styles.filterMenuSection}>
+                  {STATUS_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value || "__all__"}
+                      type="button"
+                      className={`${styles.filterMenuItem} ${effectiveStatus === opt.value ? styles.filterMenuItemActive : ""}`}
+                      onClick={() => {
+                        setParam("effective_status", opt.value);
+                        setMenuOpen(null);
+                      }}
+                    >
+                      <span className={styles.filterMenuItemLabel}>{opt.label}</span>
+                      {effectiveStatus === opt.value ? (
+                        <span className="material-symbols-outlined">check</span>
+                      ) : (
+                        <span />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               {menuOpen === "classification" ? (
                 <div className={styles.filterMenuSection}>
                   {CLASSIFICATION_OPTIONS.map((opt) => (
@@ -543,12 +573,11 @@ export function InboxScreen() {
               <table className={styles.table}>
                 <thead className={styles.thead}>
                   <tr>
-                    <th className={`${styles.th} ${styles.colClassification}`}>Classification</th>
-                    <th className={`${styles.th} ${styles.colIncident}`}>Case</th>
+                    <th className={`${styles.th} ${styles.thFirst} ${styles.colCase}`}>Case</th>
                     <th className={`${styles.th} ${styles.hideMd} ${styles.colFamily}`}>Family</th>
                     <th className={`${styles.th} ${styles.colTarget}`}>Target</th>
                     <th className={`${styles.th} ${styles.colStatus}`}>Status</th>
-                    <th className={`${styles.th} ${styles.colScores}`}>Scores</th>
+                    <th className={`${styles.th} ${styles.hideMd} ${styles.colCost}`}>Cost</th>
                     <th className={`${styles.th} ${styles.colAge}`}>Age</th>
                     <th className={`${styles.th} ${styles.colSeverity}`}>Severity</th>
                   </tr>
@@ -556,7 +585,7 @@ export function InboxScreen() {
                 <tbody className={styles.tbody}>
                   {loading && !data ? (
                     <tr>
-                      <td className={styles.td} colSpan={8}>
+                      <td className={styles.td} colSpan={7}>
                         <div className={styles.skeletonRow}>Loading…</div>
                       </td>
                     </tr>
@@ -575,10 +604,7 @@ export function InboxScreen() {
                             nav(`/cases/${encodeURIComponent(r.case_id)}`);
                         }}
                       >
-                        <td className={styles.td}>
-                          <ClassificationPill classification={r.classification} />
-                        </td>
-                        <td className={styles.td}>
+                        <td className={`${styles.td} ${styles.tdFirst}`}>
                           <div className={styles.incidentCell}>
                             <div className={styles.incidentTitleRow}>
                               <div className={styles.incidentTitle} title={r.alertname || ""}>
@@ -591,6 +617,8 @@ export function InboxScreen() {
                               ) : null}
                             </div>
                             <div className={styles.incidentMeta}>
+                              <ClassificationPill classification={r.classification} />
+                              <span className={styles.sep}>·</span>
                               <span>#{fingerprint7(r.case_id)}</span>
                               <span className={styles.sep}>•</span>
                               <span>{r.enrichment_summary || r.primary_driver || "n/a"}</span>
@@ -606,59 +634,14 @@ export function InboxScreen() {
                         <td className={`${styles.td} ${styles.statusCell}`}>
                           <AlertStatusPill status={r.effective_status} />
                         </td>
-                        <td className={styles.td}>
-                          <div className={styles.scoresStack}>
-                            <div
-                              className={styles.scoreItem}
-                              title={
-                                r.impact_score != null
-                                  ? `Impact Score: ${r.impact_score}/100`
-                                  : "Impact Score: —"
-                              }
-                            >
-                              <span
-                                className={`material-symbols-outlined ${styles.scoreIcon} ${styles.scoreIconFilled} ${styles[impactTone(r.impact_score)]}`}
-                              >
-                                bolt
-                              </span>
-                              <span className={styles.scoreNum}>
-                                {r.impact_score != null ? r.impact_score : "—"}
-                              </span>
-                            </div>
-                            <div
-                              className={styles.scoreItem}
-                              title={
-                                r.confidence_score != null
-                                  ? `AI Confidence: ${r.confidence_score}%`
-                                  : "AI Confidence: —"
-                              }
-                            >
-                              <span
-                                className={`material-symbols-outlined ${styles.scoreIcon} ${styles.scoreIconFilled} ${styles.confIcon} ${styles[scoreColor(r.confidence_score)]}`}
-                              >
-                                verified
-                              </span>
-                              <span className={styles.scorePct}>
-                                {r.confidence_score != null ? `${r.confidence_score}%` : "—"}
-                              </span>
-                            </div>
-                            <div
-                              className={styles.scoreItem}
-                              title={
-                                r.noise_score != null
-                                  ? `Noise Level: ${r.noise_score}%`
-                                  : "Noise Level: —"
-                              }
-                            >
-                              <span
-                                className={`material-symbols-outlined ${styles.scoreIcon} ${styles.noiseIcon} ${styles[noiseTone(r.noise_score)]}`}
-                              >
-                                graphic_eq
-                              </span>
-                              <span className={styles.scorePct}>
-                                {r.noise_score != null ? `${r.noise_score}%` : "—"}
-                              </span>
-                            </div>
+                        <td className={`${styles.td} ${styles.hideMd} ${styles.costCell}`}>
+                          <div className={styles.costStack}>
+                            <span className={styles.costTokens} title="LLM tokens used">
+                              {fmtTokens(r.llm_total_tokens)}
+                            </span>
+                            <span className={styles.costUsd} title="Estimated cost (USD)">
+                              {fmtCost(r.llm_cost_usd)}
+                            </span>
                           </div>
                         </td>
                         <td className={`${styles.td} ${styles.ageCell}`}>
@@ -673,7 +656,7 @@ export function InboxScreen() {
 
                   {data && data.items.length === 0 && !loading ? (
                     <tr>
-                      <td className={styles.td} colSpan={8}>
+                      <td className={styles.td} colSpan={7}>
                         <div className={styles.empty}>No cases match your filters.</div>
                       </td>
                     </tr>

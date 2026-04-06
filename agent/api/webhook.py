@@ -1534,6 +1534,9 @@ def _apply_inbox_hybrid_search(cte_conditions: List[str], cte_params: List[Any],
 @app.get("/api/v1/cases")
 async def list_cases(
     status: str = Query("open", description="Filter by status (open, closed, all)"),
+    effective_status: str = Query(
+        "", description="Filter by effective status (firing, stale, resolved, snoozed); overrides status when set"
+    ),
     q: str = Query("", description="Search query"),
     service: str = Query("", description="Filter by service"),
     classification: str = Query("", description="Filter by classification"),
@@ -1554,7 +1557,22 @@ async def list_cases(
         cte_conditions = []
         cte_params: List[Any] = []
 
-        if status and status.lower() == "snoozed":
+        if effective_status:
+            es = effective_status.lower()
+            if es == "firing":
+                cte_conditions.append("c.status = 'open'")
+                cte_conditions.append("(c.snoozed_until IS NULL OR c.snoozed_until <= now())")
+                cte_conditions.append(f"c.updated_at > now() - INTERVAL '{_STALE_THRESHOLD_HOURS} hours'")
+            elif es == "stale":
+                cte_conditions.append("c.status = 'open'")
+                cte_conditions.append("(c.snoozed_until IS NULL OR c.snoozed_until <= now())")
+                cte_conditions.append(f"c.updated_at <= now() - INTERVAL '{_STALE_THRESHOLD_HOURS} hours'")
+            elif es == "resolved":
+                cte_conditions.append("c.status = 'closed'")
+            elif es == "snoozed":
+                cte_conditions.append("c.snoozed_until > now()")
+            # unknown value: no filter (show all)
+        elif status and status.lower() == "snoozed":
             cte_conditions.append("c.snoozed_until > now()")
         elif status and status.lower() == "open":
             # Open view: hide snoozed cases
@@ -1612,6 +1630,8 @@ async def list_cases(
                     NULLIF(r.analysis_json #>> '{{analysis,scores,noise_score}}', '')::int as noise_score,
                     NULLIF(r.analysis_json #>> '{{target,team}}', '') as team,
                     NULLIF(r.analysis_json #>> '{{analysis,enrichment,label}}', '') as enrichment_summary,
+                    NULLIF(r.analysis_json #>> '{{analysis,llm,usage,total_tokens}}', '')::int as llm_total_tokens,
+                    NULLIF(r.analysis_json #>> '{{analysis,llm,usage,estimated_cost_usd}}', '')::float as llm_cost_usd,
                     r.normalized_state
                 FROM investigation_runs r
                 INNER JOIN cases c ON r.case_id = c.case_id
@@ -1640,6 +1660,8 @@ async def list_cases(
                 lr.noise_score,
                 lr.team,
                 lr.enrichment_summary,
+                lr.llm_total_tokens,
+                lr.llm_cost_usd,
                 lr.normalized_state AS latest_normalized_state,
                 (SELECT COUNT(*) FROM investigation_runs r2 WHERE r2.case_id = c.case_id) AS run_count,
                 c.snoozed_until::text
@@ -1701,13 +1723,15 @@ async def list_cases(
                     "noise_score": row[18] if row[18] is not None else None,
                     "team": str(row[19]) if row[19] else None,
                     "enrichment_summary": str(row[20]) if row[20] else None,
-                    "latest_alert_state": str(row[21]) if row[21] else None,
-                    "run_count": int(row[22]) if row[22] is not None else 1,
-                    "snoozed_until": str(row[23]) if row[23] else None,
+                    "llm_total_tokens": int(row[21]) if row[21] is not None else None,
+                    "llm_cost_usd": float(row[22]) if row[22] is not None else None,
+                    "latest_alert_state": str(row[23]) if row[23] else None,
+                    "run_count": int(row[24]) if row[24] is not None else 1,
+                    "snoozed_until": str(row[25]) if row[25] else None,
                     "effective_status": _compute_effective_status(
                         case_status=str(row[1]) if row[1] else None,
                         updated_at_str=str(row[3]) if row[3] else None,
-                        snoozed_until=str(row[23]) if row[23] else None,
+                        snoozed_until=str(row[25]) if row[25] else None,
                     ),
                 }
             )

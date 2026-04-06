@@ -508,7 +508,6 @@ export function CaseScreen() {
                   <div className={styles.reportHeader}>
                     <div className={styles.reportHeaderLeft}>
                       <div className={styles.reportMetaRow}>
-                        <ClassificationPill classification={classification} />
                         <SeverityPill severity={severity} />
                         {totalTokens > 0 && (
                           <span className={styles.costBadge}>

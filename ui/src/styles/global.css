@@ -1,53 +1,60 @@
+/* ─────────────────────────────────────────────
+   TARKA — Design Tokens
+   Monochrome/Zinc direction:
+   Only semantic colors (red/amber/green/violet)
+   carry hue. Everything else is zinc/slate.
+   ───────────────────────────────────────────── */
+
+/* Design tokens */
 :root {
   color-scheme: light;
 
-  /* Match `stitch_incident_inbox/code.html` */
-  --background-dark: #f8fafc; /* slate-50 */
-  --surface-dark: #ffffff; /* white */
-  --surface-dark-2: #f8fafc; /* slate-50 */
-  --border-dark: #e2e8f0; /* slate-200 */
-  --hover-dark: #f1f5f9; /* slate-100 */
+  --background-dark: #f8fafc;
+  --surface-dark: #ffffff;
+  --surface-dark-2: #f1f5f9;
+  --border-dark: #e2e8f0;
+  --hover-dark: #f1f5f9;
 
-  --text: #0f172a; /* slate-900 */
-  --muted: #64748b; /* slate-500 */
-  --muted-2: #94a3b8; /* slate-400 */
+  --text: #0f172a;
+  --muted: #64748b;
+  --muted-2: #94a3b8;
 
-  --primary: #135bec;
-  --blue: #3b82f6;
-  --green: #22c55e;
-  --amber: #f59e0b;
-  --red: #ef4444;
+  /* Zinc accent — no brand color */
+  --primary: #18181b;
+  --primary-text: #18181b;
+  --primary-border: rgba(24, 24, 27, 0.16);
+  --primary-border-soft: rgba(24, 24, 27, 0.1);
+  --primary-bg: rgba(24, 24, 27, 0.06);
+  --primary-bg-soft: rgba(24, 24, 27, 0.04);
+  --primary-focus: rgba(24, 24, 27, 0.18);
 
-  --text-strong: rgba(15, 23, 42, 0.92);
-  --text-default: rgba(15, 23, 42, 0.85);
-  --text-body: rgba(15, 23, 42, 0.82);
-  --text-secondary: rgba(15, 23, 42, 0.78);
-  --text-tertiary: rgba(15, 23, 42, 0.7);
-  --text-faint: rgba(15, 23, 42, 0.6);
+  /* Semantic — these are the ONLY colors in the UI */
+  --green: #16a34a;
+  --amber: #d97706;
+  --red: #dc2626;
+  --blue: #64748b; /* muted, used only for "info" classification */
 
-  --primary-text: rgba(19, 91, 236, 0.96);
-  --primary-border: rgba(19, 91, 236, 0.22);
-  --primary-border-soft: rgba(19, 91, 236, 0.18);
-  --primary-bg: rgba(19, 91, 236, 0.1);
-  --primary-bg-soft: rgba(19, 91, 236, 0.08);
-  --primary-focus: rgba(19, 91, 236, 0.28);
+  --text-strong: rgba(15, 23, 42, 0.95);
+  --text-default: rgba(15, 23, 42, 0.88);
+  --text-body: rgba(15, 23, 42, 0.84);
+  --text-secondary: rgba(15, 23, 42, 0.76);
+  --text-tertiary: rgba(15, 23, 42, 0.64);
+  --text-faint: rgba(15, 23, 42, 0.5);
 
   --border-subtle: rgba(226, 232, 240, 0.7);
   --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow: 0 16px 48px rgba(15, 23, 42, 0.1);
 
-  --shadow: 0 16px 48px rgba(15, 23, 42, 0.12);
-  --radius: 12px;
-  --radius-lg: 16px;
-  --radius-sm: 8px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-sm: 6px;
 
-  --font:
-    Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
-    "Apple Color Emoji", "Segoe UI Emoji";
-  --mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-    monospace;
+  --font: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+/* ── Reset ── */
 * {
   box-sizing: border-box;
 }
@@ -62,6 +69,9 @@ body {
   background: var(--background-dark);
   color: var(--text);
   font-family: var(--font);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
@@ -72,33 +82,33 @@ a {
 .mono {
   font-family: var(--mono);
 }
-
 .muted {
   color: var(--muted);
 }
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
 ::selection {
-  background: rgba(19, 91, 236, 0.28);
+  background: rgba(15, 23, 42, 0.14);
 }
 
-/* Scrollbar styling (matches `code.html`) */
+/* ── Scrollbars ── */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9; /* slate-100 */
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1; /* slate-300 */
-  border-radius: 4px;
+  background: var(--border-dark);
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8; /* slate-400 */
+  background: var(--muted-2);
 }
