@@ -1751,8 +1751,16 @@ async def list_cases(
                     NULLIF(r.analysis_json #>> '{{analysis,scores,noise_score}}', '')::int as noise_score,
                     NULLIF(r.analysis_json #>> '{{target,team}}', '') as team,
                     NULLIF(r.analysis_json #>> '{{analysis,enrichment,label}}', '') as enrichment_summary,
-                    NULLIF(r.analysis_json #>> '{{analysis,llm,usage,total_tokens}}', '')::int as llm_total_tokens,
-                    NULLIF(r.analysis_json #>> '{{analysis,llm,usage,estimated_cost_usd}}', '')::float as llm_cost_usd,
+                    NULLIF(
+                        COALESCE(NULLIF(r.analysis_json #>> '{{analysis,llm,usage,total_tokens}}', '')::int, 0) +
+                        COALESCE(NULLIF(r.analysis_json #>> '{{analysis,rca,usage,total_tokens}}', '')::int, 0),
+                        0
+                    ) as llm_total_tokens,
+                    NULLIF(
+                        COALESCE(NULLIF(r.analysis_json #>> '{{analysis,llm,usage,estimated_cost_usd}}', '')::float, 0) +
+                        COALESCE(NULLIF(r.analysis_json #>> '{{analysis,rca,usage,estimated_cost_usd}}', '')::float, 0),
+                        0
+                    ) as llm_cost_usd,
                     r.normalized_state
                 FROM investigation_runs r
                 INNER JOIN cases c ON r.case_id = c.case_id
