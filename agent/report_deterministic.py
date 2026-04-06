@@ -105,6 +105,8 @@ def render_deterministic_report(investigation: Investigation, *, generated_at: O
     lines.append("")
     lines.append(f"**Alert:** `{alertname or 'Unknown'}`")
     lines.append(f"**Severity:** `{severity_txt}`")
+    if investigation.alert.source:
+        lines.append(f"**Source:** `{investigation.alert.source}`")
     lines.append(f"**Target type:** `{investigation.target.target_type}`")
     if getattr(investigation.target, "environment", None):
         lines.append(f"**Environment:** `{investigation.target.environment}`")

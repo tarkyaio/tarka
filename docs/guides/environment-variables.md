@@ -16,6 +16,11 @@ This repo is intentionally **env-driven** (ConfigMap/Secret friendly). This page
 - `LOGS_URL` (default: empty → logs skipped; dev fallback `http://localhost:19471`)
 - `CLUSTER_NAME` (default: empty)
 
+## HTTP source (generic webhook receiver)
+
+**ConfigMap**
+- `HTTP_SOURCE_CONFIG_FILE` (default: empty → feature disabled) — path to a YAML file defining HTTP sources (e.g. `config/http_sources.yaml`); see [docs/guides/http-source.md](http-source.md)
+
 ## Report generation / webhook
 
 **ConfigMap**

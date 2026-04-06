@@ -51,6 +51,7 @@ class AlertInstance(BaseModelStrict):
     state: Optional[str] = None
     normalized_state: Optional[Literal["firing", "resolved", "unknown"]] = None
     ends_at_kind: Optional[Literal["expires_at", "resolved_at", "unknown"]] = None
+    source: Optional[str] = None  # "alertmanager" | "http:<source_id>"
 
 
 class TargetRef(BaseModelStrict):

@@ -256,6 +256,7 @@ def _normalize_webhook_alert(webhook_alert: Dict[str, Any], parent_status: Optio
         "ends_at": ends_at,
         "generator_url": webhook_alert.get("generatorURL") or webhook_alert.get("generator_url", ""),
         "status": {"state": status},
+        "source": "alertmanager",
     }
 
 
@@ -593,6 +594,33 @@ from agent.console_api import router as _console_router  # noqa: E402
 
 app.include_router(_console_router)
 
+# ---- HTTP sources registry ----
+# Populated at startup from HTTP_SOURCE_CONFIG_FILE (if set).
+_http_sources: Dict[str, Any] = {}
+
+
+def _load_http_sources() -> None:
+    import os
+
+    from agent.sources.config import load_sources_config
+
+    path = os.getenv("HTTP_SOURCE_CONFIG_FILE", "").strip()
+    if not path:
+        return
+    import os as _os
+
+    if not _os.path.exists(path):
+        logger.warning("HTTP_SOURCE_CONFIG_FILE=%s does not exist — HTTP sources disabled", path)
+        return
+    try:
+        cfg = load_sources_config(path)
+        for source in cfg.sources:
+            _http_sources[source.id] = source
+        logger.info("HTTP sources loaded: %s", list(_http_sources.keys()))
+    except Exception as e:
+        logger.error("Failed to load HTTP sources from %s: %s", path, e)
+
+
 # ---- Console authentication (public UI hardening) ----
 _OAUTH_COOKIE_PATH = "/api/auth"
 _OAUTH_TTL_SECONDS = 10 * 60
@@ -624,6 +652,9 @@ def _public_base_url(cfg) -> str:
 def _is_public_path(path: str) -> bool:
     # Health checks + webhook receiver must remain callable without Console auth.
     if path in ("/healthz", "/alerts"):
+        return True
+    # Generic HTTP source ingest endpoints are webhook receivers — no session required.
+    if path.startswith("/sources/") and path.endswith("/ingest"):
         return True
     # Auth login/callback endpoints must be reachable without a session.
     if path.startswith("/api/auth/login/") or path.startswith("/api/auth/callback/"):
@@ -735,6 +766,12 @@ async def _startup_slack_bolt() -> None:
 
 
 @app.on_event("startup")
+def _startup_load_http_sources() -> None:
+    """Load HTTP source configs from HTTP_SOURCE_CONFIG_FILE (if set)."""
+    _load_http_sources()
+
+
+@app.on_event("startup")
 def _startup_warm_infra_mirrors() -> None:
     """Pre-warm git mirrors for configured infra-context repos."""
     import os
@@ -805,6 +842,86 @@ async def log_requests(request: Request, call_next):
 @app.get("/healthz")
 def healthz() -> Dict[str, Any]:
     return {"ok": True}
+
+
+@app.post("/sources/{source_id}/ingest")
+async def http_source_ingest(source_id: str, request: Request) -> JSONResponse:
+    """
+    Generic HTTP source ingest endpoint.
+
+    Accepts any JSON payload and normalises it to Tarka's internal alert schema using the
+    Jinja2 field_map defined in http_sources.yaml.  The resulting alert is enqueued to
+    JetStream and processed by the standard investigation pipeline — identical to the path
+    taken by Alertmanager events.
+    """
+    from agent.queue.nats_jetstream import compute_msg_id_from_dedup_key, get_client_from_env
+    from agent.sources.normalizer import normalize_http_event
+    from agent.sources.signature import verify_signature
+
+    if source_id not in _http_sources:
+        return JSONResponse({"error": f"unknown source: {source_id!r}"}, status_code=404)
+
+    config = _http_sources[source_id]
+    raw_body = await request.body()
+
+    # Signature verification (skipped when no secret is configured)
+    if config.secret:
+        header_val = request.headers.get(config.signature_header or "", "")
+        if not verify_signature(raw_body, config.secret, header_val, config.signature_prefix):
+            logger.warning("HTTP source %r: invalid signature", source_id)
+            return JSONResponse({"error": "invalid signature"}, status_code=401)
+
+    try:
+        payload = json.loads(raw_body)
+    except json.JSONDecodeError as e:
+        return JSONResponse({"error": f"invalid JSON: {e}"}, status_code=400)
+
+    try:
+        alert = normalize_http_event(payload, config)
+    except ValueError as e:
+        logger.warning("HTTP source %r: normalization failed: %s", source_id, e)
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+    state = (alert.get("status") or {}).get("state") or "unknown"
+    fingerprint = str(alert.get("fingerprint") or "")
+    alertname = (alert.get("labels") or {}).get("alertname", "unknown")
+
+    # Auto-close resolved events and skip further processing
+    if state == "resolved":
+        if fingerprint:
+            _auto_close_case_by_fingerprint(fingerprint)
+        logger.debug("HTTP source %r: skipping resolved event alertname=%s", source_id, alertname)
+        return JSONResponse({"ok": True, "source_id": source_id, "skipped": "resolved"}, status_code=202)
+
+    allowlist = _get_allowlist()
+    if allowlist is not None and alertname not in allowlist:
+        logger.debug("HTTP source %r: skipping alertname=%s (not in allowlist)", source_id, alertname)
+        return JSONResponse({"ok": True, "source_id": source_id, "skipped": "allowlist"}, status_code=202)
+
+    if fingerprint and _check_case_snoozed(fingerprint):
+        logger.debug("HTTP source %r: skipping snoozed alertname=%s", source_id, alertname)
+        return JSONResponse({"ok": True, "source_id": source_id, "skipped": "snoozed"}, status_code=202)
+
+    # Dedup key: fingerprint + 4h bucket (same strategy as Alertmanager path)
+    env_cluster = (os.getenv("CLUSTER_NAME") or "").strip() or None
+    dedup = compute_dedup_key(
+        alertname=alertname,
+        labels=(alert.get("labels") or {}),
+        fingerprint=fingerprint,
+        now=utcnow(),
+        env_cluster=env_cluster,
+        bucket_hours=4,
+    )
+    msg_id = compute_msg_id_from_dedup_key(dedup)
+
+    time_window = os.getenv("TIME_WINDOW", "1h").strip() or "1h"
+    job = AlertJob(alert=alert, time_window=time_window, parent_status=state)
+
+    client = await get_client_from_env()
+    await client.enqueue(job, msg_id=msg_id)
+    logger.info("HTTP source %r: enqueued alertname=%s fingerprint=%s", source_id, alertname, fingerprint)
+
+    return JSONResponse({"ok": True, "source_id": source_id, "enqueued": 1}, status_code=202)
 
 
 @app.get("/api/auth/login/oidc")
