@@ -1,0 +1,75 @@
+apiVersion: v2
+name: tarka
+description: AI-powered Kubernetes alert triage. Converts Prometheus/Alertmanager alerts into actionable investigation reports.
+type: application
+version: 0.1.0
+appVersion: "0.2.0"
+
+home: https://github.com/tarkyaio/tarka
+icon: https://raw.githubusercontent.com/tarkyaio/tarka/main/docs/assets/icon.png
+
+sources:
+  - https://github.com/tarkyaio/tarka
+
+keywords:
+  - kubernetes
+  - alertmanager
+  - prometheus
+  - incident-response
+  - triage
+  - observability
+  - sre
+  - ai
+  - llm
+
+maintainers:
+  - name: tarkyaio
+    url: https://github.com/tarkyaio
+
+kubeVersion: ">=1.20.0-0"
+
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/category: monitoring-logging
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://github.com/tarkyaio/tarka/tree/main/docs
+    - name: Support
+      url: https://github.com/tarkyaio/tarka/issues
+    - name: Releases
+      url: https://github.com/tarkyaio/tarka/releases
+  artifacthub.io/images: |
+    - name: tarka
+      image: ghcr.io/tarkyaio/tarka:0.2.0
+      platforms:
+        - linux/amd64
+    - name: tarka-all-providers
+      image: ghcr.io/tarkyaio/tarka:0.2.0-all-providers
+      platforms:
+        - linux/amd64
+    - name: tarka-ui
+      image: ghcr.io/tarkyaio/tarka-ui:0.2.0
+      platforms:
+        - linux/amd64
+  artifacthub.io/changes: |
+    - kind: added
+      description: Initial Helm chart release
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/screenshots: |
+    - title: Console UI - Case Dashboard
+      url: https://raw.githubusercontent.com/tarkyaio/tarka/main/docs/assets/screenshots/dashboard.png
+    - title: Console UI - Investigation Report
+      url: https://raw.githubusercontent.com/tarkyaio/tarka/main/docs/assets/screenshots/report.png
+  artifacthub.io/recommendations: |
+    - url: https://artifacthub.io/packages/helm/nats/nats
+    - url: https://artifacthub.io/packages/helm/prometheus-community/kube-prometheus-stack
+
+dependencies:
+  - name: nats
+    version: "~2.12"
+    repository: "https://nats-io.github.io/k8s/helm/charts/"
+    condition: nats.enabled
+  - name: postgres
+    version: "~0.18"
+    repository: "oci://registry-1.docker.io/cloudpirates"
+    condition: postgres.enabled

@@ -1,0 +1,457 @@
+# -- Shared agent image (used by webhook + worker deployments)
+image:
+  repository: "ghcr.io/tarkyaio/tarka"
+  # -- Overrides the image tag; defaults to Chart.appVersion
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# ---------------------------------------------------------------------------
+# Console UI
+# ---------------------------------------------------------------------------
+ui:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: "ghcr.io/tarkyaio/tarka-ui"
+    tag: ""
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "25m"
+      memory: "64Mi"
+    limits:
+      cpu: "150m"
+      memory: "256Mi"
+  service:
+    type: ClusterIP
+    port: 80
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # -- Extra containers to run alongside the UI container
+  extraContainers: []
+  # -- Extra init containers to run before the UI container
+  extraInitContainers: []
+
+# ---------------------------------------------------------------------------
+# Webhook (API server / alert receiver)
+# ---------------------------------------------------------------------------
+webhook:
+  replicaCount: 1
+  consoleAuthMode: "oidc"
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+  service:
+    type: ClusterIP
+    port: 8080
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 2
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+  startupProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 3
+    timeoutSeconds: 2
+    failureThreshold: 40
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 6
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # -- Extra env vars for the webhook container (list of name/value pairs)
+  extraEnv: []
+  # -- Extra volume mounts for the webhook container
+  extraVolumeMounts: []
+  # -- Extra volumes for the webhook pod
+  extraVolumes: []
+  # -- Extra containers to run alongside the webhook container
+  extraContainers: []
+  # -- Extra init containers to run before the webhook container
+  extraInitContainers: []
+
+# ---------------------------------------------------------------------------
+# Worker (async task processor)
+# ---------------------------------------------------------------------------
+worker:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  # -- Worker-specific environment variables
+  env:
+    JETSTREAM_DURABLE: "WORKERS"
+    JETSTREAM_DUPLICATE_WINDOW_SECONDS: "3600"
+    WORKER_CONCURRENCY: "2"
+    WORKER_FETCH_BATCH: "10"
+    WORKER_FETCH_TIMEOUT_SECONDS: "1"
+    JETSTREAM_ACK_WAIT_SECONDS: "1800"
+    JETSTREAM_MAX_DELIVER: "5"
+    JETSTREAM_DLQ_SUBJECT: "tarka.dlq"
+    JETSTREAM_DLQ_STREAM: "TARKA_DLQ"
+    WORKER_IN_PROGRESS_SECONDS: "30"
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # -- Extra env vars for the worker container
+  extraEnv: []
+  # -- Extra volume mounts for the worker container
+  extraVolumeMounts: []
+  # -- Extra volumes for the worker pod
+  extraVolumes: []
+  # -- Extra containers to run alongside the worker container
+  extraContainers: []
+  # -- Extra init containers to run before the worker container
+  extraInitContainers: []
+
+# ---------------------------------------------------------------------------
+# ServiceAccount
+# ---------------------------------------------------------------------------
+serviceAccount:
+  create: true
+  automount: true
+  name: ""
+  # -- Cloud identity provider: "eks-irsa" | "eks-pod-identity" | "" (generic)
+  provider: ""
+  # -- IAM role ARN (used when provider is "eks-irsa")
+  eksRoleArn: ""
+  # -- Generic annotations escape hatch (merged with provider annotations)
+  annotations: {}
+
+# ---------------------------------------------------------------------------
+# RBAC (ClusterRole + ClusterRoleBinding for read-only K8s access)
+# ---------------------------------------------------------------------------
+rbac:
+  create: true
+
+# ---------------------------------------------------------------------------
+# ConfigMap
+# ---------------------------------------------------------------------------
+config:
+  # -- Set to the name of an existing ConfigMap to skip creation
+  existingConfigMap: ""
+  # -- ConfigMap data (all application config keys)
+  data:
+    # Data sources
+    ALERTMANAGER_URL: ""
+    PROMETHEUS_URL: ""
+    LOGS_URL: ""
+    K8S_VERIFY_SSL: "true"
+
+    # S3 report storage
+    S3_BUCKET: ""
+    S3_PREFIX: "tarka/reports"
+
+    # Shared report settings
+    TIME_WINDOW: "1h"
+    ALERTNAME_ALLOWLIST: ""
+
+    # NATS JetStream
+    NATS_URL: "nats://nats.tarka.svc:4222"
+    JETSTREAM_STREAM: "TARKA"
+    JETSTREAM_SUBJECT: "tarka.alerts"
+    JETSTREAM_DLQ_STREAM: "TARKA_DLQ"
+    JETSTREAM_DLQ_SUBJECT: "tarka.dlq"
+
+    # AWS
+    AWS_REGION: "us-east-1"
+    CLUSTER_NAME: ""
+
+    # Postgres (leave POSTGRES_HOST empty to disable DB-backed memory)
+    POSTGRES_HOST: ""
+    POSTGRES_PORT: "5432"
+    POSTGRES_DB: "tarka"
+    POSTGRES_USER: "tarka"
+    DB_AUTO_MIGRATE: "true"
+    MEMORY_ENABLED: "true"
+
+    # Chat policy
+    CHAT_ENABLED: "true"
+    CHAT_ALLOW_PROMQL: "true"
+    CHAT_ALLOW_K8S_READ: "true"
+    CHAT_ALLOW_LOGS_QUERY: "true"
+    CHAT_ALLOW_ARGOCD_READ: "false"
+    CHAT_ALLOW_REPORT_RERUN: "true"
+    CHAT_ALLOW_MEMORY_READ: "true"
+    CHAT_NAMESPACE_ALLOWLIST: ""
+    CHAT_CLUSTER_ALLOWLIST: ""
+    CHAT_MAX_STEPS: "6"
+    CHAT_MAX_TOOL_CALLS: "12"
+    CHAT_MAX_LOG_LINES: "200"
+    CHAT_MAX_PROMQL_SERIES: "200"
+    CHAT_MAX_TIME_WINDOW_SECONDS: "21600"
+    CHAT_REDACT_SECRETS: "true"
+
+    # AWS evidence collection
+    AWS_EVIDENCE_ENABLED: "false"
+    AWS_CLOUDTRAIL_LOOKBACK_MINUTES: "30"
+    AWS_CLOUDTRAIL_MAX_EVENTS: "50"
+    CHAT_ALLOW_AWS_READ: "false"
+    CHAT_AWS_REGION_ALLOWLIST: ""
+
+    # GitHub integration
+    GITHUB_EVIDENCE_ENABLED: "false"
+    CHAT_ALLOW_GITHUB_READ: "false"
+    CHAT_GITHUB_REPO_ALLOWLIST: ""
+    GITHUB_DEFAULT_ORG: ""
+    TARKA_GIT_CACHE_DIR: "/tmp/tarka/git"
+    TARKA_GIT_FETCH_TTL_SECONDS: "300"
+    TARKA_GIT_CACHE_MAX_REPOS: "0"
+    TARKA_GIT_REMOTE_BASE: "https://github.com"
+
+    # K8s Events
+    CHAT_ALLOW_K8S_EVENTS: "true"
+
+    # Action proposals
+    ACTIONS_ENABLED: "true"
+    ACTIONS_REQUIRE_APPROVAL: "true"
+    ACTIONS_ALLOW_EXECUTE: "false"
+    ACTIONS_TYPE_ALLOWLIST: "restart_pod,rollout_restart,scale_workload,rollback_workload"
+    ACTIONS_NAMESPACE_ALLOWLIST: ""
+    ACTIONS_CLUSTER_ALLOWLIST: ""
+    ACTIONS_MAX_ACTIONS_PER_CASE: "25"
+
+    # LLM
+    LLM_PROVIDER: "vertexai"
+    LLM_MODEL: "gemini-2.5-flash"
+    LLM_MODEL_LIGHT: ""
+    LLM_ENABLED: "false"
+    LLM_MOCK: "false"
+    LLM_TIMEOUT_SECONDS: "180"
+    LLM_MAX_OUTPUT_TOKENS: "4096"
+    LLM_TEMPERATURE: "0.2"
+    LLM_INCLUDE_LOGS: "false"
+    LLM_REDACT_INFRASTRUCTURE: "true"
+    GOOGLE_APPLICATION_CREDENTIALS: "/var/run/gcp/wif-cred.json"
+    GOOGLE_CLOUD_PROJECT: ""
+    GOOGLE_CLOUD_LOCATION: "us-central1"
+
+    # LangSmith tracing
+    LANGSMITH_TRACING: "false"
+    LANGSMITH_PROJECT: "tarka"
+    LANGSMITH_TRACE_EXCLUDE: "postgres_index_run,s3_put_*"
+    LANGSMITH_TAGS: ""
+    LANGSMITH_RUN_NAME_PREFIX: ""
+
+    # Slack
+    SLACK_DEFAULT_CHANNEL: ""
+
+    # Console auth
+    AUTH_PUBLIC_BASE_URL: ""
+    AUTH_ALLOWED_DOMAINS: ""
+
+# ---------------------------------------------------------------------------
+# Secrets
+# ---------------------------------------------------------------------------
+secrets:
+  # -- Secret provider: "static" | "external"
+  #   static   - chart creates a K8s Secret from secrets.data (values are literal secret content)
+  #   external - chart creates ExternalSecret CRDs from secrets.data (values are remote ref locations)
+  provider: "static"
+  # -- Name of an existing K8s Secret to use instead of creating one.
+  # When set, the chart skips Secret/ExternalSecret creation entirely and
+  # references this name in all deployments.
+  existingSecret: ""
+  # -- Secret key/value map. Interpretation depends on provider:
+  #   static:   values are the literal secret content (empty values are omitted)
+  #   external: values are remote ref locations (e.g., ASM secret key, SSM path, Vault path)
+  #             For SecretsManager: "secretName#jsonProperty" or just "jsonProperty"
+  #               (when omitted, externalSecrets.remoteSecretName is used as the key)
+  #             For ParameterStore: full parameter path (e.g., "/tarka/POSTGRES_PASSWORD")
+  data:
+    GCP_WIF_CRED_JSON: ""
+    LANGSMITH_API_KEY: ""
+    POSTGRES_PASSWORD: ""
+    POSTGRES_DSN: ""
+    GOOGLE_OAUTH_CLIENT_ID: ""
+    GOOGLE_OAUTH_CLIENT_SECRET: ""
+    AUTH_SESSION_SECRET: ""
+    CONSOLE_AUTH_USERNAME: ""
+    CONSOLE_AUTH_PASSWORD: ""
+    ADMIN_INITIAL_USERNAME: "admin"
+    ADMIN_INITIAL_PASSWORD: ""
+    OIDC_DISCOVERY_URL: ""
+    OIDC_CLIENT_ID: ""
+    OIDC_CLIENT_SECRET: ""
+    ANTHROPIC_API_KEY: ""
+    GITHUB_APP_ID: ""
+    GITHUB_APP_PRIVATE_KEY: ""
+    GITHUB_APP_INSTALLATION_ID: ""
+    SLACK_BOT_TOKEN: ""
+    SLACK_APP_TOKEN: ""
+    SLACK_SIGNING_SECRET: ""
+  # -- ExternalSecrets configuration (used when provider is "external")
+  externalSecrets:
+    # -- AWS secret backend: "SecretsManager" | "ParameterStore"
+    backendType: "SecretsManager"
+    region: "us-east-1"
+    # -- For SecretsManager: the ASM secret name (used as remoteRef.key when
+    #    secrets.data values don't contain an explicit key override).
+    # -- For ParameterStore: unused (each secrets.data value is the full path).
+    remoteSecretName: "tarka"
+    # -- IAM role ARN for the ExternalSecrets operator to assume
+    roleArn: ""
+    # -- Refresh interval for the ExternalSecret
+    refreshInterval: "1h"
+
+# ---------------------------------------------------------------------------
+# Service catalog (optional ConfigMap from files)
+# ---------------------------------------------------------------------------
+serviceCatalog:
+  enabled: false
+  # -- Map of filename to file content. Populate via --set-file or inline.
+  # Example:
+  #   files:
+  #     service-catalog.yaml: |
+  #       ...
+  files: {}
+
+# ---------------------------------------------------------------------------
+# NATS subchart (conditional)
+# ---------------------------------------------------------------------------
+nats:
+  enabled: true
+  # -- Override subchart values below. See https://github.com/nats-io/k8s for docs.
+  # Example:
+  #   config:
+  #     jetstream:
+  #       enabled: true
+  #       fileStore:
+  #         pvc:
+  #           size: 10Gi
+
+# ---------------------------------------------------------------------------
+# PostgreSQL subchart (conditional)
+# ---------------------------------------------------------------------------
+postgres:
+  enabled: false
+  # -- Override subchart values below.
+  # See https://artifacthub.io/packages/helm/cloudpirates-postgres/postgres
+  # Example:
+  #   auth:
+  #     username: tarka
+  #     password: ""
+  #     database: tarka
+
+# ---------------------------------------------------------------------------
+# Network Policies
+# ---------------------------------------------------------------------------
+networkPolicy:
+  # -- Network policy provider: "" (disabled) | "calico" | "cilium" | "istio"
+  provider: ""
+  # -- Additional ingress rules (appended to all component policies)
+  extraIngress: []
+  # -- Additional egress rules (appended to all component policies)
+  extraEgress: []
+  # -- Webhook-specific overrides
+  webhook:
+    # -- Extra ingress rules for the webhook only
+    extraIngress: []
+    # -- Extra egress rules for the webhook only
+    extraEgress: []
+  # -- Worker-specific overrides
+  worker:
+    # -- Extra ingress rules for the worker only
+    extraIngress: []
+    # -- Extra egress rules for the worker only
+    extraEgress: []
+  # -- UI-specific overrides
+  ui:
+    # -- Extra ingress rules for the UI only
+    extraIngress: []
+    # -- Extra egress rules for the UI only
+    extraEgress: []
+  # -- Istio-specific settings (used when provider is "istio")
+  istio:
+    # -- mTLS mode: STRICT | PERMISSIVE | DISABLE
+    mtls: STRICT
+    # -- Allow traffic from these namespaces (list of namespace names)
+    allowNamespaces: []
+    # -- Allow traffic from these principals (list of SPIFFE IDs)
+    allowPrincipals: []
+  # -- Cilium-specific settings (used when provider is "cilium")
+  cilium:
+    # -- DNS-based egress rules (list of matchPattern strings, e.g. "*.amazonaws.com")
+    dnsEgress: []
+
+# ---------------------------------------------------------------------------
+# Extra manifests
+# ---------------------------------------------------------------------------
+# -- List of arbitrary YAML manifests to render alongside the chart.
+# Useful for resources not covered by the chart (e.g., PodMonitor, PrometheusRule).
+# Each entry is rendered as a standalone manifest with full Go template support.
+extraManifests: []
+# - apiVersion: monitoring.coreos.com/v1
+#   kind: PodMonitor
+#   metadata:
+#     name: tarka-webhook
+#   spec:
+#     selector:
+#       matchLabels:
+#         app.kubernetes.io/component: webhook
+
+# ---------------------------------------------------------------------------
+# Ingress
+# ---------------------------------------------------------------------------
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+# ---------------------------------------------------------------------------
+# Gateway API HTTPRoute
+# ---------------------------------------------------------------------------
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs:
+    - name: gateway
+      sectionName: http
+  hostnames:
+    - chart-example.local
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /

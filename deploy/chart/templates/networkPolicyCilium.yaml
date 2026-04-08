@@ -1,0 +1,181 @@
+{{- if eq .Values.networkPolicy.provider "cilium" }}
+# -- Webhook: allow ingress on 8080, egress to NATS, Postgres, DNS, and external HTTPS
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ include "tarka.webhook.fullname" . }}
+  labels:
+    {{- include "tarka.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook
+spec:
+  endpointSelector:
+    matchLabels:
+      {{- include "tarka.webhook.selectorLabels" . | nindent 6 }}
+  ingress:
+    - fromEndpoints:
+        - {}
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    {{- with .Values.networkPolicy.webhook.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              - matchPattern: "*"
+    # NATS
+    - toPorts:
+        - ports:
+            - port: "4222"
+              protocol: TCP
+    # Postgres
+    - toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+    # HTTPS (S3, Vertex AI, LangSmith, GitHub, Slack, etc.)
+    - toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+      toFQDNs:
+        - matchPattern: "*.amazonaws.com"
+        - matchPattern: "*.googleapis.com"
+        - matchPattern: "*.slack.com"
+        - matchPattern: "*.github.com"
+        - matchPattern: "*.langsmith.com"
+        {{- range .Values.networkPolicy.cilium.dnsEgress }}
+        - matchPattern: {{ . | quote }}
+        {{- end }}
+    {{- with .Values.networkPolicy.webhook.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+# -- Worker: no ingress, egress to NATS, Postgres, DNS, and external HTTPS
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ include "tarka.worker.fullname" . }}
+  labels:
+    {{- include "tarka.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  endpointSelector:
+    matchLabels:
+      {{- include "tarka.worker.selectorLabels" . | nindent 6 }}
+  egress:
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              - matchPattern: "*"
+    # NATS
+    - toPorts:
+        - ports:
+            - port: "4222"
+              protocol: TCP
+    # Postgres
+    - toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+    # HTTPS
+    - toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+      toFQDNs:
+        - matchPattern: "*.amazonaws.com"
+        - matchPattern: "*.googleapis.com"
+        - matchPattern: "*.slack.com"
+        - matchPattern: "*.github.com"
+        - matchPattern: "*.langsmith.com"
+        {{- range .Values.networkPolicy.cilium.dnsEgress }}
+        - matchPattern: {{ . | quote }}
+        {{- end }}
+    {{- with .Values.networkPolicy.worker.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- if .Values.ui.enabled }}
+---
+# -- UI: allow ingress on 80, egress to webhook and DNS only
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ include "tarka.ui.fullname" . }}
+  labels:
+    {{- include "tarka.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+spec:
+  endpointSelector:
+    matchLabels:
+      {{- include "tarka.ui.selectorLabels" . | nindent 6 }}
+  ingress:
+    - fromEndpoints:
+        - {}
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    {{- with .Values.networkPolicy.ui.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              - matchPattern: "*"
+    # Webhook API
+    - toEndpoints:
+        - matchLabels:
+            {{- include "tarka.webhook.selectorLabels" . | nindent 12 }}
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    {{- with .Values.networkPolicy.ui.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- end }}

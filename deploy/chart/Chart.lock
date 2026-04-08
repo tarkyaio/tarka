@@ -1,0 +1,9 @@
+dependencies:
+- name: nats
+  repository: https://nats-io.github.io/k8s/helm/charts/
+  version: 2.12.6
+- name: postgres
+  repository: oci://registry-1.docker.io/cloudpirates
+  version: 0.18.3
+digest: sha256:3a4ea116a2bda525fec53a26f38ed2ea43327ba4fe29d1f38bb81f341059e309
+generated: "2026-04-08T16:27:31.033169-03:00"

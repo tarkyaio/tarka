@@ -1,0 +1,14 @@
+{{- if .Values.serviceCatalog.enabled }}
+# yaml-language-server: $schema=https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/v1.32.13/configmap-v1.json
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tarka.fullname" . }}-service-catalog
+  labels:
+    {{- include "tarka.labels" . | nindent 4 }}
+data:
+  {{- range $filename, $content := .Values.serviceCatalog.files }}
+  {{ $filename }}: |
+    {{- $content | nindent 4 }}
+  {{- end }}
+{{- end }}

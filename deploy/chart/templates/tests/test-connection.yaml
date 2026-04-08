@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "tarka.fullname" . }}-test-connection"
+  labels:
+    {{- include "tarka.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['--spider', '--timeout=5', '{{ include "tarka.webhook.fullname" . }}:{{ .Values.webhook.service.port }}/healthz']
+  restartPolicy: Never
