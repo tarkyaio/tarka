@@ -17,7 +17,7 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
       tag: ${{ steps.meta.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
 
       - name: Extract version from tag
         id: meta
@@ -78,13 +78,13 @@ jobs:
             tag_suffix: ""
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v4.0.0
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v4.1.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -92,7 +92,7 @@ jobs:
 
       - name: Generate image metadata
         id: docker-meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v6.0.0
         with:
           images: ${{ matrix.image }}
           flavor: |
@@ -105,7 +105,7 @@ jobs:
             type=sha,prefix=sha-
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v7.0.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
@@ -118,12 +118,41 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
-  # ── Job 3: Create GitHub Release ───────────────────────────────────
-  release:
-    needs: [preflight, build]
+  # ── Job 3: Package & push Helm chart (OCI) ─────────────────────────
+  helm:
+    needs: preflight
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
+
+      - name: Set up Helm
+        uses: azure/setup-helm@bf6a7d304bc2fdb57e0331155b7ebf2c504acf0a # v5.0.0
+        with:
+          version: v4.1.3
+
+      - name: Log in to GHCR (OCI)
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Set chart version to match release
+        run: python3 scripts/stamp-chart-version.py "${{ needs.preflight.outputs.version }}"
+
+      - name: Build subchart dependencies
+        run: helm dependency build deploy/chart/
+
+      - name: Package chart
+        run: helm package deploy/chart/ --destination /tmp/helm-packages
+
+      - name: Push chart to GHCR
+        run: |
+          VERSION="${{ needs.preflight.outputs.version }}"
+          helm push "/tmp/helm-packages/tarka-${VERSION}.tgz" oci://ghcr.io/tarkyaio/charts
+
+  # ── Job 4: Create GitHub Release ────────────────────────────────────
+  release:
+    needs: [preflight, build, helm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
 
       - name: Extract release notes from CHANGELOG
         id: notes
@@ -151,6 +180,12 @@ jobs:
             echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}-all-providers"
             echo "docker pull ghcr.io/tarkyaio/tarka-ui:${VERSION}"
             echo '```'
+            echo ""
+            echo "### Helm chart"
+            echo ""
+            echo '```bash'
+            echo "helm install tarka oci://ghcr.io/tarkyaio/charts/tarka --version ${VERSION}"
+            echo '```'
           } > /tmp/release-notes.md
 
       - name: Determine prerelease
@@ -164,21 +199,21 @@ jobs:
           fi
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
         with:
           tag_name: ${{ needs.preflight.outputs.tag }}
           name: Tarka ${{ needs.preflight.outputs.tag }}
           body_path: /tmp/release-notes.md
           prerelease: ${{ steps.prerelease.outputs.is_prerelease == 'true' }}
 
-  # ── Job 4: Update version on GitHub Pages site ─────────────────────
+  # ── Job 5: Update version on GitHub Pages site ─────────────────────
   update-site-version:
     needs: [preflight, release]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
         with:
           ref: main
 
