@@ -31,6 +31,10 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "tarka.serviceAccountName" . }}
+      {{- with .Values.webhook.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: tarka
           image: "{{ .Values.image.repository }}:{{ include "tarka.imageTag" . }}"
@@ -85,10 +89,23 @@ spec:
         {{- with .Values.webhook.extraContainers }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- with .Values.webhook.extraInitContainers }}
       initContainers:
+        - name: db-migrate
+          image: "{{ .Values.image.repository }}:{{ include "tarka.imageTag" . }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "agent.memory.migrate"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "tarka.configMapName" . }}
+          env:
+            {{- include "tarka.secretEnvVars" . | nindent 12 }}
+          {{- with .Values.webhook.podSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- with .Values.webhook.extraInitContainers }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       volumes:
         {{- include "tarka.sharedVolumes" . | nindent 8 }}
         {{- with .Values.webhook.extraVolumes }}

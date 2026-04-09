@@ -36,9 +36,15 @@ spec:
             {{- end }}
             backend:
               service:
+                {{- if .service }}
+                name: {{ .service.name }}
+                port:
+                  number: {{ .service.port }}
+                {{- else }}
                 name: {{ include "tarka.webhook.fullname" $ }}
                 port:
                   number: {{ $.Values.webhook.service.port }}
+                {{- end }}
           {{- end }}
     {{- end }}
 {{- end }}

@@ -28,6 +28,10 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.ui.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: tarka-ui
           image: "{{ .Values.ui.image.repository }}:{{ include "tarka.ui.imageTag" . }}"
@@ -38,11 +42,19 @@ spec:
               protocol: TCP
           resources:
             {{- toYaml .Values.ui.resources | nindent 12 }}
+          {{- with .Values.ui.extraVolumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
         {{- with .Values.ui.extraContainers }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- with .Values.ui.extraInitContainers }}
       initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.ui.extraVolumes }}
+      volumes:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.ui.nodeSelector }}

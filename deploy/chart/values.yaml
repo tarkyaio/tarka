@@ -15,6 +15,20 @@ fullnameOverride: ""
 ui:
   enabled: true
   replicaCount: 1
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 101  # nginx user in official images
+  # Standard nginx image runs as root; shadow writable paths with emptyDirs
+  extraVolumes:
+    - name: nginx-cache
+      emptyDir: {}
+    - name: nginx-run
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: nginx-cache
+      mountPath: /var/cache/nginx
+    - name: nginx-run
+      mountPath: /var/run
   image:
     repository: "ghcr.io/tarkyaio/tarka-ui"
     tag: ""
@@ -34,6 +48,8 @@ ui:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  extraVolumes: []
+  extraVolumeMounts: []
   # -- Extra containers to run alongside the UI container
   extraContainers: []
   # -- Extra init containers to run before the UI container
@@ -44,6 +60,9 @@ ui:
 # ---------------------------------------------------------------------------
 webhook:
   replicaCount: 1
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
   consoleAuthMode: "oidc"
   resources:
     requests:
@@ -104,6 +123,9 @@ webhook:
 # ---------------------------------------------------------------------------
 worker:
   replicaCount: 1
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
   resources:
     requests:
       cpu: "100m"
@@ -347,13 +369,25 @@ serviceCatalog:
 nats:
   enabled: true
   # -- Override subchart values below. See https://github.com/nats-io/k8s for docs.
-  # Example:
-  #   config:
-  #     jetstream:
-  #       enabled: true
-  #       fileStore:
-  #         pvc:
-  #           size: 10Gi
+  config:
+    jetstream:
+      enabled: true
+      fileStore:
+        pvc:
+          size: 10Gi
+  # Clusters enforcing runAsNonRoot require these overrides for the nats alpine image
+  container:
+    merge:
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: true
+  reloader:
+    merge:
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: true
+  natsBox:
+    enabled: false
 
 # ---------------------------------------------------------------------------
 # PostgreSQL subchart (conditional)
@@ -362,11 +396,15 @@ postgres:
   enabled: false
   # -- Override subchart values below.
   # See https://artifacthub.io/packages/helm/cloudpirates-postgres/postgres
-  # Example:
-  #   auth:
-  #     username: tarka
-  #     password: ""
-  #     database: tarka
+  # pgvector is required for semantic search; plain postgres image will not work.
+  image:
+    registry: docker.io
+    repository: pgvector/pgvector
+    tag: "pg17"
+  auth:
+    username: tarka
+    password: ""
+    database: tarka
 
 # ---------------------------------------------------------------------------
 # Network Policies

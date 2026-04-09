@@ -29,6 +29,10 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "tarka.serviceAccountName" . }}
+      {{- with .Values.worker.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: tarka-worker
           image: "{{ .Values.image.repository }}:{{ include "tarka.imageTag" . }}"
