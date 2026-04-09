@@ -16,7 +16,7 @@ spec:
       serviceAccountName: tarka
       containers:
         - name: tarka-worker
-          image: REPLACE_ME_IMAGE
+          image: ghcr.io/tarkyaio/tarka:0.3.1
           imagePullPolicy: Always
           command: ["python", "main.py"]
           args: ["--run-worker"]

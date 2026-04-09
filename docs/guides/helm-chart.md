@@ -25,7 +25,7 @@ helm install tarka oci://ghcr.io/tarkyaio/charts/tarka \
 To pin a specific version:
 
 ```bash
-helm install tarka oci://ghcr.io/tarkyaio/charts/tarka --version 0.2.0
+helm install tarka oci://ghcr.io/tarkyaio/charts/tarka --version 0.3.1
 ```
 
 ## Values Overview
@@ -59,7 +59,7 @@ To use a private registry:
 ```yaml
 image:
   repository: "123456789.dkr.ecr.us-east-1.amazonaws.com/tarka"
-  tag: "0.2.0"
+  tag: "0.3.1"
 imagePullSecrets:
   - name: ecr-credentials
 ```
@@ -443,7 +443,7 @@ extraManifests:
 
 ```bash
 helm upgrade tarka oci://ghcr.io/tarkyaio/charts/tarka \
-  --version 0.3.0 \
+  --version 0.3.1 \
   -f my-values.yaml \
   -n tarka
 ```
