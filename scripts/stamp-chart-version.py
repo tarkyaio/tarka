@@ -27,18 +27,26 @@ IMAGE_PATTERNS = [
 
 
 def stamp(version: str, chart_path: Path) -> None:
-    text = chart_path.read_text()
-
-    # Chart version and appVersion
+    original = chart_path.read_text(encoding="utf-8")
+    text = original
     text = re.sub(r"^version:.*", f"version: {version}", text, flags=re.MULTILINE)
-    text = re.sub(r"^appVersion:.*", f'appVersion: "{version}"', text, flags=re.MULTILINE)
+    text = re.sub(
+        r"^appVersion:.*", f'appVersion: "{version}"', text, flags=re.MULTILINE
+    )
 
-    # Container image tags in ArtifactHub annotations
+    # ArtifactHub annotations
     for pattern, replacement in IMAGE_PATTERNS:
         text = re.sub(pattern, replacement.format(version=version), text)
 
-    chart_path.write_text(text)
+    if text == original:
+        print(f"{chart_path} already at version {version}")
+        return
+
+    chart_path.write_text(text, encoding="utf-8")
     print(f"Stamped {chart_path} with version {version}")
+
+
+VERSION_RE = re.compile(r"^\d+\.\d+\.\d+")
 
 
 def main() -> None:
@@ -47,13 +55,20 @@ def main() -> None:
         sys.exit(1)
 
     version = sys.argv[1]
-    chart_path = Path(sys.argv[2]) if len(sys.argv) > 2 else CHART_YAML_DEFAULT
-
-    if not chart_path.exists():
-        print(f"Error: {chart_path} not found", file=sys.stderr)
+    if not VERSION_RE.match(version):
+        print(
+            f"Error: invalid version '{version}' (expected semver like 1.2.3)",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
-    stamp(version, chart_path)
+    chart_path = Path(sys.argv[2]) if len(sys.argv) > 2 else CHART_YAML_DEFAULT
+
+    try:
+        stamp(version, chart_path)
+    except FileNotFoundError:
+        print(f"Error: {chart_path} not found", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

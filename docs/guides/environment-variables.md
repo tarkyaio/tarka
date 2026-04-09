@@ -4,8 +4,8 @@ This repo is intentionally **env-driven** (ConfigMap/Secret friendly). This page
 
 ## Conventions
 
-- **ConfigMap (`k8s/configmap.yaml`)**: non-secret configuration and feature flags.
-- **Secret (`k8s/secret.yaml`)**: secrets (API keys, passwords, OAuth secrets).
+- **ConfigMap (`deploy/manifests/configMap.yaml`)**: non-secret configuration and feature flags.
+- **Secret (`deploy/manifests/secret.yaml`)**: secrets (API keys, passwords, OAuth secrets).
 - Defaults below reflect the **code defaults** (if env var is unset). Kubernetes manifests may set different defaults.
 
 ## Core inputs (providers)

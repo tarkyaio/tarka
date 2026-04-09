@@ -31,16 +31,16 @@ See the full guide: **[Helm Chart Deployment](helm-chart.md)**
 
 ### Standalone Manifests
 
-Deploy using the raw Kubernetes manifests in `k8s/`. This approach gives you full control over each resource and does not require Helm. The `deploy.sh` script can automate the full deployment including AWS infrastructure setup (IAM roles, S3 buckets, secrets).
+Deploy using the raw Kubernetes manifests in `deploy/manifests/`. This approach gives you full control over each resource and does not require Helm. The `deploy.sh` script can automate the full deployment including AWS infrastructure setup (IAM roles, S3 buckets, secrets).
 
 ```bash
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/rbac.yaml
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/nats-jetstream.yaml
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-kubectl apply -f k8s/worker-deployment.yaml
+kubectl apply -f deploy/manifests/namespace.yaml
+kubectl apply -f deploy/manifests/rbac.yaml
+kubectl apply -f deploy/manifests/configMap.yaml
+kubectl apply -f deploy/manifests/natsJetstream.yaml
+kubectl apply -f deploy/manifests/deployment.yaml
+kubectl apply -f deploy/manifests/service.yaml
+kubectl apply -f deploy/manifests/workerDeployment.yaml
 ```
 
 See the full guide: **[Standalone Manifest Deployment](standalone-manifests.md)**

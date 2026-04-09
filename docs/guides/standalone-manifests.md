@@ -1,6 +1,6 @@
 # Standalone Manifest Deployment
 
-Deploy Tarka to Kubernetes using the raw manifests in `k8s/`. This approach is suitable when you want full control over each resource or cannot use Helm.
+Deploy Tarka to Kubernetes using the raw manifests in `deploy/manifests/`. This approach is suitable when you want full control over each resource or cannot use Helm.
 
 For the recommended Helm-based deployment, see [helm-chart.md](helm-chart.md).
 
@@ -23,32 +23,32 @@ cd tarka
 kubectl create namespace tarka
 
 # Apply RBAC and ServiceAccount
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/rbac.yaml
-kubectl apply -f k8s/serviceaccount.yaml
+kubectl apply -f deploy/manifests/namespace.yaml
+kubectl apply -f deploy/manifests/rbac.yaml
+kubectl apply -f deploy/manifests/serviceAccount.yaml
 
 # Create ConfigMap (edit values first)
-kubectl apply -f k8s/configmap.yaml
+kubectl apply -f deploy/manifests/configMap.yaml
 
 # Create Secret (edit values first)
-kubectl apply -f k8s/secret.yaml
+kubectl apply -f deploy/manifests/secret.yaml
 
 # Deploy NATS JetStream
-kubectl apply -f k8s/nats-jetstream.yaml
+kubectl apply -f deploy/manifests/natsJetstream.yaml
 
 # Deploy webhook receiver
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
+kubectl apply -f deploy/manifests/deployment.yaml
+kubectl apply -f deploy/manifests/service.yaml
 
 # Deploy workers
-kubectl apply -f k8s/worker-deployment.yaml
+kubectl apply -f deploy/manifests/workerDeployment.yaml
 
 # (Optional) Deploy Console UI
-kubectl apply -f k8s/console-ui-deployment.yaml
-kubectl apply -f k8s/console-ui-service.yaml
+kubectl apply -f deploy/manifests/uiDeployment.yaml
+kubectl apply -f deploy/manifests/uiService.yaml
 
 # (Optional) Deploy dev PostgreSQL
-kubectl apply -f k8s/postgres-dev.yaml
+kubectl apply -f deploy/manifests/postgresDev.yaml
 ```
 
 > The manifests contain `REPLACE_ME_*` placeholders. The `deploy.sh` script handles substitution automatically. If deploying manually, replace these values before applying.
@@ -57,7 +57,7 @@ kubectl apply -f k8s/postgres-dev.yaml
 
 ### ConfigMap
 
-Create a ConfigMap with environment variables (`k8s/configmap.yaml`):
+Create a ConfigMap with environment variables (`deploy/manifests/configMap.yaml`):
 
 ```yaml
 apiVersion: v1
@@ -106,11 +106,11 @@ data:
   AUTH_ALLOWED_DOMAINS: "yourcompany.com"
 ```
 
-See `k8s/configmap.yaml` for the full list of 80+ configuration keys.
+See `deploy/manifests/configMap.yaml` for the full list of 80+ configuration keys.
 
 ### Secrets
 
-Create a Secret for sensitive credentials (`k8s/secret.yaml`):
+Create a Secret for sensitive credentials (`deploy/manifests/secret.yaml`):
 
 ```yaml
 apiVersion: v1
@@ -128,7 +128,7 @@ stringData:
   ADMIN_INITIAL_PASSWORD: "your-admin-password"
 ```
 
-See `k8s/secret.yaml` for the full list of secret keys.
+See `deploy/manifests/secret.yaml` for the full list of secret keys.
 
 ## Component Details
 
@@ -137,7 +137,7 @@ See `k8s/secret.yaml` for the full list of secret keys.
 Deployed as a StatefulSet with persistent storage:
 
 ```bash
-kubectl apply -f k8s/nats-jetstream.yaml
+kubectl apply -f deploy/manifests/natsJetstream.yaml
 ```
 
 - Single replica with JetStream enabled
@@ -149,8 +149,8 @@ kubectl apply -f k8s/nats-jetstream.yaml
 Receives Alertmanager webhooks and enqueues jobs:
 
 ```bash
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
+kubectl apply -f deploy/manifests/deployment.yaml
+kubectl apply -f deploy/manifests/service.yaml
 ```
 
 - Command: `python main.py --serve-webhook --host 0.0.0.0 --port 8080`
@@ -162,7 +162,7 @@ kubectl apply -f k8s/service.yaml
 Consumes jobs from NATS and runs investigations:
 
 ```bash
-kubectl apply -f k8s/worker-deployment.yaml
+kubectl apply -f deploy/manifests/workerDeployment.yaml
 ```
 
 - Command: `python main.py --run-worker`
@@ -174,8 +174,8 @@ kubectl apply -f k8s/worker-deployment.yaml
 React frontend for case browsing and chat:
 
 ```bash
-kubectl apply -f k8s/console-ui-deployment.yaml
-kubectl apply -f k8s/console-ui-service.yaml
+kubectl apply -f deploy/manifests/uiDeployment.yaml
+kubectl apply -f deploy/manifests/uiService.yaml
 ```
 
 - Separate container image (`tarka-ui`)
@@ -187,8 +187,8 @@ kubectl apply -f k8s/console-ui-service.yaml
 The agent needs read-only Kubernetes access:
 
 ```bash
-kubectl apply -f k8s/rbac.yaml
-kubectl apply -f k8s/serviceaccount.yaml
+kubectl apply -f deploy/manifests/rbac.yaml
+kubectl apply -f deploy/manifests/serviceAccount.yaml
 ```
 
 Grants read-only access to pods, events, serviceaccounts, replicasets, deployments, statefulsets, daemonsets, and jobs.
@@ -205,7 +205,7 @@ annotations:
 Optional in-cluster PostgreSQL with pgvector support:
 
 ```bash
-kubectl apply -f k8s/postgres-dev.yaml
+kubectl apply -f deploy/manifests/postgresDev.yaml
 ```
 
 - Image: `pgvector/pgvector:pg16`
