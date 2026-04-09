@@ -30,9 +30,7 @@ def stamp(version: str, chart_path: Path) -> None:
     original = chart_path.read_text(encoding="utf-8")
     text = original
     text = re.sub(r"^version:.*", f"version: {version}", text, flags=re.MULTILINE)
-    text = re.sub(
-        r"^appVersion:.*", f'appVersion: "{version}"', text, flags=re.MULTILINE
-    )
+    text = re.sub(r"^appVersion:.*", f'appVersion: "{version}"', text, flags=re.MULTILINE)
 
     # ArtifactHub annotations
     for pattern, replacement in IMAGE_PATTERNS:
