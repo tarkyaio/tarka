@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: tarka-ui
-          image: REPLACE_ME_UI_IMAGE
+          image: ghcr.io/tarkyaio/tarka-ui:0.3.1
           imagePullPolicy: Always
           ports:
             - name: http
