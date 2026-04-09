@@ -88,6 +88,11 @@ eval/fixtures/*/*.yaml
 !eval/fixtures/**/README.md
 !eval/fixtures/README.md
 
+# ---- Helm ----
+# Subchart tarballs (fetched by helm dependency update)
+deploy/chart/charts/*.tgz
+
+# ---- Project Config ----
 # Contains config for GH service catalog
 # service-catalog is for private services
 # third-party-catalog is for public services

@@ -1,0 +1,22 @@
+{{- if not .Values.config.existingConfigMap }}
+# yaml-language-server: $schema=https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/v1.32.13/configmap-v1.json
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tarka.configMapName" . }}
+  labels:
+    {{- include "tarka.labels" . | nindent 4 }}
+data:
+  {{- $data := deepCopy .Values.config.data }}
+  {{- /* Auto-default NATS_URL when the NATS subchart is enabled and the user has not set a custom value */}}
+  {{- if and .Values.nats.enabled (eq (index $data "NATS_URL") "nats://nats.tarka.svc:4222") }}
+  {{- $_ := set $data "NATS_URL" (printf "nats://%s-nats.%s.svc:4222" .Release.Name .Release.Namespace) }}
+  {{- end }}
+  {{- /* Auto-default POSTGRES_HOST when the Postgres subchart is enabled and the user has not set a custom value */}}
+  {{- if and .Values.postgres.enabled (not (index $data "POSTGRES_HOST")) }}
+  {{- $_ := set $data "POSTGRES_HOST" (printf "%s-postgres.%s.svc" .Release.Name .Release.Namespace) }}
+  {{- end }}
+  {{- range $key, $value := $data }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}

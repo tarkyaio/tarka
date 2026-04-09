@@ -59,11 +59,11 @@ python main.py --run-worker
 
 ### Manifests
 
-- [`k8s/deployment.yaml`](../../k8s/deployment.yaml): Webhook receiver deployment
-- [`k8s/service.yaml`](../../k8s/service.yaml): ClusterIP service `tarka-webhook` on port 8080
-- [`k8s/console-ui-deployment.yaml`](../../k8s/console-ui-deployment.yaml): React frontend
-- [`k8s/console-ui-service.yaml`](../../k8s/console-ui-service.yaml): UI service
-- [`k8s/alertmanager-receiver-snippet.yaml`](../../k8s/alertmanager-receiver-snippet.yaml): Alertmanager config snippet
+- [`deploy/manifests/deployment.yaml`](../../deploy/manifests/deployment.yaml): Webhook receiver deployment
+- [`deploy/manifests/service.yaml`](../../deploy/manifests/service.yaml): ClusterIP service `tarka-webhook` on port 8080
+- [`deploy/manifests/uiDeployment.yaml`](../../deploy/manifests/uiDeployment.yaml): React frontend
+- [`deploy/manifests/uiService.yaml`](../../deploy/manifests/uiService.yaml): UI service
+- [`deploy/manifests/alertmanagerReceiverSnippet.yaml`](../../deploy/manifests/alertmanagerReceiverSnippet.yaml): Alertmanager config snippet
 
 ### NATS JetStream Setup
 

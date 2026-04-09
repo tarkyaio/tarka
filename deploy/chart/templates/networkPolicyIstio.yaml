@@ -1,0 +1,97 @@
+{{- if eq .Values.networkPolicy.provider "istio" }}
+# -- Namespace-wide PeerAuthentication: enforce mTLS mode
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: {{ include "tarka.fullname" . }}
+  labels:
+    {{- include "tarka.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "tarka.selectorLabels" . | nindent 6 }}
+  mtls:
+    mode: {{ .Values.networkPolicy.istio.mtls }}
+---
+# -- Webhook AuthorizationPolicy: allow traffic to port 8080
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ include "tarka.webhook.fullname" . }}
+  labels:
+    {{- include "tarka.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook
+spec:
+  selector:
+    matchLabels:
+      {{- include "tarka.webhook.selectorLabels" . | nindent 6 }}
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            ports: ["8080"]
+      {{- if or .Values.networkPolicy.istio.allowNamespaces .Values.networkPolicy.istio.allowPrincipals }}
+      from:
+        {{- if .Values.networkPolicy.istio.allowNamespaces }}
+        - source:
+            namespaces:
+              {{- toYaml .Values.networkPolicy.istio.allowNamespaces | nindent 14 }}
+        {{- end }}
+        {{- if .Values.networkPolicy.istio.allowPrincipals }}
+        - source:
+            principals:
+              {{- toYaml .Values.networkPolicy.istio.allowPrincipals | nindent 14 }}
+        {{- end }}
+      {{- end }}
+---
+# -- Worker AuthorizationPolicy: deny all ingress (worker has no HTTP endpoint)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ include "tarka.worker.fullname" . }}
+  labels:
+    {{- include "tarka.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  selector:
+    matchLabels:
+      {{- include "tarka.worker.selectorLabels" . | nindent 6 }}
+  action: DENY
+  rules:
+    - to:
+        - operation:
+            ports: ["*"]
+{{- if .Values.ui.enabled }}
+---
+# -- UI AuthorizationPolicy: allow traffic to port 80
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ include "tarka.ui.fullname" . }}
+  labels:
+    {{- include "tarka.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+spec:
+  selector:
+    matchLabels:
+      {{- include "tarka.ui.selectorLabels" . | nindent 6 }}
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            ports: ["80"]
+      {{- if or .Values.networkPolicy.istio.allowNamespaces .Values.networkPolicy.istio.allowPrincipals }}
+      from:
+        {{- if .Values.networkPolicy.istio.allowNamespaces }}
+        - source:
+            namespaces:
+              {{- toYaml .Values.networkPolicy.istio.allowNamespaces | nindent 14 }}
+        {{- end }}
+        {{- if .Values.networkPolicy.istio.allowPrincipals }}
+        - source:
+            principals:
+              {{- toYaml .Values.networkPolicy.istio.allowPrincipals | nindent 14 }}
+        {{- end }}
+      {{- end }}
+{{- end }}
+{{- end }}

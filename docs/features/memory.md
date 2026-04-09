@@ -135,7 +135,7 @@ python -m agent.memory.migrate
 
 # Then deploy with auto-migrate disabled
 export DB_AUTO_MIGRATE=0
-kubectl apply -f k8s/deployment.yaml
+kubectl apply -f deploy/manifests/deployment.yaml
 ```
 
 **Migrations** are located in `agent/memory/migrations/`:
@@ -148,7 +148,7 @@ kubectl apply -f k8s/deployment.yaml
 For semantic similarity search using embeddings:
 
 ```yaml
-# k8s/postgres-pgvector.yaml
+# deploy/manifests/postgresPgvector.yaml
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:

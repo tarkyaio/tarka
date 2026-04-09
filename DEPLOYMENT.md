@@ -581,7 +581,7 @@ Disable in-cluster PostgreSQL to use external database:
 export ENABLE_DEV_POSTGRES=0
 
 # Set PostgreSQL connection details in ConfigMap manually
-# Update k8s/configmap.yaml with:
+# Update deploy/manifests/configMap.yaml with:
 # POSTGRES_HOST: "external-postgres.company.com"
 # POSTGRES_PORT: "5432"
 # POSTGRES_DB: "tarka"

@@ -1,0 +1,55 @@
+Tarka has been deployed successfully!
+
+Components:
+  - Webhook (API/alert receiver): {{ include "tarka.webhook.fullname" . }}
+  - Worker (async processor):     {{ include "tarka.worker.fullname" . }}
+{{- if .Values.ui.enabled }}
+  - Console UI:                    {{ include "tarka.ui.fullname" . }}
+{{- end }}
+{{- if .Values.nats.enabled }}
+  - NATS JetStream:                {{ .Release.Name }}-nats (subchart)
+{{- end }}
+{{- if .Values.postgres.enabled }}
+  - PostgreSQL:                    {{ .Release.Name }}-postgres (subchart)
+{{- end }}
+
+{{- if .Values.ingress.enabled }}
+
+Access via Ingress:
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+{{- else }}
+
+Access via port-forward:
+
+  Webhook API:
+    kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "tarka.webhook.fullname" . }} 8080:{{ .Values.webhook.service.port }}
+    curl http://localhost:8080/healthz
+{{- if .Values.ui.enabled }}
+
+  Console UI:
+    kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "tarka.ui.fullname" . }} 3000:{{ .Values.ui.service.port }}
+    Open http://localhost:3000
+{{- end }}
+{{- end }}
+
+{{- if and (eq .Values.secrets.provider "external") (not .Values.secrets.existingSecret) }}
+
+Secrets are managed via ExternalSecrets ({{ .Values.secrets.externalSecrets.backendType }}).
+Ensure the ExternalSecrets Operator is installed in the cluster.
+{{- end }}
+
+{{- if .Values.serviceCatalog.enabled }}
+
+Service catalog ConfigMap: {{ include "tarka.fullname" . }}-service-catalog
+{{- end }}
+
+Next steps:
+  1. Configure Alertmanager to send webhooks to:
+     http://{{ include "tarka.webhook.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.webhook.service.port }}/alerts
+
+  2. Check deployment status:
+     kubectl -n {{ .Release.Namespace }} get deploy,sts,svc,pod

@@ -331,7 +331,7 @@ CPUThrottlingHigh,KubePodCPUThrottling,CPUThrottling,ContainerCpuThrottled,Kuber
 - **Playbook registry**: `agent/playbooks/__init__.py` (lines 55-66)
 - **Family detection**: `agent/pipeline/families.py`
 - **Default allowlist**: `deploy.sh` (line 47)
-- **ConfigMap**: `k8s/configmap.yaml` (line 23)
+- **ConfigMap**: `deploy/manifests/configMap.yaml` (line 23)
 
 ---
 

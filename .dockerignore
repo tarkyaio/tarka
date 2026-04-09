@@ -14,7 +14,7 @@ docs/
 ui/
 
 # Deployment & infrastructure
-k8s/
+deploy/
 scripts/
 config/
 dev/

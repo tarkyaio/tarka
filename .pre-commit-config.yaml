@@ -7,7 +7,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
-        exclude: (^helm/|/hello-chart/|mkdocs.yml|^k8s/)
+        exclude: (^deploy/)
       - id: check-added-large-files
       - id: check-merge-conflict
 

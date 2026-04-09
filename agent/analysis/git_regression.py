@@ -13,7 +13,7 @@ from agent.providers.git_mirror_provider import GitMirrorCache, get_git_mirror_c
 
 _CODE_PREFIXES = ("src/", "app/", "server/", "cmd/", "internal/", "pkg/")
 _DOC_PREFIXES = ("docs/", "doc/")
-_CONFIG_HINTS = ("values.yaml", "chart", "deploy/", "k8s/", "helm", "config", ".tf", ".yaml", ".yml")
+_CONFIG_HINTS = ("values.yaml", "chart", "deploy/", "helm", "config", ".tf", ".yaml", ".yml")
 
 
 def build_regression_context_pack(

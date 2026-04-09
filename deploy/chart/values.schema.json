@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "image": {
+      "type": "object",
+      "description": "Shared agent image used by webhook and worker deployments.",
+      "properties": {
+        "repository": { "type": "string", "description": "Container image repository." },
+        "tag": { "type": "string", "description": "Image tag. Defaults to Chart.appVersion when empty." },
+        "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "description": "Image pull secrets for private registries.",
+      "items": { "type": "object" }
+    },
+    "nameOverride": { "type": "string" },
+    "fullnameOverride": { "type": "string" },
+    "ui": {
+      "type": "object",
+      "description": "Console UI component.",
+      "properties": {
+        "enabled": { "type": "boolean", "description": "Deploy the Console UI." },
+        "replicaCount": { "type": "integer", "minimum": 0 },
+        "image": {
+          "type": "object",
+          "properties": {
+            "repository": { "type": "string" },
+            "tag": { "type": "string" },
+            "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] }
+          }
+        },
+        "resources": { "type": "object" },
+        "service": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["ClusterIP", "NodePort", "LoadBalancer"] },
+            "port": { "type": "integer" }
+          }
+        },
+        "podAnnotations": { "type": "object" },
+        "podLabels": { "type": "object" },
+        "nodeSelector": { "type": "object" },
+        "tolerations": { "type": "array" },
+        "affinity": { "type": "object" },
+        "extraContainers": { "type": "array", "description": "Extra sidecar containers." },
+        "extraInitContainers": { "type": "array", "description": "Extra init containers." }
+      }
+    },
+    "webhook": {
+      "type": "object",
+      "description": "Webhook API server and Alertmanager receiver.",
+      "properties": {
+        "replicaCount": { "type": "integer", "minimum": 1 },
+        "consoleAuthMode": {
+          "type": "string",
+          "enum": ["oidc", "basic", "both", "disabled"],
+          "description": "Console authentication mode."
+        },
+        "resources": { "type": "object" },
+        "service": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["ClusterIP", "NodePort", "LoadBalancer"] },
+            "port": { "type": "integer" }
+          }
+        },
+        "readinessProbe": { "type": "object" },
+        "startupProbe": { "type": "object" },
+        "livenessProbe": { "type": "object" },
+        "autoscaling": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "minReplicas": { "type": "integer", "minimum": 1 },
+            "maxReplicas": { "type": "integer", "minimum": 1 },
+            "targetCPUUtilizationPercentage": { "type": "integer", "minimum": 1, "maximum": 100 }
+          }
+        },
+        "podAnnotations": { "type": "object" },
+        "podLabels": { "type": "object" },
+        "nodeSelector": { "type": "object" },
+        "tolerations": { "type": "array" },
+        "affinity": { "type": "object" },
+        "extraEnv": { "type": "array", "description": "Extra environment variables." },
+        "extraVolumeMounts": { "type": "array" },
+        "extraVolumes": { "type": "array" },
+        "extraContainers": { "type": "array", "description": "Extra sidecar containers." },
+        "extraInitContainers": { "type": "array", "description": "Extra init containers." }
+      }
+    },
+    "worker": {
+      "type": "object",
+      "description": "Async investigation worker.",
+      "properties": {
+        "replicaCount": { "type": "integer", "minimum": 1 },
+        "resources": { "type": "object" },
+        "env": {
+          "type": "object",
+          "description": "Worker-specific environment variables (JetStream tuning, concurrency, etc.).",
+          "additionalProperties": { "type": "string" }
+        },
+        "podAnnotations": { "type": "object" },
+        "podLabels": { "type": "object" },
+        "nodeSelector": { "type": "object" },
+        "tolerations": { "type": "array" },
+        "affinity": { "type": "object" },
+        "extraEnv": { "type": "array" },
+        "extraVolumeMounts": { "type": "array" },
+        "extraVolumes": { "type": "array" },
+        "extraContainers": { "type": "array" },
+        "extraInitContainers": { "type": "array" }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "description": "Kubernetes ServiceAccount configuration.",
+      "properties": {
+        "create": { "type": "boolean", "description": "Create a ServiceAccount." },
+        "automount": { "type": "boolean" },
+        "name": { "type": "string" },
+        "provider": {
+          "type": "string",
+          "enum": ["", "eks-irsa", "eks-pod-identity"],
+          "description": "Cloud identity provider. Empty for generic annotations."
+        },
+        "eksRoleArn": { "type": "string", "description": "IAM role ARN for EKS IRSA." },
+        "annotations": { "type": "object", "description": "Generic annotations escape hatch." }
+      }
+    },
+    "rbac": {
+      "type": "object",
+      "properties": {
+        "create": { "type": "boolean", "description": "Create read-only ClusterRole and ClusterRoleBinding." }
+      }
+    },
+    "config": {
+      "type": "object",
+      "description": "Application configuration rendered as a ConfigMap.",
+      "properties": {
+        "existingConfigMap": { "type": "string", "description": "Use an existing ConfigMap instead of creating one." },
+        "data": {
+          "type": "object",
+          "description": "ConfigMap key-value pairs. All 80+ application config keys.",
+          "additionalProperties": { "type": "string" },
+          "properties": {
+            "PROMETHEUS_URL": { "type": "string", "description": "Prometheus query endpoint (required)." },
+            "ALERTMANAGER_URL": { "type": "string", "description": "Alertmanager API endpoint (required)." },
+            "S3_BUCKET": { "type": "string", "description": "S3 bucket for report storage (required)." },
+            "CLUSTER_NAME": { "type": "string", "description": "Kubernetes cluster name (required)." },
+            "NATS_URL": { "type": "string", "description": "NATS connection URL. Auto-configured when nats.enabled=true." },
+            "POSTGRES_HOST": { "type": "string", "description": "PostgreSQL host. Auto-configured when postgres.enabled=true." },
+            "LLM_ENABLED": { "type": "string", "enum": ["true", "false"], "description": "Enable LLM-powered enrichment." },
+            "LLM_PROVIDER": { "type": "string", "enum": ["vertexai", "anthropic"], "description": "LLM provider." },
+            "CHAT_ENABLED": { "type": "string", "enum": ["true", "false"], "description": "Enable chat tools." },
+            "AWS_EVIDENCE_ENABLED": { "type": "string", "enum": ["true", "false"], "description": "Enable AWS infrastructure context." },
+            "GITHUB_EVIDENCE_ENABLED": { "type": "string", "enum": ["true", "false"], "description": "Enable GitHub code context." }
+          }
+        }
+      }
+    },
+    "secrets": {
+      "type": "object",
+      "description": "Secret management. Values in secrets.data serve both static (literal content) and external (remote ref locations) providers.",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["static", "external"],
+          "description": "static: chart creates a K8s Secret. external: chart creates ExternalSecret CRDs."
+        },
+        "existingSecret": { "type": "string", "description": "Reference an existing Secret, skipping all creation." },
+        "data": {
+          "type": "object",
+          "description": "Secret keys. For static: literal values. For external: remote ref locations.",
+          "additionalProperties": { "type": "string" }
+        },
+        "externalSecrets": {
+          "type": "object",
+          "description": "ExternalSecrets Operator configuration (provider=external).",
+          "properties": {
+            "backendType": {
+              "type": "string",
+              "enum": ["SecretsManager", "ParameterStore"],
+              "description": "AWS backend type."
+            },
+            "region": { "type": "string", "description": "AWS region." },
+            "remoteSecretName": { "type": "string", "description": "ASM secret name (SecretsManager only)." },
+            "roleArn": { "type": "string", "description": "IAM role ARN for ESO to assume." },
+            "refreshInterval": { "type": "string", "description": "Sync interval (e.g., 1h, 30m)." }
+          }
+        }
+      }
+    },
+    "serviceCatalog": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "files": {
+          "type": "object",
+          "description": "Map of filename to file content. Use --set-file to populate.",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "nats": {
+      "type": "object",
+      "description": "NATS JetStream subchart. When enabled, NATS_URL is auto-configured.",
+      "properties": {
+        "enabled": { "type": "boolean", "description": "Deploy in-cluster NATS." }
+      }
+    },
+    "postgres": {
+      "type": "object",
+      "description": "PostgreSQL subchart (CloudPirates). When enabled, POSTGRES_HOST is auto-configured.",
+      "properties": {
+        "enabled": { "type": "boolean", "description": "Deploy in-cluster PostgreSQL." }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "description": "Network policy configuration.",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["", "calico", "cilium", "istio"],
+          "description": "Network policy provider. Empty disables all policies."
+        },
+        "extraIngress": { "type": "array" },
+        "extraEgress": { "type": "array" },
+        "webhook": { "type": "object" },
+        "worker": { "type": "object" },
+        "ui": { "type": "object" },
+        "istio": {
+          "type": "object",
+          "properties": {
+            "mtls": { "type": "string", "enum": ["STRICT", "PERMISSIVE", "DISABLE"] },
+            "allowNamespaces": { "type": "array", "items": { "type": "string" } },
+            "allowPrincipals": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "cilium": {
+          "type": "object",
+          "properties": {
+            "dnsEgress": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Extra FQDN match patterns for DNS-aware egress."
+            }
+          }
+        }
+      }
+    },
+    "extraManifests": {
+      "type": "array",
+      "description": "Arbitrary YAML manifests rendered alongside the chart.",
+      "items": { "type": "object" }
+    },
+    "ingress": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "className": { "type": "string" },
+        "annotations": { "type": "object" },
+        "hosts": { "type": "array" },
+        "tls": { "type": "array" }
+      }
+    },
+    "httpRoute": {
+      "type": "object",
+      "description": "Gateway API HTTPRoute.",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "annotations": { "type": "object" },
+        "parentRefs": { "type": "array" },
+        "hostnames": { "type": "array", "items": { "type": "string" } },
+        "rules": { "type": "array" }
+      }
+    }
+  }
+}

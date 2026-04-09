@@ -1,0 +1,144 @@
+{{- if eq .Values.networkPolicy.provider "calico" }}
+# yaml-language-server: $schema=https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/v1.32.13/networkpolicy-networking-v1.json
+# -- Webhook: allow ingress on 8080 from anywhere in the cluster, allow egress to NATS, Postgres, DNS, and external APIs
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "tarka.webhook.fullname" . }}
+  labels:
+    {{- include "tarka.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "tarka.webhook.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - port: 8080
+          protocol: TCP
+    {{- with .Values.networkPolicy.webhook.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    # DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # NATS
+    - ports:
+        - port: 4222
+          protocol: TCP
+    # Postgres
+    - ports:
+        - port: 5432
+          protocol: TCP
+    # HTTPS (external APIs: S3, Vertex AI, LangSmith, GitHub, Slack, etc.)
+    - ports:
+        - port: 443
+          protocol: TCP
+    {{- with .Values.networkPolicy.webhook.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+# -- Worker: no ingress needed, egress to NATS, Postgres, DNS, and external APIs
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "tarka.worker.fullname" . }}
+  labels:
+    {{- include "tarka.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "tarka.worker.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    # DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # NATS
+    - ports:
+        - port: 4222
+          protocol: TCP
+    # Postgres
+    - ports:
+        - port: 5432
+          protocol: TCP
+    # HTTPS
+    - ports:
+        - port: 443
+          protocol: TCP
+    {{- with .Values.networkPolicy.worker.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- if .Values.ui.enabled }}
+---
+# -- UI: allow ingress on 80, egress to webhook only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "tarka.ui.fullname" . }}
+  labels:
+    {{- include "tarka.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "tarka.ui.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - port: 80
+          protocol: TCP
+    {{- with .Values.networkPolicy.ui.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    # DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Webhook API
+    - ports:
+        - port: 8080
+          protocol: TCP
+      to:
+        - podSelector:
+            matchLabels:
+              {{- include "tarka.webhook.selectorLabels" . | nindent 14 }}
+    {{- with .Values.networkPolicy.ui.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- end }}
