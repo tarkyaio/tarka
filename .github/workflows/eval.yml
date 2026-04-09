@@ -23,7 +23,6 @@ jobs:
     permissions:
       contents: read
       checks: write
-      issues: write
       pull-requests: write
 
     steps:
@@ -81,7 +80,8 @@ jobs:
           exit 1
 
       - name: Comment PR with summary
-        if: github.event_name == 'pull_request' && always()
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && always()
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
