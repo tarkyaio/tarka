@@ -18,7 +18,10 @@ CHART_YAML_DEFAULT = Path("deploy/chart/Chart.yaml")
 IMAGE_PATTERNS = [
     # Order matters: tarka-ui first (most specific), then -all-providers, then bare tag
     (r"(ghcr\.io/tarkyaio/tarka-ui:)[^\s]+", r"\g<1>{version}"),
-    (r"(ghcr\.io/tarkyaio/tarka:)[^\s]+-all-providers", r"\g<1>{version}-all-providers"),
+    (
+        r"(ghcr\.io/tarkyaio/tarka:)[^\s]+-all-providers",
+        r"\g<1>{version}-all-providers",
+    ),
     (r"(ghcr\.io/tarkyaio/tarka:)\d+\.\d+\.\d+(?!-)", r"\g<1>{version}"),
 ]
 
@@ -28,9 +31,7 @@ def stamp(version: str, chart_path: Path) -> None:
 
     # Chart version and appVersion
     text = re.sub(r"^version:.*", f"version: {version}", text, flags=re.MULTILINE)
-    text = re.sub(
-        r'^appVersion:.*', f'appVersion: "{version}"', text, flags=re.MULTILINE
-    )
+    text = re.sub(r"^appVersion:.*", f'appVersion: "{version}"', text, flags=re.MULTILINE)
 
     # Container image tags in ArtifactHub annotations
     for pattern, replacement in IMAGE_PATTERNS:
