@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tarka"
-version = "0.3.1"
+version = "0.3.0"
 description = "Incident investigation agent that converts Prometheus/Alertmanager alerts into actionable triage reports"
 authors = ["Dinesh Auti <auti.dinesh3@gmail.com>"]
 readme = "README.md"
