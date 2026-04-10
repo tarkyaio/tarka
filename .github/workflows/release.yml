@@ -150,13 +150,17 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
-          KEY_NAME=$(gpg --list-secret-keys --with-colons 2>/dev/null | awk -F: '/^uid/{print $10; exit}')
-          echo "key-name=${KEY_NAME}" >> "$GITHUB_OUTPUT"
-          gpg --export-secret-keys --output /tmp/keyring.gpg
-          chmod 600 /tmp/keyring.gpg
           printf '%s' "$GPG_PASSPHRASE" > /tmp/passphrase.txt
           chmod 600 /tmp/passphrase.txt
+
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+
+          KEY_NAME=$(gpg --list-secret-keys --with-colons 2>/dev/null | awk -F: '/^uid/{print $10; exit}')
+          echo "key-name=${KEY_NAME}" >> "$GITHUB_OUTPUT"
+
+          gpg --batch --pinentry-mode loopback --passphrase-file /tmp/passphrase.txt \
+            --export-secret-keys --output /tmp/keyring.gpg
+          chmod 600 /tmp/keyring.gpg
 
       - name: Log in to GHCR (OCI)
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
