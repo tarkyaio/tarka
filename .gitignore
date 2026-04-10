@@ -91,6 +91,7 @@ eval/fixtures/*/*.yaml
 # ---- Helm ----
 # Subchart tarballs (fetched by helm dependency update)
 deploy/chart/charts/*.tgz
+deploy/local/
 
 # ---- Project Config ----
 # Contains config for GH service catalog

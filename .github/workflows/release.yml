@@ -8,6 +8,8 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write
+  attestations: write
 
 jobs:
   # ── Job 1: Preflight checks ────────────────────────────────────────
@@ -118,17 +120,43 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
-  # ── Job 3: Package & push Helm chart (OCI) ─────────────────────────
+  # ── Job 3: Package, sign & push Helm chart (OCI) ────────────────────
   helm:
     needs: preflight
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
     steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@5c7944e73c4c2a096b17a9cb74d65b6c2bbafbde # v2.9.1
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
+        with:
+          fetch-depth: 0
 
       - name: Set up Helm
         uses: azure/setup-helm@bf6a7d304bc2fdb57e0331155b7ebf2c504acf0a # v5.0.0
         with:
           version: v4.1.3
+
+      - name: Import GPG key
+        id: gpg
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          KEY_NAME=$(gpg --list-secret-keys --with-colons 2>/dev/null | awk -F: '/^uid/{print $10; exit}')
+          echo "key-name=${KEY_NAME}" >> "$GITHUB_OUTPUT"
+          gpg --export-secret-keys --output /tmp/keyring.gpg
+          chmod 600 /tmp/keyring.gpg
+          printf '%s' "$GPG_PASSPHRASE" > /tmp/passphrase.txt
+          chmod 600 /tmp/passphrase.txt
 
       - name: Log in to GHCR (OCI)
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
@@ -141,13 +169,51 @@ jobs:
           helm repo add nats https://nats-io.github.io/k8s/helm/charts/
           helm dependency build deploy/chart/
 
-      - name: Package chart
-        run: helm package deploy/chart/ --destination /tmp/helm-packages
+      - name: Package and sign chart
+        run: |
+          helm package deploy/chart/ \
+            --destination /tmp/helm-packages \
+            --sign \
+            --key "${{ steps.gpg.outputs.key-name }}" \
+            --keyring /tmp/keyring.gpg \
+            --passphrase-file /tmp/passphrase.txt
 
       - name: Push chart to GHCR
+        id: push
         run: |
           VERSION="${{ needs.preflight.outputs.version }}"
-          helm push "/tmp/helm-packages/tarka-${VERSION}.tgz" oci://ghcr.io/tarkyaio/charts
+          OUTPUT=$(helm push "/tmp/helm-packages/tarka-${VERSION}.tgz" oci://ghcr.io/tarkyaio/charts 2>&1)
+          echo "$OUTPUT"
+          DIGEST=$(echo "$OUTPUT" | grep -oP 'sha256:[a-f0-9]+')
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+
+      - name: Sign chart with cosign (keyless)
+        run: |
+          cosign sign --yes \
+            "ghcr.io/tarkyaio/charts/tarka@${{ steps.push.outputs.digest }}"
+
+      - name: Verify cosign signature
+        run: |
+          cosign verify \
+            --certificate-identity-regexp="https://github.com/tarkyaio/tarka/.*" \
+            --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+            "ghcr.io/tarkyaio/charts/tarka@${{ steps.push.outputs.digest }}"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-name: ghcr.io/tarkyaio/charts/tarka
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Clean up secrets
+        if: always()
+        run: |
+          rm -f /tmp/keyring.gpg /tmp/passphrase.txt
+          gpgconf --kill gpg-agent || true
 
   # ── Job 4: Create GitHub Release ────────────────────────────────────
   release:
@@ -208,20 +274,7 @@ jobs:
           body_path: /tmp/release-notes.md
           prerelease: ${{ steps.prerelease.outputs.is_prerelease == 'true' }}
 
-  # ── Job 5: Set GHCR packages to public ─────────────────────────────
-  set-public:
-    needs: [build, helm]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Make GHCR packages public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api --method PATCH /orgs/tarkyaio/packages/container/tarka          -f visibility=public
-          gh api --method PATCH /orgs/tarkyaio/packages/container/tarka-ui       -f visibility=public
-          gh api --method PATCH /orgs/tarkyaio/packages/container/charts%2Ftarka -f visibility=public
-
-  # ── Job 6: Update version on GitHub Pages site ─────────────────────
+  # ── Job 5: Update version on GitHub Pages site ──────────────────────
   update-site-version:
     needs: [preflight, release]
     runs-on: ubuntu-latest
