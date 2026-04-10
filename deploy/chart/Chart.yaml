@@ -2,8 +2,8 @@ apiVersion: v2
 name: tarka
 description: AI-powered Kubernetes alert triage. Converts Prometheus/Alertmanager alerts into actionable investigation reports.
 type: application
-version: 0.3.0
-appVersion: "0.3.0"
+version: 0.3.1
+appVersion: "0.3.1"
 
 home: https://github.com/tarkyaio/tarka
 icon: https://raw.githubusercontent.com/tarkyaio/tarka/main/docs/assets/icon.png
@@ -40,15 +40,15 @@ annotations:
       url: https://github.com/tarkyaio/tarka/releases
   artifacthub.io/images: |
     - name: tarka
-      image: ghcr.io/tarkyaio/tarka:0.3.0
+      image: ghcr.io/tarkyaio/tarka:0.3.1
       platforms:
         - linux/amd64
     - name: tarka-all-providers
-      image: ghcr.io/tarkyaio/tarka:0.3.0-all-providers
+      image: ghcr.io/tarkyaio/tarka:0.3.1-all-providers
       platforms:
         - linux/amd64
     - name: tarka-ui
-      image: ghcr.io/tarkyaio/tarka-ui:0.3.0
+      image: ghcr.io/tarkyaio/tarka-ui:0.3.1
       platforms:
         - linux/amd64
   artifacthub.io/changes: |

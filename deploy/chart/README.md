@@ -16,7 +16,7 @@ helm install tarka oci://ghcr.io/tarkyaio/charts/tarka \
 Pin a version:
 
 ```bash
-helm install tarka oci://ghcr.io/tarkyaio/charts/tarka --version 0.3.0
+helm install tarka oci://ghcr.io/tarkyaio/charts/tarka --version 0.3.1
 ```
 
 ## Components
