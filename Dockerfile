@@ -1,37 +1,36 @@
-FROM python:3.13-slim AS runtime
+# Build stage: install Python dependencies into an isolated directory
+FROM cgr.dev/chainguard/python:latest-dev AS builder
 
-WORKDIR /app
+WORKDIR /build
 
-# System deps (certs for HTTPS endpoints / AWS + local git mirror cache)
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates git \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Poetry
+# Install Poetry (dev image ships with pip)
 RUN pip install --no-cache-dir poetry==1.8.2
 
 # Copy dependency files
-COPY pyproject.toml poetry.lock* /app/
+COPY pyproject.toml poetry.lock* ./
 
 # Build arg for Poetry extras (e.g., "vertex", "anthropic", "all-providers")
 ARG POETRY_EXTRAS=""
 
-# Install dependencies only (no dev dependencies)
-# If POETRY_EXTRAS is set, install with extras: poetry install --only main -E vertex
-RUN poetry config virtualenvs.create false \
-    && if [ -n "$POETRY_EXTRAS" ]; then \
-        echo "Installing with extras: $POETRY_EXTRAS"; \
+# Export the lockfile to requirements.txt and install to /deps.
+# Using --target avoids venv symlink issues across image stages.
+RUN if [ -n "$POETRY_EXTRAS" ]; then \
         EXTRA_FLAGS=$(echo "$POETRY_EXTRAS" | tr ',' '\n' | sed 's/^/-E /' | tr '\n' ' '); \
-        eval "poetry install --only main $EXTRA_FLAGS --no-interaction --no-ansi"; \
+        eval "poetry export --only main $EXTRA_FLAGS -f requirements.txt -o requirements.txt"; \
     else \
-        echo "Installing without extras (deterministic mode only)"; \
-        poetry install --only main --no-interaction --no-ansi; \
-    fi
+        poetry export --only main -f requirements.txt -o requirements.txt; \
+    fi \
+    && pip install --no-cache-dir --target=/deps -r requirements.txt
 
-# Copy application code
-COPY main.py /app/main.py
-COPY agent/ /app/agent/
 
+# Runtime stage: minimal hardened image (no shell, runs as nonroot uid 65532)
+# NOTE: this image does not include git. If GITHUB_EVIDENCE_ENABLED=true is
+# needed in production, swap this base to cgr.dev/chainguard/python:latest-dev.
+FROM cgr.dev/chainguard/python:latest AS runtime
+
+WORKDIR /app
+
+ENV PYTHONPATH=/deps
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
@@ -40,9 +39,27 @@ ENTRYPOINT ["python", "main.py"]
 # Default behavior if no args are provided.
 CMD ["--help"]
 
-# Optional debug image (keeps python deps identical, adds just bash+curl)
-FROM runtime AS debug
-RUN apt-get update && apt-get install -y --no-install-recommends bash curl && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /deps /deps
+COPY main.py ./
+COPY agent/ ./agent/
+
+
+# Debug image: dev variant retains shell, apk, and git for live troubleshooting
+FROM cgr.dev/chainguard/python:latest-dev AS debug
+
+WORKDIR /app
+
+ENV PYTHONPATH=/deps
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+ENTRYPOINT ["python", "main.py"]
+CMD ["--help"]
+
+COPY --from=builder /deps /deps
+COPY main.py ./
+COPY agent/ ./agent/
+
 
 # Default output image stays slim (same as runtime)
 FROM runtime AS final

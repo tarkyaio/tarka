@@ -17,7 +17,7 @@ ui:
   replicaCount: 1
   podSecurityContext:
     runAsNonRoot: true
-    runAsUser: 101  # nginx user in official images
+    runAsUser: 65532  # nonroot user in Chainguard images
   image:
     repository: "ghcr.io/tarkyaio/tarka-ui"
     tag: ""
