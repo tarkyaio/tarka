@@ -284,27 +284,3 @@ jobs:
           name: Tarka ${{ needs.preflight.outputs.tag }}
           body_path: /tmp/release-notes.md
           prerelease: ${{ steps.prerelease.outputs.is_prerelease == 'true' }}
-
-  # ── Job 5: Update version on GitHub Pages site ──────────────────────
-  update-site-version:
-    needs: [preflight, release]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v6.0.2
-        with:
-          ref: main
-
-      - name: Update version in docs/index.html
-        run: |
-          TAG="${{ needs.preflight.outputs.tag }}"
-          sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+\(-[a-zA-Z0-9._-]\+\)\?/$TAG/g" docs/index.html
-
-      - name: Commit and push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/index.html
-          git diff --cached --quiet || git commit -m "chore(site): bump version to ${{ needs.preflight.outputs.tag }}"
-          git push origin main
