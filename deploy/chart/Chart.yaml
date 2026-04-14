@@ -5,8 +5,8 @@ type: application
 version: 0.3.2
 appVersion: "0.3.2"
 
-home: https://github.com/tarkyaio/tarka
-icon: https://raw.githubusercontent.com/tarkyaio/tarka/main/docs/assets/icon.png
+home: https://tarkya.io/
+icon: https://raw.githubusercontent.com/tarkyaio/website/refs/heads/main/assets/icon.png
 
 sources:
   - https://github.com/tarkyaio/tarka
