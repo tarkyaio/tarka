@@ -24,7 +24,7 @@ RUN if [ -n "$POETRY_EXTRAS" ]; then \
 
 
 # Runtime stage: minimal hardened image (no shell, runs as nonroot uid 65532).
-# Does NOT include git — use the -git image tag when GITHUB_EVIDENCE_ENABLED=true.
+# Does NOT include git — use the -full image tag when GITHUB_EVIDENCE_ENABLED=true.
 FROM cgr.dev/chainguard/python:latest AS runtime
 
 WORKDIR /app
@@ -43,9 +43,9 @@ COPY main.py ./
 COPY agent/ ./agent/
 
 
-# Git-enabled runtime: same as runtime but built on latest-dev, which ships git.
-# Use this image (tag suffix: -git) when GITHUB_EVIDENCE_ENABLED=true.
-FROM cgr.dev/chainguard/python:latest-dev AS git
+# Full-featured runtime: same as runtime but on latest-dev, which ships git.
+# Use this image (tag suffix: -full) when GITHUB_EVIDENCE_ENABLED=true.
+FROM cgr.dev/chainguard/python:latest-dev AS full
 
 WORKDIR /app
 
@@ -61,9 +61,5 @@ COPY main.py ./
 COPY agent/ ./agent/
 
 
-# Debug image: same base as git — shell, apk, and git available for troubleshooting
-FROM git AS debug
-
-
-# Default output image stays slim (same as runtime)
-FROM runtime AS final
+# Debug image: same base as full — shell, apk, and git available for troubleshooting
+FROM full AS debug

@@ -57,35 +57,27 @@ jobs:
         include:
           - name: tarka
             image: ghcr.io/tarkyaio/tarka
-            dockerfile: ./Dockerfile
+            dockerfile: ./agent/Dockerfile
             context: .
-            target: final
+            target: runtime
             build_args: ""
             tag_suffix: ""
 
-          - name: tarka-all-providers
+          - name: tarka-llm
             image: ghcr.io/tarkyaio/tarka
-            dockerfile: ./Dockerfile
+            dockerfile: ./agent/Dockerfile
             context: .
-            target: final
+            target: runtime
             build_args: "POETRY_EXTRAS=all-providers"
-            tag_suffix: "-all-providers"
+            tag_suffix: "-llm"
 
-          - name: tarka-git
+          - name: tarka-full
             image: ghcr.io/tarkyaio/tarka
-            dockerfile: ./Dockerfile
+            dockerfile: ./agent/Dockerfile
             context: .
-            target: git
-            build_args: ""
-            tag_suffix: "-git"
-
-          - name: tarka-all-providers-git
-            image: ghcr.io/tarkyaio/tarka
-            dockerfile: ./Dockerfile
-            context: .
-            target: git
+            target: full
             build_args: "POETRY_EXTRAS=all-providers"
-            tag_suffix: "-all-providers-git"
+            tag_suffix: "-full"
 
           - name: tarka-ui
             image: ghcr.io/tarkyaio/tarka-ui
@@ -271,10 +263,9 @@ jobs:
             echo "### Docker images"
             echo ""
             echo '```bash'
-            echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}"
-            echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}-all-providers"
-            echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}-git                 # GITHUB_EVIDENCE_ENABLED=true"
-            echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}-all-providers-git   # all providers + git"
+            echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}        # deterministic only"
+            echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}-llm   # + LLM enrichment"
+            echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}-full  # + LLM + GitHub evidence"
             echo "docker pull ghcr.io/tarkyaio/tarka-ui:${VERSION}"
             echo '```'
             echo ""

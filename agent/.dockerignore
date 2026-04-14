@@ -10,7 +10,7 @@ eval/
 docs/
 *.md
 
-# UI (separate image)
+# UI (separate image, separate build context)
 ui/
 
 # Deployment & infrastructure
@@ -20,7 +20,6 @@ config/
 dev/
 docker-compose*.yml
 Makefile
-deploy.sh
 
 # Environment & secrets
 .env*

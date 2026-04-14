@@ -43,8 +43,12 @@ annotations:
       image: ghcr.io/tarkyaio/tarka:0.3.2
       platforms:
         - linux/amd64
-    - name: tarka-all-providers
-      image: ghcr.io/tarkyaio/tarka:0.3.2-all-providers
+    - name: tarka-llm
+      image: ghcr.io/tarkyaio/tarka:0.3.2-llm
+      platforms:
+        - linux/amd64
+    - name: tarka-full
+      image: ghcr.io/tarkyaio/tarka:0.3.2-full
       platforms:
         - linux/amd64
     - name: tarka-ui

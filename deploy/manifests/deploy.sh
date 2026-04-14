@@ -76,7 +76,7 @@ SKIP_BUCKET_POLICY="${SKIP_BUCKET_POLICY:-0}"
 SKIP_ASM_SECRET_CREATE="${SKIP_ASM_SECRET_CREATE:-0}"
 SKIP_IAM_SETUP="${SKIP_IAM_SETUP:-0}"
 SKIP_KUBECONFIG_UPDATE="${SKIP_KUBECONFIG_UPDATE:-0}"
-DOCKER_TARGET="${DOCKER_TARGET:-final}"
+DOCKER_TARGET="${DOCKER_TARGET:-runtime}"
 
 # LangSmith (optional; env-gated tracing)
 LANGSMITH_TRACING="${LANGSMITH_TRACING:-false}"
@@ -471,12 +471,12 @@ echo ""
 if [[ "${SKIP_BUILD_PUSH}" != "1" ]]; then
   log_section "Building and Pushing Images"
 
-  # Auto-promote to the git-capable image target when GitHub evidence is enabled.
-  # The default 'final' target is built on cgr.dev/chainguard/python:latest (no git).
-  # The 'git' target uses cgr.dev/chainguard/python:latest-dev which ships git.
-  if [[ "${GITHUB_EVIDENCE_ENABLED}" == "true" && "${DOCKER_TARGET}" == "final" ]]; then
-    DOCKER_TARGET="git"
-    log_info "GITHUB_EVIDENCE_ENABLED=true: using git-capable image target"
+  # Auto-promote to the full target when GitHub evidence is enabled.
+  # 'runtime' uses cgr.dev/chainguard/python:latest (no git).
+  # 'full'    uses cgr.dev/chainguard/python:latest-dev (git included).
+  if [[ "${GITHUB_EVIDENCE_ENABLED}" == "true" && "${DOCKER_TARGET}" == "runtime" ]]; then
+    DOCKER_TARGET="full"
+    log_info "GITHUB_EVIDENCE_ENABLED=true: using full image target (includes git)"
   fi
 
   log_info "Building agent image (target: ${DOCKER_TARGET})..."
@@ -487,6 +487,7 @@ if [[ "${SKIP_BUILD_PUSH}" != "1" ]]; then
     log_info "Building with Poetry extras: ${POETRY_EXTRAS} (for ${LLM_PROVIDER})"
     docker build \
       --platform=linux/amd64 \
+      -f "${ROOT_DIR}/agent/Dockerfile" \
       --target "${DOCKER_TARGET}" \
       --build-arg POETRY_EXTRAS="${POETRY_EXTRAS}" \
       -t "${IMAGE}" \
@@ -499,6 +500,7 @@ if [[ "${SKIP_BUILD_PUSH}" != "1" ]]; then
     fi
     docker build \
       --platform=linux/amd64 \
+      -f "${ROOT_DIR}/agent/Dockerfile" \
       --target "${DOCKER_TARGET}" \
       -t "${IMAGE}" \
       "${ROOT_DIR}"
