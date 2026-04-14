@@ -3,7 +3,7 @@ export
 
 .PHONY: help
 .PHONY: install test test-integration test-all test-ui test-ui-e2e test-ci clean coverage
-.PHONY: lint format run
+.PHONY: lint format run docker-build
 .PHONY: dev-up dev-down dev-restart dev-logs dev-serve dev-worker dev-ui dev-test dev-send-alert dev-clean
 
 help:
@@ -34,6 +34,9 @@ help:
 	@echo "  make dev-test          - Run e2e tests against local environment"
 	@echo "  make dev-send-alert    - Send test alert to webhook"
 	@echo "  make dev-clean         - Clean all development artifacts"
+	@echo ""
+	@echo "Docker:"
+	@echo "  make docker-build      - Build core Docker images (agent: runtime, UI)"
 
 install:
 	poetry install
@@ -87,6 +90,21 @@ pre-commit:
 format-check:
 	poetry run black --check .
 	poetry run isort --check .
+
+# ==============================================================================
+# Docker
+# ==============================================================================
+
+docker-build: ## Build Docker images (agent: runtime; UI). llm/full blocked on pyarrow Python 3.14 support.
+	@echo "Building agent image (runtime — deterministic only)..."
+	docker build --platform linux/amd64 -f agent/Dockerfile --target runtime -t tarka:runtime .
+	@echo "Building UI image..."
+	docker build --platform linux/amd64 -f ui/Dockerfile -t tarka-ui:latest ui/
+	@echo "✓ Core images built successfully"
+	@echo ""
+	@echo "NOTE: tarka:llm and tarka:full are not built here — pyarrow (transitive dep of"
+	@echo "      all-providers extras) has no Python 3.14 wheels and its source build fails."
+	@echo "      Update the pyarrow pin in the lockfile to unblock those targets."
 
 # ==============================================================================
 # UI Tests

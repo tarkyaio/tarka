@@ -263,7 +263,7 @@ jobs:
             echo "### Docker images"
             echo ""
             echo '```bash'
-            echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}        # deterministic only"
+            echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}       # deterministic only"
             echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}-llm   # + LLM enrichment"
             echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}-full  # + LLM + GitHub evidence"
             echo "docker pull ghcr.io/tarkyaio/tarka-ui:${VERSION}"
