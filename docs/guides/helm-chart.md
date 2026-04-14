@@ -56,21 +56,20 @@ ui:
 
 #### Image tag variants
 
-Each release publishes four agent image tags. All are built on [Chainguard](https://www.chainguard.dev/) hardened base images (nonroot, minimal CVE surface):
+Each release publishes three agent image tags. All are built on [Chainguard](https://www.chainguard.dev/) hardened base images (nonroot, minimal CVE surface):
 
-| Tag suffix | Base | Includes git | When to use |
-|------------|------|:---:|-------------|
-| *(none)* | `cgr.dev/chainguard/python:latest` | No | Default — no GitHub evidence |
-| `-all-providers` | `cgr.dev/chainguard/python:latest` | No | All LLM providers, no GitHub evidence |
-| `-git` | `cgr.dev/chainguard/python:latest-dev` | Yes | `GITHUB_EVIDENCE_ENABLED=true` |
-| `-all-providers-git` | `cgr.dev/chainguard/python:latest-dev` | Yes | All LLM providers + GitHub evidence |
+| Tag suffix | Base | LLM SDKs | Includes git | When to use |
+|------------|------|:---:|:---:|-------------|
+| *(none)* | `cgr.dev/chainguard/python:latest` | No | No | Deterministic triage only |
+| `-llm` | `cgr.dev/chainguard/python:latest` | Yes | No | LLM enrichment, no GitHub evidence |
+| `-full` | `cgr.dev/chainguard/python:latest-dev` | Yes | Yes | LLM + `GITHUB_EVIDENCE_ENABLED=true` |
 
-To use the `-git` variant (required when `GITHUB_EVIDENCE_ENABLED=true`):
+To use the `-full` variant (required when `GITHUB_EVIDENCE_ENABLED=true`):
 
 ```yaml
 image:
   repository: "ghcr.io/tarkyaio/tarka"
-  tag: "0.3.2-git"
+  tag: "0.3.2-full"
 ```
 
 To use a private registry:
