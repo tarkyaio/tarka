@@ -71,6 +71,22 @@ jobs:
             build_args: "POETRY_EXTRAS=all-providers"
             tag_suffix: "-all-providers"
 
+          - name: tarka-git
+            image: ghcr.io/tarkyaio/tarka
+            dockerfile: ./Dockerfile
+            context: .
+            target: git
+            build_args: ""
+            tag_suffix: "-git"
+
+          - name: tarka-all-providers-git
+            image: ghcr.io/tarkyaio/tarka
+            dockerfile: ./Dockerfile
+            context: .
+            target: git
+            build_args: "POETRY_EXTRAS=all-providers"
+            tag_suffix: "-all-providers-git"
+
           - name: tarka-ui
             image: ghcr.io/tarkyaio/tarka-ui
             dockerfile: ./ui/Dockerfile
@@ -257,6 +273,8 @@ jobs:
             echo '```bash'
             echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}"
             echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}-all-providers"
+            echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}-git                 # GITHUB_EVIDENCE_ENABLED=true"
+            echo "docker pull ghcr.io/tarkyaio/tarka:${VERSION}-all-providers-git   # all providers + git"
             echo "docker pull ghcr.io/tarkyaio/tarka-ui:${VERSION}"
             echo '```'
             echo ""

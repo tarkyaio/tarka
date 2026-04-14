@@ -23,9 +23,8 @@ RUN if [ -n "$POETRY_EXTRAS" ]; then \
     && pip install --no-cache-dir --target=/deps -r requirements.txt
 
 
-# Runtime stage: minimal hardened image (no shell, runs as nonroot uid 65532)
-# NOTE: this image does not include git. If GITHUB_EVIDENCE_ENABLED=true is
-# needed in production, swap this base to cgr.dev/chainguard/python:latest-dev.
+# Runtime stage: minimal hardened image (no shell, runs as nonroot uid 65532).
+# Does NOT include git — use the -git image tag when GITHUB_EVIDENCE_ENABLED=true.
 FROM cgr.dev/chainguard/python:latest AS runtime
 
 WORKDIR /app
@@ -44,8 +43,9 @@ COPY main.py ./
 COPY agent/ ./agent/
 
 
-# Debug image: dev variant retains shell, apk, and git for live troubleshooting
-FROM cgr.dev/chainguard/python:latest-dev AS debug
+# Git-enabled runtime: same as runtime but built on latest-dev, which ships git.
+# Use this image (tag suffix: -git) when GITHUB_EVIDENCE_ENABLED=true.
+FROM cgr.dev/chainguard/python:latest-dev AS git
 
 WORKDIR /app
 
@@ -59,6 +59,10 @@ CMD ["--help"]
 COPY --from=builder /deps /deps
 COPY main.py ./
 COPY agent/ ./agent/
+
+
+# Debug image: same base as git — shell, apk, and git available for troubleshooting
+FROM git AS debug
 
 
 # Default output image stays slim (same as runtime)

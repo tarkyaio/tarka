@@ -54,6 +54,25 @@ ui:
     tag: ""
 ```
 
+#### Image tag variants
+
+Each release publishes four agent image tags. All are built on [Chainguard](https://www.chainguard.dev/) hardened base images (nonroot, minimal CVE surface):
+
+| Tag suffix | Base | Includes git | When to use |
+|------------|------|:---:|-------------|
+| *(none)* | `cgr.dev/chainguard/python:latest` | No | Default — no GitHub evidence |
+| `-all-providers` | `cgr.dev/chainguard/python:latest` | No | All LLM providers, no GitHub evidence |
+| `-git` | `cgr.dev/chainguard/python:latest-dev` | Yes | `GITHUB_EVIDENCE_ENABLED=true` |
+| `-all-providers-git` | `cgr.dev/chainguard/python:latest-dev` | Yes | All LLM providers + GitHub evidence |
+
+To use the `-git` variant (required when `GITHUB_EVIDENCE_ENABLED=true`):
+
+```yaml
+image:
+  repository: "ghcr.io/tarkyaio/tarka"
+  tag: "0.3.2-git"
+```
+
 To use a private registry:
 
 ```yaml
@@ -331,7 +350,7 @@ networkPolicy:
 Each component gets a policy:
 - **Webhook**: ingress on 8080, egress to DNS/NATS/Postgres/HTTPS
 - **Worker**: no ingress, egress to DNS/NATS/Postgres/HTTPS
-- **UI**: ingress on 80, egress to webhook only
+- **UI**: ingress on 8080, egress to webhook only
 
 Add custom rules per component or globally:
 
