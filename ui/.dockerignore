@@ -1,7 +1,20 @@
-node_modules
-dist
+# Built output (rebuilt inside Docker)
+node_modules/
+dist/
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+
+# Editor & OS
+.vscode/
+.idea/
+*.swp
+*.swo
 .DS_Store
 npm-debug.log
-yarn.lock
-pnpm-lock.yaml
 *.local
+
+# Docs
+*.md

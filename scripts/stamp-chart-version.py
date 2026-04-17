@@ -16,12 +16,10 @@ from pathlib import Path
 CHART_YAML_DEFAULT = Path("deploy/chart/Chart.yaml")
 
 IMAGE_PATTERNS = [
-    # Order matters: tarka-ui first (most specific), then -all-providers, then bare tag
+    # Order matters: most specific suffixes first, bare tag last.
     (r"(ghcr\.io/tarkyaio/tarka-ui:)[^\s]+", r"\g<1>{version}"),
-    (
-        r"(ghcr\.io/tarkyaio/tarka:)[^\s]+-all-providers",
-        r"\g<1>{version}-all-providers",
-    ),
+    (r"(ghcr\.io/tarkyaio/tarka:)[^\s]+-full", r"\g<1>{version}-full"),
+    (r"(ghcr\.io/tarkyaio/tarka:)[^\s]+-llm", r"\g<1>{version}-llm"),
     (r"(ghcr\.io/tarkyaio/tarka:)\d+\.\d+\.\d+(?!-)", r"\g<1>{version}"),
 ]
 

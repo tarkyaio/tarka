@@ -15,6 +15,7 @@ GitHub Apps are the recommended way to integrate with GitHub because:
 - GitHub organization admin access (or repo admin for specific repos)
 - Kubernetes cluster with the Tarka deployed
 - Ability to configure secrets in your deployment
+- The **`-full` image variant** — the default image does not include `git`. See [Image tag variants](helm-chart.md#image-tag-variants).
 
 ## Step 1: Create GitHub App
 
@@ -70,7 +71,7 @@ Add the following environment variables to your deployment:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: tarka-github
+  name: tarka-fullhub
   namespace: tarka
 type: Opaque
 stringData:
@@ -83,6 +84,10 @@ stringData:
 ```
 
 ### Via Deployment Environment Variables
+
+> **Image requirement:** GitHub evidence uses `git` to mirror repositories locally. The default
+> image does not include `git` — use the `-full` tag variant (e.g. `ghcr.io/tarkyaio/tarka:0.3.2-full`).
+> See [Image tag variants](helm-chart.md#image-tag-variants).
 
 ```yaml
 apiVersion: apps/v1
@@ -107,19 +112,19 @@ spec:
         - name: GITHUB_APP_ID
           valueFrom:
             secretKeyRef:
-              name: tarka-github
+              name: tarka-fullhub
               key: github-app-id
 
         - name: GITHUB_APP_INSTALLATION_ID
           valueFrom:
             secretKeyRef:
-              name: tarka-github
+              name: tarka-fullhub
               key: github-app-installation-id
 
         - name: GITHUB_APP_PRIVATE_KEY
           valueFrom:
             secretKeyRef:
-              name: tarka-github
+              name: tarka-fullhub
               key: github-app-private-key
 
         # Optional: Default org for repo discovery
@@ -216,10 +221,10 @@ Example report section:
 **Causes**:
 1. Cache dir not writable or too small
 2. Mirror refresh TTL too aggressive
-3. Git not available in runtime image/container
+3. Git not available in runtime image — using the default image instead of the `-full` variant
 
 **Solutions**:
-- Ensure `git --version` works in the running container
+- Ensure you are using the `-full` image tag (e.g. `ghcr.io/tarkyaio/tarka:0.3.2-full`); the default image does not ship `git`
 - Verify `TARKA_GIT_CACHE_DIR` is writable by the agent process
 - Tune `TARKA_GIT_FETCH_TTL_SECONDS` (default: 300)
 - Use `TARKA_GIT_CACHE_MAX_REPOS` to control cache growth in long-running pods
