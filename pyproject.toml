@@ -16,7 +16,7 @@ fastapi = ">=0.110.0"
 uvicorn = ">=0.29.0"
 PyJWT = {extras = ["crypto"], version = ">=2.12.0"}
 itsdangerous = ">=2.2.0"
-authlib = ">=1.6.9"
+authlib = ">=1.6.11"
 bcrypt = "^4.0.0"
 pydantic = "2.12.5"
 psycopg = {extras = ["binary"], version = "3.2.10"}
