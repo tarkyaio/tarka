@@ -16,7 +16,7 @@ spec:
       serviceAccountName: tarka
       containers:
         - name: tarka
-          image: ghcr.io/tarkyaio/tarka:0.3.2
+          image: ghcr.io/tarkyaio/tarka:REPLACE_ME_TAG
           imagePullPolicy: Always
           command: ["python", "main.py"]
           args: ["--serve-webhook", "--host", "0.0.0.0", "--port", "8080"]

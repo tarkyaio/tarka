@@ -17,18 +17,7 @@ ui:
   replicaCount: 1
   podSecurityContext:
     runAsNonRoot: true
-    runAsUser: 101  # nginx user in official images
-  # Standard nginx image runs as root; shadow writable paths with emptyDirs
-  extraVolumes:
-    - name: nginx-cache
-      emptyDir: {}
-    - name: nginx-run
-      emptyDir: {}
-  extraVolumeMounts:
-    - name: nginx-cache
-      mountPath: /var/cache/nginx
-    - name: nginx-run
-      mountPath: /var/run
+    runAsUser: 65532  # nonroot user in Chainguard images
   image:
     repository: "ghcr.io/tarkyaio/tarka-ui"
     tag: ""
