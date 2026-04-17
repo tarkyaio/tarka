@@ -4,8 +4,8 @@ set -euo pipefail
 # Disable AWS CLI pager to prevent script from hanging on user input
 export AWS_PAGER=""
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-K8S_DIR="${ROOT_DIR}/k8s"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+K8S_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Debug: Show raw environment variable values before applying defaults
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -76,7 +76,7 @@ SKIP_BUCKET_POLICY="${SKIP_BUCKET_POLICY:-0}"
 SKIP_ASM_SECRET_CREATE="${SKIP_ASM_SECRET_CREATE:-0}"
 SKIP_IAM_SETUP="${SKIP_IAM_SETUP:-0}"
 SKIP_KUBECONFIG_UPDATE="${SKIP_KUBECONFIG_UPDATE:-0}"
-DOCKER_TARGET="${DOCKER_TARGET:-final}"
+DOCKER_TARGET="${DOCKER_TARGET:-runtime}"
 
 # LangSmith (optional; env-gated tracing)
 LANGSMITH_TRACING="${LANGSMITH_TRACING:-false}"
@@ -470,7 +470,16 @@ echo ""
 
 if [[ "${SKIP_BUILD_PUSH}" != "1" ]]; then
   log_section "Building and Pushing Images"
-  log_info "Building agent image..."
+
+  # Auto-promote to the full target when GitHub evidence is enabled.
+  # 'runtime' uses cgr.dev/chainguard/python:latest (no git).
+  # 'full'    uses cgr.dev/chainguard/python:latest-dev (git included).
+  if [[ "${GITHUB_EVIDENCE_ENABLED}" == "true" && "${DOCKER_TARGET}" == "runtime" ]]; then
+    DOCKER_TARGET="full"
+    log_info "GITHUB_EVIDENCE_ENABLED=true: using full image target (includes git)"
+  fi
+
+  log_info "Building agent image (target: ${DOCKER_TARGET})..."
 
   # Determine Poetry extras based on LLM provider
   POETRY_EXTRAS=$(determine_poetry_extras)
@@ -478,10 +487,11 @@ if [[ "${SKIP_BUILD_PUSH}" != "1" ]]; then
     log_info "Building with Poetry extras: ${POETRY_EXTRAS} (for ${LLM_PROVIDER})"
     docker build \
       --platform=linux/amd64 \
+      -f "${ROOT_DIR}/agent/Dockerfile" \
       --target "${DOCKER_TARGET}" \
       --build-arg POETRY_EXTRAS="${POETRY_EXTRAS}" \
       -t "${IMAGE}" \
-      .
+      "${ROOT_DIR}"
   else
     if [[ "${LLM_ENABLED}" == "true" ]]; then
       log_warning "LLM enabled but no valid provider configured - building without LLM SDKs"
@@ -490,14 +500,15 @@ if [[ "${SKIP_BUILD_PUSH}" != "1" ]]; then
     fi
     docker build \
       --platform=linux/amd64 \
+      -f "${ROOT_DIR}/agent/Dockerfile" \
       --target "${DOCKER_TARGET}" \
       -t "${IMAGE}" \
-      .
+      "${ROOT_DIR}"
   fi
   log_success "Agent image built"
 
   log_info "Building UI image..."
-  docker build --platform=linux/amd64 -t "${UI_IMAGE}" -f ui/Dockerfile ui/
+  docker build --platform=linux/amd64 -t "${UI_IMAGE}" -f "${ROOT_DIR}/ui/Dockerfile" "${ROOT_DIR}/ui"
   log_success "UI image built"
 
   # If this looks like ECR, login automatically.
@@ -1017,7 +1028,7 @@ log_success "RBAC configured"
 
 log_info "Applying ServiceAccount (IRSA)..."
 sed "s|arn:aws:iam::123456789012:role/tarka-irsa-role|${ROLE_ARN}|g" \
-  "${K8S_DIR}/serviceaccount.yaml" | kubectl apply -f - >/dev/null
+  "${K8S_DIR}/serviceAccount.yaml" | kubectl apply -f - >/dev/null
 log_success "ServiceAccount configured"
 
 log_info "Rendering and applying ConfigMap..."
@@ -1071,7 +1082,7 @@ sed \
   -e "s|CHAT_GITHUB_REPO_ALLOWLIST: \"\"|CHAT_GITHUB_REPO_ALLOWLIST: \"${CHAT_GITHUB_REPO_ALLOWLIST}\"|g" \
   -e "s|GITHUB_DEFAULT_ORG: \"\"|GITHUB_DEFAULT_ORG: \"${GITHUB_DEFAULT_ORG}\"|g" \
   -e "s|CHAT_ALLOW_K8S_EVENTS: \"true\"|CHAT_ALLOW_K8S_EVENTS: \"${CHAT_ALLOW_K8S_EVENTS}\"|g" \
-  "${K8S_DIR}/configmap.yaml" > "${_rendered_configmap}"
+  "${K8S_DIR}/configMap.yaml" > "${_rendered_configmap}"
 
 if grep -q 'REPLACE_ME_' "${_rendered_configmap}"; then
   log_error "Rendered ConfigMap still contains placeholder values (REPLACE_ME_*)"
@@ -1158,7 +1169,7 @@ if [[ "${ENABLE_DEV_POSTGRES}" == "1" ]]; then
   fi
 
   log_info "Deploying PostgreSQL (in-cluster)..."
-  kubectl apply -f "${K8S_DIR}/postgres-dev.yaml" >/dev/null
+  kubectl apply -f "${K8S_DIR}/postgresDev.yaml" >/dev/null
 
   log_info "Waiting for PostgreSQL to be ready..."
   kubectl -n tarka rollout status deploy/tarka-postgres --timeout=180s >/dev/null 2>&1
@@ -1166,7 +1177,7 @@ if [[ "${ENABLE_DEV_POSTGRES}" == "1" ]]; then
 fi
 
 log_info "Deploying NATS JetStream..."
-kubectl apply -f "${K8S_DIR}/nats-jetstream.yaml" >/dev/null
+kubectl apply -f "${K8S_DIR}/natsJetstream.yaml" >/dev/null
 log_info "Waiting for NATS to be ready..."
 kubectl -n tarka rollout status statefulset/nats --timeout=180s >/dev/null 2>&1
 log_success "NATS ready"
@@ -1179,7 +1190,7 @@ log_info "Rendering and applying webhook deployment..."
 _rendered_webhook_deploy="$(mktemp)"
 sed \
   -e "s|REPLACE_ME_GCP_WIF_AUDIENCE|${GCP_WIF_AUDIENCE}|g" \
-  -e "s|REPLACE_ME_IMAGE|${IMAGE}|g" \
+  -e "s|:REPLACE_ME_TAG|:${IMAGE_TAG}|g" \
   "${K8S_DIR}/deployment.yaml" > "${_rendered_webhook_deploy}"
 if grep -q 'REPLACE_ME_' "${_rendered_webhook_deploy}"; then
   log_error "Rendered webhook deployment contains placeholder values (REPLACE_ME_*)"
@@ -1198,8 +1209,8 @@ log_info "Rendering and applying worker deployment..."
 _rendered_worker_deploy="$(mktemp)"
 sed \
   -e "s|REPLACE_ME_GCP_WIF_AUDIENCE|${GCP_WIF_AUDIENCE}|g" \
-  -e "s|REPLACE_ME_IMAGE|${IMAGE}|g" \
-  "${K8S_DIR}/worker-deployment.yaml" > "${_rendered_worker_deploy}"
+  -e "s|:REPLACE_ME_TAG|:${IMAGE_TAG}|g" \
+  "${K8S_DIR}/workerDeployment.yaml" > "${_rendered_worker_deploy}"
 if grep -q 'REPLACE_ME_' "${_rendered_worker_deploy}"; then
   log_error "Rendered worker deployment contains placeholder values (REPLACE_ME_*)"
   echo ""
@@ -1216,9 +1227,9 @@ kubectl -n tarka rollout status deploy/tarka-worker --timeout=180s >/dev/null 2>
 log_success "Workers ready"
 
 log_info "Deploying Console UI..."
-kubectl apply -f "${K8S_DIR}/console-ui-service.yaml" >/dev/null
-sed "s|REPLACE_ME_UI_IMAGE|${UI_IMAGE}|g" \
-  "${K8S_DIR}/console-ui-deployment.yaml" | kubectl apply -f - >/dev/null
+kubectl apply -f "${K8S_DIR}/uiService.yaml" >/dev/null
+sed "s|:REPLACE_ME_TAG|:${IMAGE_TAG}|g" \
+  "${K8S_DIR}/uiDeployment.yaml" | kubectl apply -f - >/dev/null
 log_success "Console UI deployed"
 
 log_section "Rolling Restart Deployments"

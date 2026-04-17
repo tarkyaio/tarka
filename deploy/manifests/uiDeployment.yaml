@@ -15,11 +15,11 @@ spec:
     spec:
       containers:
         - name: tarka-ui
-          image: ghcr.io/tarkyaio/tarka-ui:0.3.2
+          image: ghcr.io/tarkyaio/tarka-ui:REPLACE_ME_TAG
           imagePullPolicy: Always
           ports:
             - name: http
-              containerPort: 80
+              containerPort: 8080
           resources:
             requests:
               cpu: "25m"

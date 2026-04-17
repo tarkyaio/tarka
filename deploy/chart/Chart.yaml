@@ -5,8 +5,8 @@ type: application
 version: 0.3.2
 appVersion: "0.3.2"
 
-home: https://github.com/tarkyaio/tarka
-icon: https://raw.githubusercontent.com/tarkyaio/tarka/main/docs/assets/icon.png
+home: https://tarkya.io/
+icon: https://raw.githubusercontent.com/tarkyaio/website/refs/heads/main/assets/icon.png
 
 sources:
   - https://github.com/tarkyaio/tarka
@@ -43,8 +43,12 @@ annotations:
       image: ghcr.io/tarkyaio/tarka:0.3.2
       platforms:
         - linux/amd64
-    - name: tarka-all-providers
-      image: ghcr.io/tarkyaio/tarka:0.3.2-all-providers
+    - name: tarka-llm
+      image: ghcr.io/tarkyaio/tarka:0.3.2-llm
+      platforms:
+        - linux/amd64
+    - name: tarka-full
+      image: ghcr.io/tarkyaio/tarka:0.3.2-full
       platforms:
         - linux/amd64
     - name: tarka-ui

@@ -140,6 +140,10 @@ Notes:\n
 
 Used by GitHub evidence collection to fetch file/diff blobs locally from a per-repo bare mirror, while keeping GitHub API calls metadata-first.
 
+> **Image requirement:** these variables have no effect unless the container includes `git`.
+> Use the `-full` image tag variant (e.g. `ghcr.io/tarkyaio/tarka:0.3.2-full`).
+> See [Image tag variants](helm-chart.md#image-tag-variants).
+
 **ConfigMap**
 - `TARKA_GIT_CACHE_DIR` (default: `/tmp/tarka/git`)
 - `TARKA_GIT_FETCH_TTL_SECONDS` (default: `300`)

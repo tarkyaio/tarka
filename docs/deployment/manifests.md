@@ -120,7 +120,7 @@ Follow the detailed instructions in [GCP WIF Setup](#gcp-workload-identity-feder
 
 ```bash
 source .env.deploy
-./deploy.sh
+./deploy/manifests/deploy.sh
 ```
 
 The script will:
@@ -197,7 +197,7 @@ Open http://localhost:8080 and log in with the credentials shown in the deployme
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AWS_REGION` | `us-east-1` | AWS region |
-| `IMAGE_TAG` | `latest` | Docker image tag |
+| `IMAGE_TAG` | `latest` | Docker image tag to deploy |
 | `S3_PREFIX` | `tarka/reports` | S3 prefix for reports |
 | `LOGS_URL` | _(empty)_ | VictoriaLogs endpoint |
 | `ADMIN_INITIAL_USERNAME` | `admin` | Initial admin username |
@@ -206,6 +206,18 @@ Open http://localhost:8080 and log in with the credentials shown in the deployme
 | `ROLE_NAME` | `tarka-role` | IAM role name |
 | `ASM_SECRET_NAME` | `tarka` | AWS Secrets Manager secret name |
 | `TIME_WINDOW` | `1h` | Evidence collection time window |
+
+### Image Selection
+
+The deploy script builds from `agent/Dockerfile` using the `DOCKER_TARGET` variable. When `GITHUB_EVIDENCE_ENABLED=true`, the target is automatically promoted from `runtime` to `full`.
+
+| Target | LLM SDKs | git | When to use |
+|--------|:---:|:---:|-------------|
+| `runtime` (default) | No | No | Deterministic triage only |
+| `runtime` + `POETRY_EXTRAS=all-providers` | Yes | No | LLM enrichment, no GitHub evidence |
+| `full` + `POETRY_EXTRAS=all-providers` | Yes | Yes | LLM + GitHub evidence |
+
+See [Image tag variants](../guides/helm-chart.md#image-tag-variants) for the published GHCR images used with Helm.
 
 ### Auto-Generated Secrets
 
@@ -331,15 +343,16 @@ Copy this value to your `.env.deploy` file.
 
 ### Verification
 
-Test the setup after deployment:
+Test the setup after deployment. Production images have no shell — use `kubectl debug` to attach an ephemeral container:
 
 ```bash
-# Check pod can authenticate to GCP
-kubectl -n tarka exec -it deploy/tarka-worker -- sh
+kubectl -n tarka debug -it deploy/tarka-worker \
+  --image=cgr.dev/chainguard/python:latest-dev \
+  --target=tarka-worker -- sh
 
-# Inside pod, test GCP access
-curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
-
+# Inside the debug shell, test GCP access
+curl -H "Metadata-Flavor: Google" \
+  http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
 # Should return an access token
 ```
 
@@ -497,10 +510,12 @@ aws ecr get-login-password --region us-east-1 | \
 1. Check NATS is running: `kubectl -n tarka logs statefulset/nats`
 2. Check worker logs: `kubectl -n tarka logs deploy/tarka-worker`
 3. Verify alert name is in `ALERTNAME_ALLOWLIST`
-4. Check Prometheus/Alertmanager connectivity from pods:
+4. Check Prometheus/Alertmanager connectivity — production images have no shell, use an ephemeral debug container:
    ```bash
-   kubectl -n tarka exec -it deploy/tarka-worker -- \
-     curl ${PROMETHEUS_URL}/api/v1/query?query=up
+   kubectl -n tarka debug -it deploy/tarka-worker \
+     --image=cgr.dev/chainguard/python:latest-dev \
+     --target=tarka-worker -- sh -c \
+     'curl ${PROMETHEUS_URL}/api/v1/query?query=up'
    ```
 
 ---
@@ -541,14 +556,13 @@ aws ecr get-login-password --region us-east-1 | \
 Test configuration without deploying:
 
 ```bash
-# Set skip flags to bypass all deployment steps
 export SKIP_BUILD_PUSH=1
 export SKIP_BUCKET_CREATE=1
 export SKIP_BUCKET_POLICY=1
 export SKIP_ASM_SECRET_CREATE=1
 export SKIP_IAM_SETUP=1
 
-./deploy.sh  # Will validate config and show what would be deployed
+./deploy/manifests/deploy.sh  # Validates config and shows what would be deployed
 ```
 
 ### Incremental Updates
@@ -556,21 +570,20 @@ export SKIP_IAM_SETUP=1
 Skip steps that don't need to re-run:
 
 ```bash
-# Already built images and set up AWS resources
 export SKIP_BUILD_PUSH=1
 export SKIP_BUCKET_CREATE=1
 export SKIP_IAM_SETUP=1
 
-./deploy.sh  # Only updates Kubernetes resources
+./deploy/manifests/deploy.sh  # Only updates Kubernetes resources
 ```
 
 ### Custom Docker Targets
 
-Build development image:
+Available targets: `runtime` (default, no git), `full` (git + all LLM providers), `debug` (shell + git, for troubleshooting).
 
 ```bash
-export DOCKER_TARGET=dev
-./deploy.sh
+export DOCKER_TARGET=debug
+./deploy/manifests/deploy.sh
 ```
 
 ### External PostgreSQL
@@ -593,7 +606,7 @@ Encrypt AWS Secrets Manager secret with customer-managed KMS key:
 
 ```bash
 export KMS_KEY_ARN="arn:aws:kms:us-east-1:123456789012:key/abc-123"
-./deploy.sh
+./deploy/manifests/deploy.sh
 ```
 
 ### Multiple Environments
@@ -605,53 +618,14 @@ Deploy separate environments using different configurations:
 source .env.deploy.prod
 export CLUSTER_NAME=prod-cluster
 export S3_BUCKET=prod-tarka-reports
-./deploy.sh
+./deploy/manifests/deploy.sh
 
 # Staging
 source .env.deploy.staging
 export CLUSTER_NAME=staging-cluster
 export S3_BUCKET=staging-tarka-reports
-./deploy.sh
+./deploy/manifests/deploy.sh
 ```
-
----
-
-## Migration from Old deploy.sh
-
-If migrating from a previous deployment with hardcoded values:
-
-1. **Extract current configuration**
-   ```bash
-   kubectl -n tarka get configmap tarka-config -o yaml > old-config.yaml
-   ```
-
-2. **Create .env.deploy with current values**
-   ```bash
-   cp .env.deploy.template .env.deploy
-   # Fill in values from old-config.yaml
-   ```
-
-3. **Update AWS Secrets Manager**
-   - Old secrets had `REPLACE_ME` placeholders
-   - New script merges with existing secrets
-   - Manually verify secret values in AWS console:
-     ```bash
-     aws secretsmanager get-secret-value \
-       --secret-id tarka \
-       --query SecretString \
-       --output text | jq .
-     ```
-
-4. **Run new deployment**
-   ```bash
-   source .env.deploy
-   ./deploy.sh  # Will update in place
-   ```
-
-5. **Verify pods restart**
-   ```bash
-   kubectl -n tarka get pods -w
-   ```
 
 ---
 
