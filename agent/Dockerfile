@@ -1,18 +1,9 @@
-# Build stage: install Python dependencies into an isolated directory
-# Builder uses the official Python slim image so we have apt-get for build tools.
-# This keeps Chainguard for the production runtime stages while allowing packages
-# without pre-built Python 3.14 wheels (e.g. pyarrow) to compile from source.
+# Build stage: install Python dependencies into an isolated directory.
+# Debian slim matches the ABI of the Chainguard runtime image (cpython 3.14) and
+# gives us pip + a normal filesystem for staging deps into /deps.
 FROM python:3.14-slim AS builder
 
 WORKDIR /build
-
-# Build tools for packages that require native compilation.
-# pyarrow (a transitive dep of all-providers extras) has no cp314 wheels; it must be
-# compiled from source. Requires gcc, g++, make, and cmake — cmake needs both a C++
-# compiler and a make program or it aborts before compilation starts.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc g++ make cmake \
-    && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
 RUN pip install --no-cache-dir poetry==1.8.2
@@ -25,8 +16,9 @@ ARG POETRY_EXTRAS=""
 
 # Export the lockfile to requirements.txt and install to /deps.
 # python -m poetry avoids PATH issues with pip-installed scripts.
-# --prefer-binary uses pre-built wheels where available; falls back to source compilation
-# (via gcc/cmake installed above) for packages without Python 3.14 wheels (e.g. pyarrow).
+# --prefer-binary keeps us on prebuilt wheels; the lockfile is pinned so every
+# native dep (pyarrow, numexpr, bottleneck, …) resolves to a cp314 manylinux wheel
+# and no C/C++ toolchain is needed in this stage.
 RUN if [ -n "$POETRY_EXTRAS" ]; then \
         EXTRA_FLAGS=$(echo "$POETRY_EXTRAS" | tr ',' '\n' | sed 's/^/-E /' | tr '\n' ' '); \
         eval "python -m poetry export --only main $EXTRA_FLAGS -f requirements.txt -o requirements.txt"; \
