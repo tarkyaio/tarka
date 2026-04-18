@@ -7,11 +7,11 @@ FROM python:3.14-slim AS builder
 WORKDIR /build
 
 # Build tools for packages that require native compilation.
-# NOTE: pyarrow (a transitive dep of all-providers extras) does not yet ship Python 3.14
-# wheels and its source build is incompatible with 3.14. Until the lockfile is updated to
-# a pyarrow release with 3.14 support, the llm/full targets will fail at this step.
+# pyarrow (a transitive dep of all-providers extras) has no cp314 wheels; it must be
+# compiled from source. Requires gcc, g++, make, and cmake — cmake needs both a C++
+# compiler and a make program or it aborts before compilation starts.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc cmake \
+    && apt-get install -y --no-install-recommends gcc g++ make cmake \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry

@@ -36,7 +36,7 @@ help:
 	@echo "  make dev-clean         - Clean all development artifacts"
 	@echo ""
 	@echo "Docker:"
-	@echo "  make docker-build      - Build core Docker images (agent: runtime, UI)"
+	@echo "  make docker-build      - Build all Docker images (runtime, llm, full, UI)"
 
 install:
 	poetry install
@@ -95,16 +95,16 @@ format-check:
 # Docker
 # ==============================================================================
 
-docker-build: ## Build Docker images (agent: runtime; UI). llm/full blocked on pyarrow Python 3.14 support.
+docker-build: ## Build all Docker images (runtime, llm, full, UI)
 	@echo "Building agent image (runtime — deterministic only)..."
 	docker build --platform linux/amd64 -f agent/Dockerfile --target runtime -t tarka:runtime .
+	@echo "Building agent image (llm — + LLM enrichment)..."
+	docker build --platform linux/amd64 -f agent/Dockerfile --target runtime --build-arg POETRY_EXTRAS=all-providers -t tarka:llm .
+	@echo "Building agent image (full — + LLM + GitHub evidence)..."
+	docker build --platform linux/amd64 -f agent/Dockerfile --target full --build-arg POETRY_EXTRAS=all-providers -t tarka:full .
 	@echo "Building UI image..."
 	docker build --platform linux/amd64 -f ui/Dockerfile -t tarka-ui:latest ui/
-	@echo "✓ Core images built successfully"
-	@echo ""
-	@echo "NOTE: tarka:llm and tarka:full are not built here — pyarrow (transitive dep of"
-	@echo "      all-providers extras) has no Python 3.14 wheels and its source build fails."
-	@echo "      Update the pyarrow pin in the lockfile to unblock those targets."
+	@echo "✓ All images built successfully"
 
 # ==============================================================================
 # UI Tests
