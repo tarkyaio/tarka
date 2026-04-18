@@ -1,0 +1,16 @@
+# ArtifactHub repository metadata.
+# Pushed to ghcr.io/tarkyaio/charts/tarka:artifacthub.io as an OCI artifact
+# by .github/workflows/release.yml. See:
+#   https://artifacthub.io/docs/topics/repositories/#verified-publisher
+#   https://artifacthub.io/docs/topics/repositories/helm-charts/
+
+# Repository ID from the ArtifactHub Control Panel > Repositories tab > ID.
+repositoryID: ce6ac17c-ccd9-45db-a3c8-b1acc473e228
+
+# The user claiming ownership must appear here. The email must match the
+# email of the ArtifactHub account exactly.
+owners:
+  - name: Dinesh Auti
+    email: dinesh@tarkya.io
+  - name: Lucas Saboya
+    email: lucas@tarkya.io

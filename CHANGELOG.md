@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-04-18
+
+### Added
+
+- **Helm chart**: Ship `README.md`, `CHANGELOG.md`, and `LICENSE` inside the chart tarball so they are visible on ArtifactHub.
+- **ArtifactHub**: Publish repository metadata (`artifacthub-repo.yml`) as an OCI artifact alongside each chart release to claim Verified Publisher status.
+
+### Fixed
+
+- **Images**: `-llm` and `-full` image variants are now published at the release version (the matrix fix from #50 was merged after the v0.4.0 tag, so those tags were missing on 0.4.0).
+
 ## [0.4.0] - 2026-04-18
 
 ### Changed

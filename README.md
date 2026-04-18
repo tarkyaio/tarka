@@ -2,7 +2,7 @@
 
 *Sanskrit: logic, reasoning, structured argument*
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE) [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/tarka)](https://artifacthub.io/packages/search?repo=tarka)
 
 An on-call oriented agent that turns Prometheus/Alertmanager alerts into actionable triage reports.
 
