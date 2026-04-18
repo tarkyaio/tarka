@@ -28,7 +28,3 @@ Jenkinsfile
 # Testing
 tests/
 ci/
-# Documentation
-README.md
-CHANGELOG.md
-LICENSE

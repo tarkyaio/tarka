@@ -2,8 +2,8 @@ apiVersion: v2
 name: tarka
 description: AI-powered Kubernetes alert triage. Converts Prometheus/Alertmanager alerts into actionable investigation reports.
 type: application
-version: 0.4.0
-appVersion: "0.4.0"
+version: 0.4.1
+appVersion: "0.4.1"
 
 home: https://tarkya.io/
 icon: https://raw.githubusercontent.com/tarkyaio/tarka/main/docs/assets/icon.png
@@ -57,7 +57,7 @@ annotations:
         - linux/amd64
   artifacthub.io/changes: |
     - kind: added
-      description: Initial Helm chart release
+      description: Release notes are stamped from CHANGELOG.md at build time.
   artifacthub.io/prerelease: "false"
   artifacthub.io/screenshots: |
     - title: Case Inbox

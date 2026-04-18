@@ -199,6 +199,16 @@ jobs:
           DIGEST=$(echo "$OUTPUT" | grep -oP 'sha256:[a-f0-9]+')
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
 
+      - name: Install oras
+        uses: oras-project/setup-oras@38de303aac69abb66f3e6255b7198bff35f323e3 # v2.0.0
+
+      - name: Push ArtifactHub repository metadata
+        run: |
+          oras push \
+            ghcr.io/tarkyaio/charts/tarka:artifacthub.io \
+            --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml \
+            artifacthub-repo.yml:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml
+
       - name: Log in to GHCR (Docker)
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v4.1.0
         with:
