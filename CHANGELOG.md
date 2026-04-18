@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-04-18
+
+### Changed
+
+- **Images**: Harden all images with Chainguard base images; restructure image variants and deploy tooling (#45)
+- **Repo**: Remove website from the main app's repository (#44)
+
+### Dependencies
+
+- Bump authlib from 1.6.9 to 1.6.11 (#47)
+- Bump langsmith from 0.7.2 to 0.7.31 (#46)
+- Bump pytest from 8.3.4 to 9.0.3 (#43)
+
 ## [0.3.2] - 2026-04-10
 
 ### Added

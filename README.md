@@ -29,23 +29,23 @@ See [Triage Methodology](docs/acceptance/triage-methodology.md) for the philosop
 
 **Case Inbox** -- All active alerts in one place, scored and classified automatically.
 
-![Case Inbox](docs/screenshots/inbox.png)
+![Case Inbox](docs/assets/screenshots/inbox.png)
 
 **Leadership Dashboard** -- ROI metrics, signal quality, incident trends, and engineer hours saved.
 
-![Leadership Dashboard](docs/screenshots/dashboard.png)
+![Leadership Dashboard](docs/assets/screenshots/dashboard.png)
 
 **Triage Report** -- Structured evidence, verdict, and copy-paste-ready next steps for every alert.
 
-![Triage Report](docs/screenshots/report.png)
+![Triage Report](docs/assets/screenshots/report.png)
 
 **Case Chat** -- Ask follow-up questions about a specific case. The agent has full context of the investigation.
 
-![Case Chat](docs/screenshots/case-chat.png)
+![Case Chat](docs/assets/screenshots/case-chat.png)
 
 **Global Chat** -- Query across all cases with tool-using AI (PromQL, kubectl, log search, and more).
 
-![Global Chat](docs/screenshots/global-chat.png)
+![Global Chat](docs/assets/screenshots/global-chat.png)
 
 Full example inputs and reports are available in the [`examples/`](examples/) directory:
 
