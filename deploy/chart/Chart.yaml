@@ -2,11 +2,11 @@ apiVersion: v2
 name: tarka
 description: AI-powered Kubernetes alert triage. Converts Prometheus/Alertmanager alerts into actionable investigation reports.
 type: application
-version: 0.3.2
-appVersion: "0.3.2"
+version: 0.4.0
+appVersion: "0.4.0"
 
 home: https://tarkya.io/
-icon: https://raw.githubusercontent.com/tarkyaio/website/refs/heads/main/assets/icon.png
+icon: https://raw.githubusercontent.com/tarkyaio/tarka/main/docs/assets/icon.png
 
 sources:
   - https://github.com/tarkyaio/tarka
@@ -60,10 +60,16 @@ annotations:
       description: Initial Helm chart release
   artifacthub.io/prerelease: "false"
   artifacthub.io/screenshots: |
-    - title: Console UI - Case Dashboard
+    - title: Case Inbox
+      url: https://raw.githubusercontent.com/tarkyaio/tarka/main/docs/assets/screenshots/inbox.png
+    - title: Leadership Dashboard
       url: https://raw.githubusercontent.com/tarkyaio/tarka/main/docs/assets/screenshots/dashboard.png
-    - title: Console UI - Investigation Report
+    - title: Triage Report
       url: https://raw.githubusercontent.com/tarkyaio/tarka/main/docs/assets/screenshots/report.png
+    - title: Case Chat
+      url: https://raw.githubusercontent.com/tarkyaio/tarka/main/docs/assets/screenshots/case-chat.png
+    - title: Global Chat
+      url: https://raw.githubusercontent.com/tarkyaio/tarka/main/docs/assets/screenshots/global-chat.png
   artifacthub.io/recommendations: |
     - url: https://artifacthub.io/packages/helm/nats/nats
     - url: https://artifacthub.io/packages/helm/prometheus-community/kube-prometheus-stack
