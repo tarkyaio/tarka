@@ -52,9 +52,7 @@ def extract_changelog_entries(version: str, changelog_path: Path) -> list[tuple[
     )
     match = section_re.search(text)
     if not match:
-        raise SystemExit(
-            f"Error: no CHANGELOG entry for version {version} in {changelog_path}"
-        )
+        raise SystemExit(f"Error: no CHANGELOG entry for version {version} in {changelog_path}")
 
     entries: list[tuple[str, str]] = []
     current_kind: str | None = None
@@ -70,9 +68,7 @@ def extract_changelog_entries(version: str, changelog_path: Path) -> list[tuple[
             entries.append((current_kind, bullet.group(1).strip()))
 
     if not entries:
-        raise SystemExit(
-            f"Error: CHANGELOG section for {version} has no bullet entries"
-        )
+        raise SystemExit(f"Error: CHANGELOG section for {version} has no bullet entries")
     return entries
 
 
@@ -96,13 +92,9 @@ def stamp(version: str, chart_path: Path, changelog_path: Path) -> None:
 
     entries = extract_changelog_entries(version, changelog_path)
     rendered = render_changes(entries)
-    new_text, substitutions = CHANGES_BLOCK_RE.subn(
-        lambda m: m.group(1) + rendered, text, count=1
-    )
+    new_text, substitutions = CHANGES_BLOCK_RE.subn(lambda m: m.group(1) + rendered, text, count=1)
     if substitutions == 0:
-        raise SystemExit(
-            f"Error: could not find artifacthub.io/changes block in {chart_path}"
-        )
+        raise SystemExit(f"Error: could not find artifacthub.io/changes block in {chart_path}")
     text = new_text
 
     if text == original:
